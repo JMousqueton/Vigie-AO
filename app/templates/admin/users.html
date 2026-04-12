@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+{% block title %}Administration — Vigie AO{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-gear"></i> Panel Administration</h1>
+    <p>Gestion des utilisateurs, sources, alertes</p>
+  </div>
+
+  <!-- Stats admin -->
+  <div class="admin-stats">
+    <div class="admin-stat">
+      <i class="fa-solid fa-users"></i>
+      <div>
+        <span class="stat-value">{{ nb_active }} / {{ nb_users }}</span>
+        <span class="stat-label">Utilisateurs actifs</span>
+      </div>
+    </div>
+    <div class="admin-stat">
+      <i class="fa-solid fa-database"></i>
+      <div>
+        <span class="stat-value">{{ nb_dossiers }}</span>
+        <span class="stat-label">Dossiers en cache</span>
+      </div>
+    </div>
+    <div class="admin-stat">
+      <i class="fa-solid fa-envelope"></i>
+      <div>
+        <span class="stat-value">{{ nb_alerts_ok }} / {{ nb_alerts }}</span>
+        <span class="stat-label">Alertes envoyées</span>
+      </div>
+    </div>
+    <div class="admin-stat">
+      <i class="fa-solid fa-rotate"></i>
+      <div>
+        <span class="stat-value stat-small">
+          {% if last_fetched %}{{ last_fetched.strftime('%d/%m %H:%M') }}{% else %}—{% endif %}
+        </span>
+        <span class="stat-label">Dernier refresh</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions rapides -->
+  <div class="admin-actions-bar">
+    <form method="post" action="{{ url_for('admin.manual_refresh') }}"
+          onsubmit="showLoading('Récupération des données BOAMP / TED…')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <button type="submit" class="btn btn-primary">
+        <i class="fa-solid fa-rotate"></i> Refresh toutes les bases
+      </button>
+    </form>
+    <a href="{{ url_for('admin.import_emails') }}" class="btn btn-outline">
+      <i class="fa-solid fa-file-import"></i> Importer des emails
+    </a>
+  </div>
+
+  <!-- Onglets -->
+  <div class="admin-tabs">
+    <button class="admin-tab {{ 'active' if active_tab == 'users' }}"
+            onclick="switchTab('users')">
+      <i class="fa-solid fa-users"></i> Utilisateurs
+    </button>
+    <button class="admin-tab {{ 'active' if active_tab == 'sources' }}"
+            onclick="switchTab('sources')">
+      <i class="fa-solid fa-database"></i> Sources
+    </button>
+    <button class="admin-tab {{ 'active' if active_tab == 'keywords' }}"
+            onclick="switchTab('keywords')">
+      <i class="fa-solid fa-tags"></i> Mots-clés
+    </button>
+    <button class="admin-tab {{ 'active' if active_tab == 'logs' }}"
+            onclick="switchTab('logs')">
+      <i class="fa-solid fa-list-check"></i> Logs alertes
+    </button>
+  </div>
+
+  <!-- ─── TAB : Import emails (mode preview) -->
+  {% if show_import %}
+  <div class="tab-panel" id="tab-users">
+  <div class="card mt-4">
+    <div class="card-header">
+      <i class="fa-solid fa-file-import"></i>
+      <h2>Import d'emails</h2>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('admin.import_emails') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        <div class="form-group">
+          <label>Fichier .txt (un email par ligne)</label>
+          <input type="file" name="email_file" class="form-control" accept=".txt" />
+        </div>
+        <div class="form-group">
+          <label>Ou coller les emails directement</label>
+          <textarea name="email_list" class="form-control mono" rows="8"
+                    placeholder="jean.dupont@domain.com&#10;marie.martin@domain.com"></textarea>
+        </div>
+
+        {% if preview %}
+        <div class="import-preview">
+          <h4>Prévisualisation ({{ preview | length }} emails)</h4>
+          <div class="preview-list">
+            {% for p in preview %}
+            <div class="preview-item {{ 'preview-exists' if p.exists else 'preview-new' }}">
+              <i class="fa-solid {{ 'fa-user-check' if p.exists else 'fa-user-plus' }}"></i>
+              {{ p.email }}
+              {% if p.exists %}<span class="text-muted">(déjà enregistré)</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <button type="submit" name="confirm" value="1" class="btn btn-primary mt-3">
+            <i class="fa-solid fa-paper-plane"></i>
+            Créer les comptes et envoyer les invitations
+          </button>
+        </div>
+        {% else %}
+        <button type="submit" class="btn btn-outline">
+          <i class="fa-solid fa-eye"></i> Prévisualiser
+        </button>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ─── TAB : Utilisateurs -->
+  <div class="tab-panel" id="tab-users">
+
+  <!-- Tableau utilisateurs -->
+  <div class="card mt-4">
+    <div class="card-header">
+      <i class="fa-solid fa-users"></i>
+      <h2>Utilisateurs ({{ nb_users }})</h2>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Utilisateur</th>
+              <th>Email</th>
+              <th>Rôle</th>
+              <th>Statut</th>
+              <th>Inscription</th>
+              <th>Dernière cnx</th>
+              <th>Alertes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr class="{{ 'row-inactive' if not user.is_active }}">
+              <td>
+                <span class="user-avatar-sm">{{ user.prenom[0] }}{{ user.nom[0] }}</span>
+                {{ user.full_name }}
+              </td>
+              <td class="mono text-small">{{ user.email }}</td>
+              <td>
+                <span class="badge {{ 'badge-admin' if user.is_admin else 'badge-user' }}">
+                  {{ user.role }}
+                </span>
+              </td>
+              <td>
+                {% if user.is_active %}
+                  <span class="status-dot status-active"></span> Actif
+                {% else %}
+                  <span class="status-dot status-inactive"></span> Inactif
+                {% endif %}
+              </td>
+              <td class="text-small">{{ user.created_at.strftime('%d/%m/%Y') }}</td>
+              <td class="text-small">
+                {{ user.last_login.strftime('%d/%m/%Y %H:%M') if user.last_login else '—' }}
+              </td>
+              <td class="text-small">
+                {% if user.alert_enabled %}
+                  <span class="text-success"><i class="fa-solid fa-bell"></i></span>
+                  {{ user.alert_frequency }}
+                {% else %}
+                  <span class="text-muted"><i class="fa-solid fa-bell-slash"></i></span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="table-actions">
+                  {% if not user.is_active %}
+                  <form method="post" action="{{ url_for('admin.activate_user', user_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-xs btn-success" title="Activer">
+                      <i class="fa-solid fa-check"></i>
+                    </button>
+                  </form>
+                  {% else %}
+                  <form method="post" action="{{ url_for('admin.deactivate_user', user_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-xs btn-warning" title="Désactiver"
+                            {{ 'disabled' if user.id == current_user.id }}>
+                      <i class="fa-solid fa-ban"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+
+                  <form method="post" action="{{ url_for('admin.promote_user', user_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-xs btn-ghost" title="{{ 'Rétrograder' if user.is_admin else 'Promouvoir admin' }}"
+                            {{ 'disabled' if user.id == current_user.id }}>
+                      <i class="fa-solid {{ 'fa-user-minus' if user.is_admin else 'fa-user-shield' }}"></i>
+                    </button>
+                  </form>
+
+                  <form method="post" action="{{ url_for('admin.reset_password', user_id=user.id) }}"
+                        onsubmit="return confirm('Réinitialiser le mot de passe de {{ user.email }} ?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-xs btn-ghost" title="Réinitialiser MDP">
+                      <i class="fa-solid fa-key"></i>
+                    </button>
+                  </form>
+
+                  <form method="post" action="{{ url_for('admin.delete_user', user_id=user.id) }}"
+                        onsubmit="return confirm('Supprimer définitivement {{ user.email }} ?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-xs btn-danger" title="Supprimer"
+                            {{ 'disabled' if user.id == current_user.id }}>
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  </div>{# /tab-panel users #}
+
+  <!-- ─── TAB : Sources -->
+  <div class="tab-panel" id="tab-sources">
+  <div class="card mt-4">
+    <div class="card-header">
+      <i class="fa-solid fa-database"></i>
+      <h2>Sources de données</h2>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Dossiers</th>
+              <th>Dernier refresh</th>
+              <th>Dernière entrée</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for src in sources_info %}
+            <tr class="{{ 'row-inactive' if not src.enabled }}">
+              <td>
+                <span class="badge-source badge-source-{{ src.source | lower }}" style="display:inline-flex; align-items:center; gap:5px;">
+                  <img src="{{ url_for('static', filename=src.source + '.png') }}" alt="{{ src.source }}" class="source-logo">
+                  {% if src.source == 'TED' %}TED v3{% else %}{{ src.source }}{% endif %}
+                </span>
+              </td>
+              <td class="text-small mono">{{ src.count }}</td>
+              <td class="text-small">
+                {{ src.last_fetched.strftime('%d/%m/%Y %H:%M') if src.last_fetched else '—' }}
+              </td>
+              <td class="text-small">
+                {{ src.last_parution.strftime('%d/%m/%Y') if src.last_parution else '—' }}
+              </td>
+              <td>
+                {% if src.enabled %}
+                  <span class="status-dot status-active"></span> Activée
+                {% else %}
+                  <span class="status-dot status-inactive"></span> Désactivée
+                {% endif %}
+              </td>
+              <td>
+                <div class="table-actions">
+
+                  <!-- Refresh -->
+                  {% set refresh_msg = "Interrogation de l'API TED en cours\u2026" if src.source == 'TED' else "R\u00e9cup\u00e9ration des donn\u00e9es BOAMP\u2026" %}
+                  <form method="post" action="{{ url_for('admin.refresh_source', source=src.source) }}"
+                        data-source="{{ src.source }}"
+                        onsubmit="showLoading('{{ refresh_msg }}')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-xs btn-ghost" title="Rafraîchir {{ src.source }}">
+                      <i class="fa-solid fa-rotate"></i>
+                    </button>
+                  </form>
+
+                  <!-- Enable / Disable -->
+                  <form method="post" action="{{ url_for('admin.toggle_source', source=src.source) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit"
+                            class="btn btn-xs {{ 'btn-warning' if src.enabled else 'btn-success' }}"
+                            title="{{ 'Désactiver' if src.enabled else 'Activer' }} {{ src.source }}">
+                      <i class="fa-solid {{ 'fa-toggle-on' if src.enabled else 'fa-toggle-off' }}"></i>
+                    </button>
+                  </form>
+
+                  <!-- Delete -->
+                  <form method="post" action="{{ url_for('admin.delete_source', source=src.source) }}"
+                        onsubmit="return confirm('Supprimer les {{ src.count }} dossier(s) {{ src.source }} du cache ?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-xs btn-danger" title="Vider le cache {{ src.source }}">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </form>
+
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  </div>{# /tab-panel sources #}
+
+  <!-- ─── TAB : Mots-clés -->
+  <div class="tab-panel" id="tab-keywords">
+  <div class="card mt-4">
+    <div class="card-header">
+      <i class="fa-solid fa-tags"></i>
+      <h2>Mots-clés BOAMP</h2>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('admin.save_keywords') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        <p style="color:var(--text-muted); font-size:13px; margin:0 0 20px;">
+          Un mot-clé par ligne. Les mots-clés de recherche déclenchent la collecte
+          depuis l'API BOAMP (<code>objet like "%mot%"</code>). Les mots-clés de
+          scoring déterminent le score de pertinence affiché sur chaque dossier.
+          <br>Les modifications prennent effet au prochain refresh BOAMP.
+        </p>
+
+        <div class="keywords-grid">
+
+          <div class="keyword-section">
+            <label class="keyword-label">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              Mots-clés de recherche BOAMP
+              <span class="kw-hint">Cherchés dans le champ <code>objet</code></span>
+            </label>
+            <textarea name="kw_search" class="form-control mono kw-textarea"
+                      rows="14" spellcheck="false">{{ kw_search }}</textarea>
+          </div>
+
+          <div class="keyword-section">
+            <label class="keyword-label">
+              <i class="fa-solid fa-star" style="color:var(--accent-orange)"></i>
+              Score HAUTE pertinence
+              <span class="kw-hint">+20 pts par mot trouvé</span>
+            </label>
+            <textarea name="kw_haute" class="form-control mono kw-textarea"
+                      rows="6" spellcheck="false">{{ kw_haute }}</textarea>
+
+            <label class="keyword-label" style="margin-top:16px;">
+              <i class="fa-solid fa-star-half-stroke" style="color:var(--accent-blue)"></i>
+              Score MOYENNE pertinence
+              <span class="kw-hint">+10 pts par mot trouvé</span>
+            </label>
+            <textarea name="kw_moyenne" class="form-control mono kw-textarea"
+                      rows="6" spellcheck="false">{{ kw_moyenne }}</textarea>
+
+            <label class="keyword-label" style="margin-top:16px;">
+              <i class="fa-regular fa-star" style="color:var(--text-muted)"></i>
+              Score CONTEXTE
+              <span class="kw-hint">+5 pts par mot trouvé</span>
+            </label>
+            <textarea name="kw_contexte" class="form-control mono kw-textarea"
+                      rows="8" spellcheck="false">{{ kw_contexte }}</textarea>
+          </div>
+
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:12px; align-items:center;">
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Enregistrer les mots-clés
+          </button>
+          <span style="color:var(--text-muted); font-size:12px;">
+            Dernier refresh : {% if last_fetched %}{{ last_fetched.strftime('%d/%m/%Y à %H:%M') }}{% else %}jamais{% endif %}
+          </span>
+        </div>
+      </form>
+    </div>
+  </div>
+  </div>{# /tab-panel keywords #}
+
+  <!-- ─── TAB : Logs alertes -->
+  <div class="tab-panel" id="tab-logs">
+  {% if recent_logs %}
+  <div class="card mt-4">
+    <div class="card-header">
+      <i class="fa-solid fa-list-check"></i>
+      <h2>Derniers envois d'alertes</h2>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr><th>Date</th><th>Utilisateur</th><th>Type</th><th>Dossiers</th><th>Statut</th></tr>
+          </thead>
+          <tbody>
+            {% for log in recent_logs %}
+            <tr>
+              <td class="text-small mono">{{ log.sent_at.strftime('%d/%m/%Y %H:%M') }}</td>
+              <td class="text-small">{{ log.user_id }}</td>
+              <td><span class="badge badge-user">{{ log.type_alerte }}</span></td>
+              <td>{{ log.nb_dossiers }}</td>
+              <td>
+                {% if log.success %}
+                  <span class="status-dot status-active"></span> OK
+                {% else %}
+                  <span class="status-dot status-inactive"></span>
+                  <span class="text-danger" title="{{ log.error_msg }}">Erreur</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  </div>{# /tab-panel logs #}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.style.display = 'block';
+  const btn = [...document.querySelectorAll('.admin-tab')]
+    .find(t => t.getAttribute('onclick') === `switchTab('${name}')`);
+  if (btn) btn.classList.add('active');
+  // Mettre à jour l'URL sans rechargement
+  const url = new URL(window.location);
+  url.searchParams.set('tab', name);
+  history.replaceState(null, '', url);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  switchTab(params.get('tab') || 'users');
+});
+</script>
+{% endblock %}

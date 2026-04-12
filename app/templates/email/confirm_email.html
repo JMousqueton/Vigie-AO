@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{% if is_invitation %}Invitation{% else %}Confirmez votre email{% endif %} — Vigie AO</title>
+<style>
+  body { margin: 0; padding: 0; background: #070B14; font-family: Arial, sans-serif; color: #e2e8f0; }
+  .wrapper { max-width: 600px; margin: 40px auto; background: #0F1623; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+  .header { background: linear-gradient(135deg, #0EA5E9, #0284C7); padding: 32px; text-align: center; }
+  .header-icon { font-size: 48px; margin-bottom: 12px; }
+  .header h1 { margin: 0; color: #fff; font-size: 24px; font-weight: 700; }
+  .header p { margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px; }
+  .body { padding: 32px; }
+  .body h2 { color: #e2e8f0; font-size: 20px; margin: 0 0 16px; }
+  .body p { color: #94a3b8; line-height: 1.6; margin: 0 0 16px; }
+  .btn-cta { display: inline-block; background: #0EA5E9; color: #fff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; margin: 16px 0; }
+  .btn-cta:hover { background: #0284C7; }
+  .info-box { background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3); border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .info-box p { margin: 0; color: #7dd3fc; font-size: 13px; }
+  .pwd-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; margin: 16px 0; font-family: monospace; font-size: 18px; color: #f0f9ff; text-align: center; letter-spacing: 2px; }
+  .footer { padding: 24px 32px; border-top: 1px solid rgba(255,255,255,0.08); text-align: center; }
+  .footer p { color: #475569; font-size: 12px; margin: 0; }
+  .link-fallback { color: #0EA5E9; font-size: 12px; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <div class="header-icon">🛡️</div>
+    <h1>Vigie AO</h1>
+    <p>{% if is_invitation %}Invitation à rejoindre la plateforme{% else %}Confirmez votre adresse email{% endif %}</p>
+  </div>
+
+  <div class="body">
+    <h2>Bonjour {{ user.prenom }},</h2>
+
+    {% if is_invitation %}
+    <p>Vous avez été invité(e) à rejoindre la plateforme de veille des appels d'offres publics <strong>Vigie AO</strong>.</p>
+    <p>Votre compte a été créé. Voici votre mot de passe temporaire :</p>
+    <div class="pwd-box">{{ temp_password }}</div>
+    <p>Cliquez sur le bouton ci-dessous pour activer votre compte et vous connecter :</p>
+    {% else %}
+    <p>Merci de votre inscription sur la plateforme de veille <strong>Vigie AO</strong>.</p>
+    <p>Cliquez sur le bouton ci-dessous pour confirmer votre adresse email et activer votre compte :</p>
+    {% endif %}
+
+    <div style="text-align: center;">
+      <a href="{{ confirm_url }}" class="btn-cta">
+        {% if is_invitation %}Activer mon compte{% else %}Confirmer mon email{% endif %}
+      </a>
+    </div>
+
+    <div class="info-box">
+      <p>⏱️ Ce lien est valable <strong>24 heures</strong>. Après expiration, contactez un administrateur.</p>
+    </div>
+
+    <p>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :</p>
+    <a href="{{ confirm_url }}" class="link-fallback">{{ confirm_url }}</a>
+
+    <p>Si vous n'avez pas demandé la création de ce compte, ignorez cet email.</p>
+  </div>
+
+  <div class="footer">
+    <p>Cet email a été envoyé automatiquement par la plateforme Vigie AO.</p>
+    <p>© {{ 2026 }} Julien Mousqueton — Ne pas répondre à cet email.</p>
+  </div>
+</div>
+</body>
+</html>

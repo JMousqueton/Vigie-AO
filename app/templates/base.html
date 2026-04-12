@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="{{ active_theme }}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Vigie AO{% endblock %}</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- CSRF token pour les requêtes AJAX -->
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
+
+  <!-- CSS principal -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<!-- ─── HEADER ─────────────────────────────────────────────────────────────── -->
+<header class="site-header">
+  <div class="header-inner">
+    <!-- Logo -->
+    <a href="{{ url_for('main.dashboard') }}" class="logo-link">
+      <div class="logo-mark">
+        <span class="logo-icon"><i class="fa-solid fa-shield-halved"></i></span>
+        <div class="logo-text">
+          <span class="logo-brand">Vigie</span>
+          <span class="logo-sub">Appels d'offre</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Nav principale -->
+    {% if current_user.is_authenticated %}
+    <nav class="main-nav">
+      <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+        <i class="fa-solid fa-gauge-high"></i> Dashboard
+      </a>
+      <a href="{{ url_for('watchlist.index') }}" class="nav-link {% if request.blueprint == 'watchlist' %}active{% endif %}">
+        <i class="fa-solid fa-star"></i> Watchlist
+      </a>
+      {% if current_user.is_admin %}
+      <a href="{{ url_for('admin.index') }}" class="nav-link {% if request.blueprint == 'admin' %}active{% endif %}">
+        <i class="fa-solid fa-gear"></i> Admin
+      </a>
+      {% endif %}
+    </nav>
+
+    <!-- Actions droite -->
+    <div class="header-actions">
+      <div class="user-menu">
+        <button class="user-btn" id="userMenuBtn">
+          <span class="user-avatar">{{ current_user.prenom[0] }}{{ current_user.nom[0] }}</span>
+          <span class="user-name">{{ current_user.prenom }}</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown">
+          <div class="dropdown-header">
+            <strong>{{ current_user.full_name }}</strong>
+            <small>{{ current_user.email }}</small>
+            {% if current_user.is_admin %}<span class="badge-admin">ADMIN</span>{% endif %}
+          </div>
+          <div class="dropdown-divider"></div>
+          <a href="{{ url_for('auth.profile') }}" class="dropdown-item">
+            <i class="fa-solid fa-user-pen"></i> Mon profil
+          </a>
+          <div class="dropdown-divider"></div>
+          <!-- Toggle dark / light -->
+          <button class="dropdown-item" id="themeToggle" onclick="toggleTheme()" type="button">
+            {% if active_theme == 'light' %}
+              <i class="fa-solid fa-moon"></i> Mode sombre
+            {% else %}
+              <i class="fa-solid fa-sun"></i> Mode clair
+            {% endif %}
+          </button>
+          <div class="dropdown-divider"></div>
+          <form method="post" action="{{ url_for('auth.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button type="submit" class="dropdown-item danger">
+              <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</header>
+
+<!-- ─── FLASH MESSAGES ──────────────────────────────────────────────────────── -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-container">
+  {% for category, message in messages %}
+  <div class="flash flash-{{ category }}">
+    <i class="fa-solid {% if category == 'success' %}fa-circle-check{% elif category == 'danger' %}fa-circle-xmark{% elif category == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+    {{ message }}
+    <button class="flash-close" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<!-- ─── LOADING OVERLAY ─────────────────────────────────────────────────────── -->
+<div id="loadingOverlay" class="loading-overlay" style="display:none;">
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <p class="loading-msg" id="loadingMsg">Chargement…</p>
+  </div>
+</div>
+
+<!-- ─── MAIN CONTENT ────────────────────────────────────────────────────────── -->
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ─── FOOTER ─────────────────────────────────────────────────────────────── -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span class="footer-brand">Vigie AO @ Copyright 2026 - Julien Mousqueton</span>
+    <span class="footer-sep">·</span>
+    <span class="footer-info">Données : <a href="https://boamp-datadila.opendatasoft.com" target="_blank" rel="noopener">BOAMP Opendatasoft</a></span>
+    <span class="footer-sep">·</span>
+    <span class="footer-info">API v2.1</span>
+    <span class="footer-sep">·</span>
+    <span class="footer-info">Données : <a href="https://ted.europa.eu" target="_blank" rel="noopener">TED v3</a> — Tenders Electronic Daily</span>
+  </div>
+</footer>
+
+<!-- JS principal -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

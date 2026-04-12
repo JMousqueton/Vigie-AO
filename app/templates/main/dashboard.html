@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Vigie AO{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+
+  <!-- ─── STAT BAR ──────────────────────────────────────────────────────── -->
+  <section class="stat-bar">
+    <div class="stat-item">
+      <i class="fa-solid fa-file-lines"></i>
+      <div>
+        <span class="stat-value">{{ total }}</span>
+        <span class="stat-label">Dossiers</span>
+      </div>
+    </div>
+    <div class="stat-item stat-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>
+        <span class="stat-value">{{ nb_rectifs }}</span>
+        <span class="stat-label">Rectificatifs</span>
+      </div>
+    </div>
+    <div class="stat-item stat-success">
+      <i class="fa-solid fa-trophy"></i>
+      <div>
+        <span class="stat-value">{{ nb_attributions }}</span>
+        <span class="stat-label">Attributions</span>
+      </div>
+    </div>
+    <div class="stat-item stat-danger">
+      <i class="fa-solid fa-clock"></i>
+      <div>
+        <span class="stat-value">{{ nb_urgents }}</span>
+        <span class="stat-label">Urgents</span>
+      </div>
+    </div>
+    <div class="stat-item stat-meta freshness-{{ freshness }}">
+      <i class="fa-solid fa-rotate"></i>
+      <div>
+        <span class="stat-value stat-small">
+          {% if last_fetched %}{{ last_fetched.strftime('%d/%m %H:%M') }}{% else %}—{% endif %}
+        </span>
+        <span class="stat-label">
+          Mis à jour
+          {% if freshness == 'stale' %}<i class="fa-solid fa-circle-exclamation" title="Données de plus de 4h"></i>{% endif %}
+          {% if freshness == 'old' %}<i class="fa-solid fa-triangle-exclamation" title="Données de plus de 24h"></i>{% endif %}
+        </span>
+      </div>
+    </div>
+  </section>
+
+  {% if current_user.is_admin %}
+  <form id="refreshForm" method="post" action="{{ url_for('main.manual_refresh') }}" style="display:none;"
+        onsubmit="showLoading('Récupération des données BOAMP / TED…')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  </form>
+  {% endif %}
+
+  <!-- ─── FILTRES STICKY ───────────────────────────────────────────────── -->
+  <section class="filters-bar sticky-filters" id="filtersBar">
+    <form id="filterForm" method="get" action="{{ url_for('main.dashboard') }}">
+
+      <!-- Type tabs -->
+      <div class="filter-tabs">
+        <a href="{{ url_for('main.dashboard', q=search, dept=dept, tri=tri) }}"
+           class="filter-tab {{ 'active' if filtre == 'tous' }}">
+          <i class="fa-solid fa-border-all"></i> Tous
+        </a>
+        <a href="{{ url_for('main.dashboard', filtre='avis', q=search, dept=dept, tri=tri) }}"
+           class="filter-tab {{ 'active' if filtre == 'avis' }}">
+          <i class="fa-solid fa-file-circle-plus"></i> Avis
+        </a>
+        <a href="{{ url_for('main.dashboard', filtre='rectificatifs', q=search, dept=dept, tri=tri) }}"
+           class="filter-tab filter-tab-warning {{ 'active' if filtre == 'rectificatifs' }}">
+          <i class="fa-solid fa-file-pen"></i> Rectificatifs
+        </a>
+        <a href="{{ url_for('main.dashboard', filtre='attributions', q=search, dept=dept, tri=tri) }}"
+           class="filter-tab filter-tab-success {{ 'active' if filtre == 'attributions' }}">
+          <i class="fa-solid fa-trophy"></i> Attributions
+        </a>
+        <a href="{{ url_for('main.dashboard', filtre='watchlist', q=search, dept=dept, tri=tri) }}"
+           class="filter-tab filter-tab-star {{ 'active' if filtre == 'watchlist' }}">
+          <i class="fa-solid fa-star"></i> Ma watchlist
+        </a>
+        {% if nb_hidden > 0 %}
+        <a href="{{ url_for('main.dashboard', filtre='hidden', q=search, dept=dept, tri=tri) }}"
+           class="filter-tab filter-tab-hidden {{ 'active' if filtre == 'hidden' }}"
+           title="Afficher uniquement les dossiers masqués">
+          <i class="fa-solid fa-eye-slash"></i> Masqués : {{ nb_hidden }}
+        </a>
+        {% endif %}
+      </div>
+
+      <!-- Contrôles -->
+      <div class="filter-controls">
+        <input type="hidden" name="filtre" value="{{ filtre }}" />
+
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" name="q" id="searchInput" value="{{ search }}"
+                 placeholder="Rechercher un dossier, acheteur…"
+                 class="form-control search-input" autocomplete="off" />
+          {% if search %}
+          <a href="{{ url_for('main.dashboard', filtre=filtre, dept=dept, tri=tri) }}" class="search-clear">
+            <i class="fa-solid fa-xmark"></i>
+          </a>
+          {% endif %}
+        </div>
+
+        <select name="tri" class="form-control select-sm" onchange="this.form.submit()">
+          <option value="date_desc" {{ 'selected' if tri == 'date_desc' }}>Date ↓</option>
+          <option value="date_asc" {{ 'selected' if tri == 'date_asc' }}>Date ↑</option>
+          <option value="score_desc" {{ 'selected' if tri == 'score_desc' }}>Score ↓</option>
+          <option value="deadline_asc" {{ 'selected' if tri == 'deadline_asc' }}>Deadline ↑</option>
+        </select>
+
+        <select name="dept" class="form-control select-sm" onchange="this.form.submit()">
+          <option value="">Tous dépts.</option>
+          {% for d in dept_list %}
+          <option value="{{ d }}" {{ 'selected' if dept == d }}>{{ d }}</option>
+          {% endfor %}
+        </select>
+
+        <input type="hidden" name="expire" id="expireInput" value="{{ expire }}" />
+        <button type="button"
+                class="btn btn-sm {{ 'btn-ghost expire-btn-off' if expire == 'sans' else 'btn-ghost expire-btn-on' }}"
+                onclick="toggleExpire(this)"
+                title="{{ 'Afficher les dossiers expirés' if expire == 'sans' else 'Masquer les dossiers expirés' }}">
+          <i class="fa-solid fa-ban"></i>
+          Expirés : <strong>{{ 'avec' if expire == 'avec' else 'sans' }}</strong>
+        </button>
+
+        <input type="hidden" name="attribue" id="attribueInput" value="{{ attribue }}" />
+        <button type="button"
+                class="btn btn-sm {{ 'btn-ghost attribue-btn-off' if attribue == 'sans' else 'btn-ghost attribue-btn-on' }}"
+                onclick="toggleAttribue(this)"
+                title="{{ 'Afficher les dossiers attribués' if attribue == 'sans' else 'Masquer les dossiers attribués' }}">
+          <i class="fa-solid fa-trophy"></i>
+          Attribués : <strong>{{ 'avec' if attribue == 'avec' else 'sans' }}</strong>
+        </button>
+
+        <input type="hidden" name="periode" id="periodeInput" value="{{ periode }}" />
+        <button type="button"
+                class="btn btn-sm {{ 'btn-ghost periode-btn-actifs' if periode == 'actifs' else 'btn-ghost periode-btn-tous' }}"
+                onclick="togglePeriode(this)"
+                title="{{ 'Afficher tous les dossiers' if periode == 'actifs' else 'Afficher uniquement les dossiers des 90 derniers jours' }}">
+          <i class="fa-solid fa-calendar-days"></i>
+          <strong>{{ 'Actifs' if periode == 'actifs' else 'Tous' }}</strong>
+        </button>
+
+        {% if current_user.is_admin %}
+        <button type="submit" form="refreshForm" class="btn btn-sm btn-ghost" title="Rafraîchir toutes les bases (BOAMP + TED)">
+          <i class="fa-solid fa-rotate"></i> Refresh
+        </button>
+        {% endif %}
+      </div>
+
+      <!-- Ligne source -->
+      <div class="filter-source-row">
+        <span class="filter-source-label">Source :</span>
+        {% for src in all_sources %}
+        <label class="source-checkbox badge-source badge-source-{{ src | lower }} {{ '' if not sources or src in sources else 'source-inactive' }}">
+          <input type="checkbox" name="sources" value="{{ src }}"
+                 {{ 'checked' if not sources or src in sources else '' }}
+                 onchange="this.closest('form').submit()">
+          <img src="{{ url_for('static', filename=src + '.png') }}" alt="{{ src }}" class="source-logo"> {{ src }}
+        </label>
+        {% endfor %}
+      </div>
+
+    </form>
+  </section>
+
+  <!-- ─── RÉSULTATS ────────────────────────────────────────────────────── -->
+  {% if not dossiers %}
+  <div class="empty-state">
+    <i class="fa-solid fa-inbox"></i>
+    <h3>Aucun dossier trouvé</h3>
+    <p>
+      {% if search or dept or filtre != 'tous' %}
+        Modifiez vos filtres ou
+        <a href="{{ url_for('main.dashboard') }}">réinitialisez la recherche</a>.
+      {% elif total == 0 %}
+        La base est vide.
+        {% if current_user.is_admin %}
+          <form method="post" action="{{ url_for('admin.manual_refresh') }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button type="submit" class="btn btn-sm btn-primary">
+              <i class="fa-solid fa-rotate"></i> Charger les données BOAMP
+            </button>
+          </form>
+        {% else %}
+          Contactez un administrateur.
+        {% endif %}
+      {% endif %}
+    </p>
+  </div>
+  {% else %}
+
+  <section class="cards-grid" id="cardsGrid">
+    {% for dossier in dossiers %}
+    {% set in_wl = dossier.idweb in watchlist_ids %}
+    {% set stars = dossier.score_pertinence | score_stars %}
+    {% set mots = dossier.mots_cles %}
+
+    <article class="dossier-card
+      {% if dossier.has_attribution %}card-attrib{% elif dossier.has_rectificatif %}card-rectif{% else %}card-initial{% endif %}
+      {% if dossier.is_urgent %}card-urgent{% endif %}
+      {% if dossier.is_expired %}card-expired{% endif %}
+      fade-up" data-idweb="{{ dossier.idweb }}">
+
+      {% if dossier.idweb not in seen_ids %}
+      <span class="ribbon-new">NEW</span>
+      {% endif %}
+
+      <!-- Badges en-tête -->
+      <div class="card-badges">
+        <span class="badge-nature {% if dossier.has_attribution %}badge-attrib{% endif %}">
+          {% if dossier.has_attribution %}
+            <i class="fa-solid fa-trophy"></i> ATTRIBUÉ
+          {% elif dossier.nature == 'APPEL_OFFRE' %}
+            <i class="fa-solid fa-file-contract"></i> APPEL D'OFFRES
+          {% elif dossier.nature %}
+            <i class="fa-solid fa-file"></i> {{ dossier.nature | replace('_', ' ') }}
+          {% else %}
+            <i class="fa-solid fa-file"></i> AVIS
+          {% endif %}
+        </span>
+
+        {% if dossier.has_rectificatif %}
+        <span class="badge-rectif">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          RECTIFIÉ ({{ dossier.nb_rectificatifs }})
+        </span>
+        {% endif %}
+
+        {% if dossier.is_urgent %}
+        <span class="badge-urgent blink">
+          <i class="fa-solid fa-clock"></i> URGENT
+        </span>
+        {% endif %}
+
+        <!-- Source -->
+        <span class="badge-source badge-source-{{ dossier.source | lower }}">
+          <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo"> {{ dossier.source }}
+        </span>
+
+        <!-- Score étoiles -->
+        <div class="score-stars ml-auto">
+          {% for i in range(5) %}
+          <i class="fa-solid fa-star {{ 'star-on' if i < stars else 'star-off' }}"></i>
+          {% endfor %}
+        </div>
+
+        <!-- Watchlist toggle -->
+        <button class="wl-toggle {{ 'wl-active' if in_wl else '' }}"
+                data-idweb="{{ dossier.idweb }}"
+                title="{{ 'Retirer de la watchlist' if in_wl else 'Ajouter à la watchlist' }}"
+                onclick="toggleWatchlist(this)">
+          <i class="fa-{{ 'solid' if in_wl else 'regular' }} fa-star"></i>
+        </button>
+
+        <!-- Hide toggle -->
+        <button class="hide-toggle {{ 'hide-active' if dossier.idweb in hidden_ids else '' }}"
+                data-idweb="{{ dossier.idweb }}"
+                title="{{ 'Réafficher ce dossier' if dossier.idweb in hidden_ids else 'Masquer ce dossier' }}"
+                onclick="toggleHide(this)">
+          <i class="fa-solid fa-eye-slash"></i>
+        </button>
+      </div>
+
+      <!-- Corps de la card -->
+      <div class="card-body">
+        <div class="card-acheteur">
+          <i class="fa-solid fa-building-columns"></i>
+          <strong>{{ dossier.acheteur_nom or '—' }}</strong>
+          {% if dossier.code_departement %}
+          <span class="dept-badge">{{ dossier.code_departement }}</span>
+          {% endif %}
+          {% if dossier.lieu_execution %}
+          <span class="lieu">{{ dossier.lieu_execution }}</span>
+          {% endif %}
+        </div>
+
+        <p class="card-objet">
+          {{ dossier.objet_marche | truncate(160) if dossier.objet_marche else 'Objet non renseigné' }}
+        </p>
+
+        <!-- Mots-clés matchés -->
+        {% if mots %}
+        <div class="card-tags">
+          {% for kw in mots[:5] %}
+          <span class="tag"><i class="fa-solid fa-tag"></i> {{ kw }}</span>
+          {% endfor %}
+          {% if mots | length > 5 %}
+          <span class="tag tag-more">+{{ mots | length - 5 }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Timeline mini -->
+        <div class="card-timeline">
+          <div class="tl-item tl-initial">
+            <span class="tl-dot"></span>
+            <span class="tl-label">Initial</span>
+            <span class="tl-date">{{ dossier.dateparution | format_date }}</span>
+            <span class="tl-ref">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
+          </div>
+          {% if dossier.has_rectificatif %}
+          {% set rectifs = dossier.rectificatifs %}
+          <div class="tl-item tl-rectif">
+            <span class="tl-dot"></span>
+            <span class="tl-label">Rectif #{{ rectifs | length }}</span>
+            <span class="tl-date">{{ rectifs[-1].get('dateparution', '') | format_date if rectifs else '—' }}</span>
+            <span class="tl-ref">{{ rectifs[-1].get('reference_boamp', '') if rectifs else '' }}</span>
+          </div>
+          {% endif %}
+          {% if dossier.has_attribution %}
+          <div class="tl-item tl-attrib">
+            <span class="tl-dot"></span>
+            <span class="tl-label">Attribution</span>
+            <span class="tl-date">
+              {% set attr = dossier.attribution %}
+              {{ attr.get('dateparution', '') | format_date if attr else '—' }}
+            </span>
+          </div>
+          {% else %}
+          <div class="tl-item tl-pending">
+            <span class="tl-dot tl-dot-empty"></span>
+            <span class="tl-label">Attribution</span>
+            <span class="tl-date tl-pending-label">en attente</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Footer card -->
+      <div class="card-footer">
+        <div class="card-dates">
+          <span><i class="fa-solid fa-calendar-plus"></i> Paru : {{ dossier.dateparution | format_date }}</span>
+          {% if dossier.datelimitereponse %}
+          <span class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
+            <i class="fa-solid fa-calendar-xmark"></i>
+            Limite : {{ dossier.datelimitereponse | format_date }}
+            {% if dossier.is_expired %}
+              <span class="badge-expired">EXPIRÉ</span>
+            {% elif dossier.jours_restants is not none %}
+              <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
+            {% endif %}
+          </span>
+          {% endif %}
+        </div>
+
+        <div class="card-ref">
+          <span class="ref-text mono">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
+          <button class="btn-copy" title="Copier la référence"
+                  onclick="copyRef('{{ dossier.reference_boamp_initial or dossier.idweb }}', this)">
+            <i class="fa-regular fa-copy"></i>
+          </button>
+        </div>
+
+        <div class="card-actions">
+          {% if dossier.urlgravure %}
+          <a href="{{ dossier.urlgravure }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> BOAMP
+          </a>
+          {% endif %}
+          <a href="{{ url_for('main.detail', idweb=dossier.idweb) }}" class="btn btn-sm btn-primary">
+            <i class="fa-solid fa-magnifying-glass"></i> Détail
+          </a>
+          <button class="btn btn-sm btn-ghost" title="Partager ce dossier"
+                  onclick="shareDossier('{{ dossier.idweb }}', this)">
+            <i class="fa-solid fa-share-nodes"></i>
+          </button>
+        </div>
+      </div>
+
+    </article>
+    {% endfor %}
+  </section>
+
+  <!-- ─── PAGINATION ───────────────────────────────────────────────────── -->
+  {% if pagination.pages > 1 %}
+  <nav class="pagination-nav">
+    {% if pagination.has_prev %}
+    <a href="{{ url_for('main.dashboard', page=pagination.prev_num, filtre=filtre, q=search, dept=dept, tri=tri) }}"
+       class="page-btn"><i class="fa-solid fa-chevron-left"></i></a>
+    {% endif %}
+
+    {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+      {% if p %}
+        <a href="{{ url_for('main.dashboard', page=p, filtre=filtre, q=search, dept=dept, tri=tri) }}"
+           class="page-btn {{ 'active' if p == pagination.page }}">{{ p }}</a>
+      {% else %}
+        <span class="page-ellipsis">…</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if pagination.has_next %}
+    <a href="{{ url_for('main.dashboard', page=pagination.next_num, filtre=filtre, q=search, dept=dept, tri=tri) }}"
+       class="page-btn"><i class="fa-solid fa-chevron-right"></i></a>
+    {% endif %}
+
+    <span class="page-info">
+      Page {{ pagination.page }} / {{ pagination.pages }}
+      · {{ pagination.total }} dossier{{ 's' if pagination.total > 1 }}
+    </span>
+  </nav>
+  {% endif %}
+
+  {% endif %}{# end if not dossiers #}
+
+</div>
+
+{% block scripts %}
+<script>
+function toggleHide(btn) {
+  const idweb = btn.dataset.idweb;
+  const csrf  = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  fetch(`/hide-toggle/${idweb}`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrf },
+    credentials: 'same-origin',
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'hidden') {
+      // Animer et retirer la card
+      const card = btn.closest('.dossier-card');
+      card.style.transition = 'opacity 0.3s, transform 0.3s';
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.95)';
+      setTimeout(() => card.remove(), 320);
+      // Mettre à jour le compteur "Masqués"
+      _updateHiddenCounter(1);
+    } else {
+      // Réafficher : juste mettre à jour le bouton (la card est déjà visible)
+      btn.classList.remove('hide-active');
+      btn.title = 'Masquer ce dossier';
+      _updateHiddenCounter(-1);
+    }
+  })
+  .catch(() => {});
+}
+
+function _updateHiddenCounter(delta) {
+  const link = document.querySelector('.filter-tab-hidden');
+  if (!link) {
+    // Pas encore de lien "Masqués" — recharger pour l'afficher
+    if (delta > 0) location.reload();
+    return;
+  }
+  const text = link.textContent;
+  const m = text.match(/(\d+)/);
+  if (m) {
+    const n = parseInt(m[1], 10) + delta;
+    link.innerHTML = link.innerHTML.replace(/\d+/, n);
+    if (n <= 0) link.style.display = 'none';
+  }
+}
+
+// Marquer les dossiers visibles comme "vus" après 10 secondes
+(function () {
+  const newRibbons = document.querySelectorAll('.ribbon-new');
+  if (!newRibbons.length) return;
+
+  const idwebs = Array.from(newRibbons).map(r => r.closest('[data-idweb]')?.dataset.idweb).filter(Boolean);
+  if (!idwebs.length) return;
+
+  setTimeout(() => {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content
+              || document.querySelector('input[name="csrf_token"]')?.value || '';
+    fetch('/mark-seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      credentials: 'same-origin',
+      body: JSON.stringify({ idwebs }),
+    }).then(() => {
+      newRibbons.forEach(r => {
+        r.style.transition = 'opacity 0.6s';
+        r.style.opacity = '0';
+        setTimeout(() => r.remove(), 600);
+      });
+    }).catch(() => {});
+  }, 10000);
+})();
+</script>
+{% endblock %}
+{% endblock %}

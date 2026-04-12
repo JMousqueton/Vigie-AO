@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vigie AO — Nouveaux appels d'offres</title>
+<style>
+  body { margin: 0; padding: 0; background: #070B14; font-family: Arial, sans-serif; color: #e2e8f0; }
+  .wrapper { max-width: 680px; margin: 40px auto; background: #0F1623; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+  .header { background: linear-gradient(135deg, #0EA5E9, #0284C7); padding: 28px 32px; }
+  .header h1 { margin: 0; color: #fff; font-size: 22px; font-weight: 700; }
+  .header p { margin: 6px 0 0; color: rgba(255,255,255,0.8); font-size: 14px; }
+  .body { padding: 24px 32px; }
+  .section-title { color: #7dd3fc; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(14,165,233,0.2); }
+  .dossier-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; margin-bottom: 12px; border-left: 3px solid #0EA5E9; }
+  .dossier-card.attrib { border-left-color: #10B981; }
+  .dossier-card.rectif { border-left-color: #F59E0B; }
+  .dossier-card.urgent { border-left-color: #EF4444; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .badge-blue { background: rgba(14,165,233,0.2); color: #7dd3fc; }
+  .badge-green { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+  .badge-orange { background: rgba(245,158,11,0.2); color: #fcd34d; }
+  .badge-red { background: rgba(239,68,68,0.2); color: #fca5a5; }
+  .score { color: #f59e0b; font-size: 14px; }
+  .dossier-acheteur { font-weight: 700; color: #e2e8f0; font-size: 14px; margin: 0 0 6px; }
+  .dossier-objet { color: #94a3b8; font-size: 13px; margin: 0 0 10px; line-height: 1.5; }
+  .dossier-meta { display: flex; gap: 16px; font-size: 12px; color: #64748b; flex-wrap: wrap; }
+  .dossier-meta span { white-space: nowrap; }
+  .urgent-label { color: #ef4444; font-weight: 700; }
+  .btn-view { display: inline-block; background: #0EA5E9; color: #fff !important; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; margin-top: 10px; }
+  .lots-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .lots-table th { color: #64748b; font-weight: 600; text-align: left; padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .lots-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #94a3b8; }
+  .lots-table td:first-child { color: #7dd3fc; font-weight: 600; white-space: nowrap; }
+  .lots-table td:nth-child(2) { color: #e2e8f0; }
+  .lots-table td:last-child { color: #10b981; white-space: nowrap; }
+  .wl-update { background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+  .btn-dashboard { display: block; background: #0F172A; color: #0EA5E9 !important; border: 1px solid #0EA5E9; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 700; margin: 24px 0; font-size: 15px; }
+  .footer { padding: 20px 32px; border-top: 1px solid rgba(255,255,255,0.08); text-align: center; }
+  .footer p { color: #475569; font-size: 12px; margin: 4px 0; }
+  .footer a { color: #0EA5E9; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <h1>🛡️ Alerte BOAMP — {{ new_dossiers | length }} nouveau(x) dossier(s)</h1>
+    <p>
+      {% if alert_type == 'IMMEDIATE' %}Alerte immédiate
+      {% elif alert_type == 'WEEKLY' %}Digest hebdomadaire
+      {% else %}Digest quotidien{% endif %}
+      · {{ now().strftime('%d/%m/%Y') if now is defined else '' }}
+    </p>
+  </div>
+
+  <div class="body">
+    <p style="color:#94a3b8;">Bonjour {{ user.prenom }},</p>
+    <p style="color:#94a3b8;">Voici les nouveaux appels d'offres détectés :</p>
+
+    <!-- Nouveaux dossiers -->
+    {% if new_dossiers %}
+    <p class="section-title">Nouveaux dossiers ({{ new_dossiers | length }})</p>
+
+    {% for dossier in new_dossiers[:20] %}
+    <div class="dossier-card {% if dossier.has_attribution %}attrib{% elif dossier.has_rectificatif %}rectif{% endif %} {% if dossier.is_urgent %}urgent{% endif %}">
+      <div class="card-header">
+        <div>
+          {% if dossier.has_attribution %}
+            <span class="badge badge-green">✓ Attribué</span>
+          {% elif dossier.has_rectificatif %}
+            <span class="badge badge-orange">⚠ Rectifié</span>
+          {% else %}
+            <span class="badge badge-blue">Avis initial</span>
+          {% endif %}
+          {% if dossier.is_urgent %}
+            <span class="badge badge-red">🔴 URGENT</span>
+          {% endif %}
+        </div>
+        <div class="score">
+          {% set stars = dossier.score_pertinence // 20 %}
+          {% for i in range(stars) %}★{% endfor %}{% for i in range(5 - stars) %}☆{% endfor %}
+          {{ dossier.score_pertinence }}/100
+        </div>
+      </div>
+      <p class="dossier-acheteur">{{ dossier.acheteur_nom or '—' }}
+        {% if dossier.code_departement %} ({{ dossier.code_departement }}){% endif %}
+      </p>
+      <p class="dossier-objet">{{ (dossier.objet_marche or '—') | truncate(180) }}</p>
+
+      {% if dossier.has_attribution %}
+      {% set lots = dossier.attribution | extract_lots if dossier.attribution else [] %}
+      {% if lots %}
+      <table class="lots-table">
+        <thead><tr><th>Lot</th><th>Lauréat</th><th>Montant</th></tr></thead>
+        <tbody>
+          {% for lot in lots %}
+          <tr>
+            <td>Lot {{ lot.lot_num }}</td>
+            <td>{{ lot.titulaire or '—' }}</td>
+            <td>{% if lot.montant %}{{ '{:,.0f}'.format(lot.montant | float) | replace(',', ' ') }} €{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      {% endif %}
+
+      <div class="dossier-meta">
+        <span>📅 Paru : {{ dossier.dateparution.strftime('%d/%m/%Y') if dossier.dateparution else '—' }}</span>
+        {% if dossier.datelimitereponse %}
+        <span {% if dossier.is_urgent %}class="urgent-label"{% endif %}>
+          ⏰ Limite : {{ dossier.datelimitereponse.strftime('%d/%m/%Y') }}
+          {% if dossier.is_urgent %} — J-{{ dossier.jours_restants }}{% endif %}
+        </span>
+        {% endif %}
+        <span>🔖 Réf : {{ dossier.reference_boamp_initial or dossier.idweb }}</span>
+      </div>
+      <a href="{{ dashboard_url }}dossier/{{ dossier.idweb }}" class="btn-view">Voir le dossier →</a>
+    </div>
+    {% endfor %}
+
+    {% if new_dossiers | length > 20 %}
+    <p style="color:#64748b; text-align:center; font-size:13px;">
+      … et {{ new_dossiers | length - 20 }} autre(s) dossier(s) sur le dashboard.
+    </p>
+    {% endif %}
+    {% endif %}
+
+    <!-- Mises à jour watchlist -->
+    {% if watchlist_updates %}
+    <p class="section-title" style="margin-top:24px;">Mises à jour de votre watchlist</p>
+    {% for update in watchlist_updates %}
+    <div class="wl-update">
+      <p style="margin:0 0 6px; font-weight:700; color:#fcd34d;">
+        ⚠ {{ update.dossier.nb_rectificatifs - update.item.nb_rectifs_at_add }} nouveau(x) rectificatif(s)
+      </p>
+      <p style="margin:0; color:#94a3b8; font-size:13px;">{{ (update.dossier.objet_marche or '—') | truncate(120) }}</p>
+      <a href="{{ dashboard_url }}dossier/{{ update.dossier.idweb }}" class="btn-view" style="background:#F59E0B;">Voir le dossier →</a>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <a href="{{ dashboard_url }}" class="btn-dashboard">
+      Accéder au dashboard complet →
+    </a>
+  </div>
+
+  <div class="footer">
+    <p>Vous recevez cet email car vous êtes abonné aux alertes BOAMP (fréquence : {{ user.alert_frequency }}).</p>
+    <p>Pour modifier vos préférences : <a href="{{ dashboard_url }}auth/profile">Mon profil</a></p>
+    <p>© 2026 Julien Mousqueton — Vigie AO</p>
+  </div>
+</div>
+</body>
+</html>

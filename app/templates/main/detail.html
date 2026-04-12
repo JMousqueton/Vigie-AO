@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+{% block title %}{{ dossier.idweb }} — Détail dossier{% endblock %}
+
+{% block content %}
+<div class="page-container detail-page">
+
+  <!-- ─── BACK + ACTIONS ────────────────────────────────────────────────── -->
+  <div class="detail-topbar">
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-ghost btn-sm">
+      <i class="fa-solid fa-arrow-left"></i> Retour
+    </a>
+    <div class="detail-actions">
+      <span class="mono ref-big">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
+      <button class="btn btn-sm btn-ghost" onclick="copyRef('{{ dossier.reference_boamp_initial or dossier.idweb }}', this)" title="Copier la référence">
+        <i class="fa-regular fa-copy"></i>
+      </button>
+      <button class="btn btn-sm btn-ghost" onclick="shareDossier('{{ dossier.idweb }}', this)" title="Partager ce dossier">
+        <i class="fa-solid fa-share-nodes"></i> Partager
+      </button>
+      {% if dossier.urlgravure %}
+      <a href="{{ dossier.urlgravure }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> {{ dossier.source }}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ─── EN-TÊTE DOSSIER ───────────────────────────────────────────────── -->
+  <header class="detail-header">
+    <div class="detail-badges">
+      {% if dossier.has_attribution %}
+        <span class="badge-nature badge-attrib"><i class="fa-solid fa-trophy"></i> ATTRIBUÉ</span>
+      {% elif dossier.nature %}
+        <span class="badge-nature"><i class="fa-solid fa-file-contract"></i> {{ dossier.nature | replace('_', ' ') }}</span>
+      {% endif %}
+      {% if dossier.has_rectificatif %}
+        <span class="badge-rectif"><i class="fa-solid fa-triangle-exclamation"></i> RECTIFIÉ</span>
+      {% endif %}
+      {% if dossier.is_urgent %}
+        <span class="badge-urgent blink"><i class="fa-solid fa-clock"></i> URGENT</span>
+      {% endif %}
+      {% if dossier.is_expired %}
+        <span class="badge-expired-tag"><i class="fa-solid fa-ban"></i> EXPIRÉ</span>
+      {% endif %}
+    </div>
+
+    <span class="badge-source badge-source-{{ dossier.source | lower }}">
+      <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo"> {{ dossier.source }}
+    </span>
+
+    <h1 class="detail-title">{{ dossier.objet_marche or 'Objet non renseigné' }}</h1>
+
+    <div class="detail-meta-row">
+      <span><i class="fa-solid fa-building-columns"></i> <strong>{{ dossier.acheteur_nom or '—' }}</strong></span>
+      {% if dossier.acheteur_siret %}
+        <span><i class="fa-solid fa-fingerprint"></i> SIRET : {{ dossier.acheteur_siret }}</span>
+      {% endif %}
+      {% if dossier.lieu_execution %}
+        <span><i class="fa-solid fa-location-dot"></i> {{ dossier.lieu_execution }}
+          {% if dossier.code_departement %}({{ dossier.code_departement }}){% endif %}
+        </span>
+      {% endif %}
+      {% if dossier.type_marche %}
+        <span><i class="fa-solid fa-tag"></i> {{ dossier.type_marche }}</span>
+      {% endif %}
+    </div>
+
+    <!-- Score -->
+    <div class="detail-score">
+      {% set stars = dossier.score_pertinence | score_stars %}
+      <span class="score-label">Pertinence Cohesity :</span>
+      <div class="score-stars">
+        {% for i in range(5) %}
+        <i class="fa-solid fa-star {{ 'star-on' if i < stars else 'star-off' }}"></i>
+        {% endfor %}
+      </div>
+      <span class="score-num">{{ dossier.score_pertinence }}/100</span>
+      {% set mots = dossier.mots_cles %}
+      {% if mots %}
+      <div class="card-tags">
+        {% for kw in mots %}
+          {% if not kw.startswith('CPV ') %}
+          <span class="tag"><i class="fa-solid fa-tag"></i> {{ kw }}</span>
+          {% endif %}
+        {% endfor %}
+        {% for kw in mots %}
+          {% if kw.startswith('CPV ') %}
+          <span class="tag tag-cpv" title="{{ kw }}"><i class="fa-solid fa-barcode"></i> {{ kw[4:12] }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="detail-grid">
+
+    <!-- ─── TIMELINE ──────────────────────────────────────────────────── -->
+    <section class="detail-section timeline-section">
+      <h2 class="section-title"><i class="fa-solid fa-timeline"></i> Timeline du dossier</h2>
+
+      <div class="timeline-vertical">
+
+        <!-- Avis initial -->
+        <div class="tl-v-item tl-v-initial">
+          <div class="tl-v-dot"></div>
+          <div class="tl-v-content">
+            <div class="tl-v-header" onclick="togglePanel('panel-initial')">
+              <span class="tl-v-title">
+                <i class="fa-solid fa-file-circle-plus"></i> Avis initial
+              </span>
+              <span class="tl-v-date">{{ dossier.dateparution | format_date }}</span>
+              <span class="tl-v-ref mono">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
+              <i class="fa-solid fa-chevron-down tl-v-toggle"></i>
+            </div>
+            <div class="tl-v-panel" id="panel-initial">
+              <div class="fields-grid">
+                {% if dossier.objet_marche %}
+                <div class="field-item">
+                  <span class="field-label">Objet</span>
+                  <span class="field-value">{{ dossier.objet_marche }}</span>
+                </div>
+                {% endif %}
+                {% if dossier.famille_denomination %}
+                <div class="field-item">
+                  <span class="field-label">Famille</span>
+                  <span class="field-value">{{ dossier.famille_denomination }}</span>
+                </div>
+                {% endif %}
+                {% if dossier.descripteur_libelle %}
+                <div class="field-item">
+                  <span class="field-label">Descripteurs</span>
+                  <span class="field-value">{{ dossier.descripteur_libelle }}</span>
+                </div>
+                {% endif %}
+                <div class="field-item">
+                  <span class="field-label">Date parution</span>
+                  <span class="field-value">{{ dossier.dateparution | format_date }}</span>
+                </div>
+                {% if dossier.datelimitereponse %}
+                <div class="field-item">
+                  <span class="field-label">Limite réponse</span>
+                  <span class="field-value {{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
+                    {{ dossier.datelimitereponse | format_date }}
+                    {% if dossier.jours_restants is not none and not dossier.is_expired %}
+                      <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
+                    {% elif dossier.is_expired %}
+                      <span class="badge-expired">EXPIRÉ</span>
+                    {% endif %}
+                  </span>
+                </div>
+                {% endif %}
+                {% if dossier.urlgravure %}
+                <div class="field-item">
+                  <span class="field-label">
+                    {% if dossier.source == 'TED' %}Lien TED{% else %}Lien BOAMP{% endif %}
+                  </span>
+                  <span class="field-value">
+                    <a href="{{ dossier.urlgravure }}" target="_blank" rel="noopener" class="link-boamp">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i> {{ dossier.urlgravure | truncate(60) }}
+                    </a>
+                  </span>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rectificatifs -->
+        {% for item in diffs %}
+        <div class="tl-v-item tl-v-rectif">
+          <div class="tl-v-dot"></div>
+          <div class="tl-v-content">
+            <div class="tl-v-header" onclick="togglePanel('panel-rectif-{{ item.index }}')">
+              <span class="tl-v-title">
+                <i class="fa-solid fa-file-pen"></i> Rectificatif #{{ item.index }}
+              </span>
+              <span class="tl-v-date">{{ item.rectificatif.get('dateparution', '') | format_date }}</span>
+              <span class="tl-v-ref mono">{{ item.rectificatif.get('reference_boamp', '') }}</span>
+              {% if item.diff %}
+              <span class="diff-badge"><i class="fa-solid fa-code-compare"></i> {{ item.diff | length }} modif.</span>
+              {% endif %}
+              <i class="fa-solid fa-chevron-down tl-v-toggle"></i>
+            </div>
+            <div class="tl-v-panel" id="panel-rectif-{{ item.index }}">
+              {% if item.diff %}
+              <div class="diff-section">
+                <h4><i class="fa-solid fa-code-compare"></i> Modifications par rapport à l'avis précédent</h4>
+                <div class="diff-table">
+                  {% for champ, vals in item.diff.items() %}
+                  <div class="diff-row">
+                    <span class="diff-field">{{ champ | replace('_', ' ') | title }}</span>
+                    <span class="diff-before">
+                      <span class="diff-label-before">Avant</span>
+                      {{ vals.avant or '—' }}
+                    </span>
+                    <span class="diff-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                    <span class="diff-after">
+                      <span class="diff-label-after">Après</span>
+                      {{ vals.apres or '—' }}
+                    </span>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
+              <div class="fields-grid">
+                {% if item.rectificatif.get('objet_marche') %}
+                <div class="field-item">
+                  <span class="field-label">Objet</span>
+                  <span class="field-value {{ 'field-changed' if 'objet_marche' in item.diff }}">
+                    {{ item.rectificatif.get('objet_marche') }}
+                  </span>
+                </div>
+                {% endif %}
+                {% if item.rectificatif.get('datelimitereponse') %}
+                <div class="field-item">
+                  <span class="field-label">Nouvelle limite</span>
+                  <span class="field-value {{ 'field-changed' if 'datelimitereponse' in item.diff }}">
+                    {{ item.rectificatif.get('datelimitereponse') | format_date }}
+                  </span>
+                </div>
+                {% endif %}
+                {% if item.rectificatif.get('lieu_execution') %}
+                <div class="field-item">
+                  <span class="field-label">Lieu d'exécution</span>
+                  <span class="field-value {{ 'field-changed' if 'lieu_execution' in item.diff }}">
+                    {{ item.rectificatif.get('lieu_execution') }}
+                  </span>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Attribution -->
+        {% if dossier.has_attribution and attribution %}
+        <div class="tl-v-item tl-v-attrib">
+          <div class="tl-v-dot"></div>
+          <div class="tl-v-content">
+            <div class="tl-v-header" onclick="togglePanel('panel-attribution')">
+              <span class="tl-v-title">
+                <i class="fa-solid fa-trophy"></i> Résultat de marché
+              </span>
+              <span class="tl-v-date">{{ attribution.get('dateparution', '') | format_date }}</span>
+              <span class="tl-v-ref mono">{{ attribution.get('reference_boamp', '') }}</span>
+              {% if lots_titulaires %}
+              <span class="diff-badge"><i class="fa-solid fa-boxes-stacked"></i> {{ lots_titulaires | length }} lot(s)</span>
+              {% endif %}
+              <i class="fa-solid fa-chevron-down tl-v-toggle"></i>
+            </div>
+            <div class="tl-v-panel" id="panel-attribution">
+
+              <!-- Lots et lauréats -->
+              {% if lots_titulaires %}
+              <div class="lots-titulaires">
+                <h4><i class="fa-solid fa-trophy"></i> Lauréat(s) par lot</h4>
+                <table class="lots-table">
+                  <thead>
+                    <tr>
+                      <th>Lot</th>
+                      <th>Lauréat</th>
+                      <th>Montant</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for lot in lots_titulaires %}
+                    <tr>
+                      <td class="lot-num">Lot {{ lot.lot_num }}</td>
+                      <td class="lot-titulaire">
+                        <i class="fa-solid fa-building"></i>
+                        {{ lot.titulaire or '—' }}
+                      </td>
+                      <td class="lot-montant">
+                        {% if lot.montant %}
+                          {{ '{:,.0f}'.format(lot.montant | float) | replace(',', ' ') }} €
+                        {% else %}—{% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% elif attribution.get('acheteur_nom') %}
+              <div class="attribution-winner">
+                <i class="fa-solid fa-trophy"></i>
+                <strong>Attribué à :</strong> {{ attribution.get('acheteur_nom') }}
+              </div>
+              {% endif %}
+
+              <div class="fields-grid">
+                <div class="field-item">
+                  <span class="field-label">Date attribution</span>
+                  <span class="field-value">{{ attribution.get('dateparution', '') | format_date }}</span>
+                </div>
+                {% if attribution.get('urlgravure') %}
+                <div class="field-item">
+                  <span class="field-label">Avis BOAMP</span>
+                  <span class="field-value">
+                    <a href="{{ attribution.get('urlgravure') }}" target="_blank" rel="noopener" class="link-boamp">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i> Voir l'avis d'attribution
+                    </a>
+                  </span>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="tl-v-item tl-v-pending">
+          <div class="tl-v-dot tl-v-dot-empty"></div>
+          <div class="tl-v-content">
+            <div class="tl-v-header">
+              <span class="tl-v-title tl-v-pending-title">
+                <i class="fa-regular fa-circle-dot"></i> Attribution — en attente
+              </span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </section>
+
+    <!-- ─── SIDEBAR ────────────────────────────────────────────────────── -->
+    <aside class="detail-sidebar">
+
+      <!-- Watchlist -->
+      <div class="card sidebar-card">
+        <div class="card-header">
+          <i class="fa-solid fa-star"></i> <h3>Watchlist</h3>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{{ url_for('watchlist.add', idweb=dossier.idweb) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <input type="hidden" name="next" value="{{ request.url }}" />
+            <div class="form-group">
+              <label>Note personnelle</label>
+              <textarea name="note" class="form-control" rows="3" placeholder="Opportunité intéressante pour…">{{ wl_item.note if wl_item else '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">
+              <i class="fa-solid fa-star"></i>
+              {{ 'Mettre à jour' if wl_item else 'Ajouter à ma watchlist' }}
+            </button>
+          </form>
+          {% if wl_item %}
+          <form method="post" action="{{ url_for('watchlist.remove', idweb=dossier.idweb) }}" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <input type="hidden" name="next" value="{{ url_for('main.dashboard') }}" />
+            <button type="submit" class="btn btn-outline-danger btn-full">
+              <i class="fa-solid fa-trash"></i> Retirer de la watchlist
+            </button>
+          </form>
+          <p class="wl-added-at">Ajouté le {{ wl_item.added_at.strftime('%d/%m/%Y') }}</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Infos clés -->
+      <div class="card sidebar-card">
+        <div class="card-header"><i class="fa-solid fa-circle-info"></i> <h3>Informations clés</h3></div>
+        <div class="card-body">
+          <dl class="info-list">
+            <dt>Source</dt>
+            <dd>
+              <span class="badge-source badge-source-{{ dossier.source | lower }}">
+                <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo">
+                {% if dossier.source == 'TED' %}TED v3{% else %}{{ dossier.source }}{% endif %}
+              </span>
+            </dd>
+
+            <dt>Référence</dt>
+            <dd class="mono">{{ dossier.reference_boamp_initial or dossier.idweb }}</dd>
+
+            <dt>{% if dossier.source == 'TED' %}ID TED{% else %}ID BOAMP{% endif %}</dt>
+            <dd class="mono">{{ dossier.idweb }}</dd>
+
+            {% if dossier.type_marche %}
+            <dt>Type</dt>
+            <dd>{{ dossier.type_marche }}</dd>
+            {% endif %}
+
+            {% if dossier.famille_denomination %}
+            <dt>Famille</dt>
+            <dd>{{ dossier.famille_denomination }}</dd>
+            {% endif %}
+
+            <dt>Publication</dt>
+            <dd>{{ dossier.dateparution | format_date }}</dd>
+
+            {% if dossier.datelimitereponse %}
+            <dt>Limite réponse</dt>
+            <dd class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
+              {{ dossier.datelimitereponse | format_date }}
+              {% if dossier.is_expired %}
+                <span class="badge-expired">EXPIRÉ</span>
+              {% elif dossier.jours_restants is not none %}
+                <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
+              {% endif %}
+            </dd>
+            {% endif %}
+
+            <dt>Mis à jour</dt>
+            <dd>{{ dossier.fetched_at.strftime('%d/%m/%Y %H:%M') if dossier.fetched_at else '—' }}</dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Déclencheurs de détection -->
+      {% if trigger_details %}
+      <div class="card sidebar-card">
+        <div class="card-header">
+          <i class="fa-solid fa-crosshairs"></i>
+          <h3>Pourquoi ce dossier ?</h3>
+        </div>
+        <div class="card-body p-0">
+          <table class="trigger-table">
+            <thead>
+              <tr>
+                <th>Critère</th>
+                <th>Champ</th>
+                <th>Extrait</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in trigger_details %}
+              <tr class="trigger-row trigger-{{ t.category }}">
+                <td class="trigger-kw">
+                  {% if t.category == 'cpv' %}
+                    <span class="trigger-badge trigger-badge-cpv">
+                      <i class="fa-solid fa-barcode"></i> {{ t.keyword }}
+                    </span>
+                  {% elif t.category == 'haute' %}
+                    <span class="trigger-badge trigger-badge-haute">
+                      <i class="fa-solid fa-star"></i> {{ t.keyword }}
+                    </span>
+                  {% elif t.category == 'moyenne' %}
+                    <span class="trigger-badge trigger-badge-moyenne">
+                      <i class="fa-solid fa-star-half-stroke"></i> {{ t.keyword }}
+                    </span>
+                  {% elif t.category == 'contexte' %}
+                    <span class="trigger-badge trigger-badge-contexte">
+                      <i class="fa-regular fa-star"></i> {{ t.keyword }}
+                    </span>
+                  {% else %}
+                    <span class="trigger-badge trigger-badge-search">
+                      <i class="fa-solid fa-magnifying-glass"></i> {{ t.keyword }}
+                    </span>
+                  {% endif %}
+                  {% if t.weight > 0 %}
+                  <span class="trigger-pts">+{{ t.weight }}</span>
+                  {% endif %}
+                </td>
+                <td class="trigger-field">{{ t.field }}</td>
+                <td class="trigger-excerpt">{{ t.excerpt }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="trigger-score-line">
+            Score total : <strong>{{ dossier.score_pertinence }}/100</strong>
+          </p>
+        </div>
+      </div>
+      {% endif %}
+
+
+    </aside>
+  </div>
+</div>
+{% endblock %}

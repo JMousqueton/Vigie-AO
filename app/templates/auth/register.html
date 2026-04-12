@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Inscription — Vigie AO{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card auth-card-wide">
+    <div class="auth-logo">
+      <i class="fa-solid fa-shield-halved"></i>
+      <h1>Créer un compte</h1>
+      <p>Vigie AO</p>
+    </div>
+
+    <form method="post" action="{{ url_for('auth.register') }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="prenom">{{ form.prenom.label }}</label>
+          {{ form.prenom(id='prenom', class='form-control' + (' is-invalid' if form.prenom.errors else ''), placeholder='Jean') }}
+          {% for err in form.prenom.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+        </div>
+        <div class="form-group">
+          <label for="nom">{{ form.nom.label }}</label>
+          {{ form.nom(id='nom', class='form-control' + (' is-invalid' if form.nom.errors else ''), placeholder='DUPONT') }}
+          {% for err in form.nom.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">{{ form.email.label }}</label>
+        {{ form.email(id='email', class='form-control' + (' is-invalid' if form.email.errors else ''), placeholder='jean.dupont@domain.com', autocomplete='email') }}
+        {% for err in form.email.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label for="password">{{ form.password.label }}</label>
+        <div class="input-eye-wrap">
+          {{ form.password(id='password', class='form-control' + (' is-invalid' if form.password.errors else ''), placeholder='Min. 8 caractères, 1 majuscule, 1 chiffre', autocomplete='new-password') }}
+          <button type="button" class="eye-toggle" onclick="togglePassword('password', this)">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+        {% for err in form.password.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+        <div class="password-strength" id="pwdStrength"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="password2">{{ form.password2.label }}</label>
+        <div class="input-eye-wrap">
+          {{ form.password2(id='password2', class='form-control' + (' is-invalid' if form.password2.errors else ''), placeholder='••••••••', autocomplete='new-password') }}
+          <button type="button" class="eye-toggle" onclick="togglePassword('password2', this)">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+        {% for err in form.password2.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full">
+        <i class="fa-solid fa-user-plus"></i>
+        {{ form.submit.label.text }}
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Déjà un compte ?
+      <a href="{{ url_for('auth.login') }}">Se connecter</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

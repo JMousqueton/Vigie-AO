@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ dossier.objet_marche | truncate(60) if dossier.objet_marche else dossier.idweb }} — Vigie AO</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+<!-- ─── HEADER MINIMAL ──────────────────────────────────────────────────────── -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo-mark">
+      <span class="logo-icon"><i class="fa-solid fa-shield-halved"></i></span>
+      <div class="logo-text">
+        <span class="logo-brand">Vigie</span>
+        <span class="logo-sub">Appels d'Offre Publics</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="shared-badge">
+        <i class="fa-solid fa-share-nodes"></i> Dossier partagé
+      </span>
+    </div>
+  </div>
+</header>
+
+<!-- ─── MAIN ────────────────────────────────────────────────────────────────── -->
+<main class="main-content">
+<div class="page-container detail-page">
+
+  <!-- En-tête dossier -->
+  <header class="detail-header">
+    <div class="detail-badges">
+      {% if dossier.has_attribution %}
+        <span class="badge-nature badge-attrib"><i class="fa-solid fa-trophy"></i> ATTRIBUÉ</span>
+      {% elif dossier.nature %}
+        <span class="badge-nature"><i class="fa-solid fa-file-contract"></i> {{ dossier.nature | replace('_', ' ') }}</span>
+      {% else %}
+        <span class="badge-nature"><i class="fa-solid fa-file"></i> AVIS</span>
+      {% endif %}
+      {% if dossier.has_rectificatif %}
+        <span class="badge-rectif"><i class="fa-solid fa-triangle-exclamation"></i> RECTIFIÉ</span>
+      {% endif %}
+    </div>
+
+    <h1 class="detail-title">{{ dossier.objet_marche or 'Objet non renseigné' }}</h1>
+
+    <div class="detail-meta-row">
+      <span><i class="fa-solid fa-building-columns"></i> <strong>{{ dossier.acheteur_nom or '—' }}</strong></span>
+      {% if dossier.lieu_execution %}
+        <span><i class="fa-solid fa-location-dot"></i> {{ dossier.lieu_execution }}
+          {% if dossier.code_departement %}({{ dossier.code_departement }}){% endif %}
+        </span>
+      {% elif dossier.code_departement %}
+        <span><i class="fa-solid fa-location-dot"></i> Dép. {{ dossier.code_departement }}</span>
+      {% endif %}
+      {% if dossier.type_marche %}
+        <span><i class="fa-solid fa-tag"></i> {{ dossier.type_marche }}</span>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="detail-grid">
+
+    <!-- Informations principales -->
+    <section class="detail-section">
+
+      <!-- Attribution / lots -->
+      {% if dossier.has_attribution and lots_titulaires %}
+      <div class="lots-titulaires" style="margin-bottom:24px;">
+        <h4><i class="fa-solid fa-trophy"></i> Lauréat(s) par lot</h4>
+        <table class="lots-table">
+          <thead>
+            <tr><th>Lot</th><th>Lauréat</th><th>Montant</th></tr>
+          </thead>
+          <tbody>
+            {% for lot in lots_titulaires %}
+            <tr>
+              <td class="lot-num">Lot {{ lot.lot_num }}</td>
+              <td class="lot-titulaire"><i class="fa-solid fa-building"></i> {{ lot.titulaire or '—' }}</td>
+              <td class="lot-montant">
+                {% if lot.montant %}{{ '{:,.0f}'.format(lot.montant | float) | replace(',', ' ') }} €{% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <!-- Dates & infos clés -->
+      <div class="fields-grid">
+        <div class="field-item">
+          <span class="field-label">Référence BOAMP</span>
+          <span class="field-value mono">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
+        </div>
+        <div class="field-item">
+          <span class="field-label">Date de parution</span>
+          <span class="field-value">{{ dossier.dateparution | format_date }}</span>
+        </div>
+        {% if dossier.datelimitereponse %}
+        <div class="field-item">
+          <span class="field-label">Date limite de réponse</span>
+          <span class="field-value {{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
+            {{ dossier.datelimitereponse | format_date }}
+            {% if dossier.is_expired %}<span class="badge-expired">EXPIRÉ</span>
+            {% elif dossier.jours_restants is not none %}<span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
+            {% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% if dossier.descripteur_libelle %}
+        <div class="field-item">
+          <span class="field-label">Descripteurs</span>
+          <span class="field-value">{{ dossier.descripteur_libelle }}</span>
+        </div>
+        {% endif %}
+        {% if dossier.has_attribution and attribution %}
+        <div class="field-item">
+          <span class="field-label">Date d'attribution</span>
+          <span class="field-value">{{ attribution.get('dateparution', '') | format_date }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Lien BOAMP officiel -->
+      {% if dossier.urlgravure %}
+      <div style="margin-top:20px;">
+        <a href="{{ dossier.urlgravure }}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Voir l'avis officiel sur BOAMP
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- Rectificatifs -->
+      {% set rectifs = dossier.rectificatifs %}
+      {% if rectifs %}
+      <div style="margin-top:24px;">
+        <h3 class="section-title"><i class="fa-solid fa-file-pen"></i> Rectificatifs ({{ rectifs | length }})</h3>
+        {% for r in rectifs %}
+        <div class="tl-item tl-rectif" style="padding:10px 14px; margin-bottom:8px; background:var(--bg-surface); border-radius:var(--radius-sm); border-left:3px solid var(--accent-orange);">
+          <strong>Rectificatif #{{ loop.index }}</strong>
+          <span style="color:var(--text-muted); margin-left:12px; font-size:13px;">{{ r.get('dateparution','') | format_date }}</span>
+          {% if r.get('objet_marche') and r.get('objet_marche') != dossier.objet_marche %}
+          <p style="margin:6px 0 0; color:var(--text-secondary); font-size:13px;">{{ r.get('objet_marche') }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </section>
+
+    <!-- Sidebar -->
+    <aside class="detail-sidebar">
+      <div class="card sidebar-card">
+        <div class="card-header"><i class="fa-solid fa-share-nodes"></i> <h3>Lien partagé</h3></div>
+        <div class="card-body">
+          <p style="color:var(--text-muted); font-size:13px; margin:0 0 12px;">
+            Ce lien vous a été partagé pour consulter ce dossier BOAMP.
+          </p>
+          <button class="btn btn-ghost btn-sm btn-full" onclick="navigator.clipboard.writeText(window.location.href).then(()=>showCopied(this))">
+            <i class="fa-regular fa-copy"></i> Copier ce lien
+          </button>
+          <p style="color:var(--text-muted); font-size:11px; margin:10px 0 0; text-align:center;">
+            Lien valable 90 jours
+          </p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+</div>
+</main>
+
+<!-- ─── FOOTER ─────────────────────────────────────────────────────────────── -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span class="footer-brand">Vigie AO @ Copyright 2026 - Julien Mousqueton</span>
+    <span class="footer-sep">·</span>
+    <span class="footer-info">Données : <a href="https://boamp-datadila.opendatasoft.com" target="_blank" rel="noopener">BOAMP Opendatasoft</a></span>
+    <span class="footer-sep">·</span>
+    <span class="footer-info">API v2.1</span>
+    <span class="footer-sep">·</span>
+    <span class="footer-info">Données : <a href="https://ted.europa.eu" target="_blank" rel="noopener">TED v3</a> — Tenders Electronic Daily</span>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+function showCopied(btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
+  btn.style.color = 'var(--accent-green)';
+  setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; }, 2000);
+}
+</script>
+</body>
+</html>

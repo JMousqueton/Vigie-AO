@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Ma Watchlist — Vigie AO{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-star"></i> Ma Watchlist</h1>
+    <p>{{ enriched | length }} dossier{{ 's' if enriched | length > 1 }} suivis</p>
+  </div>
+
+  {% if not enriched %}
+  <div class="empty-state">
+    <i class="fa-regular fa-star"></i>
+    <h3>Votre watchlist est vide</h3>
+    <p>Ajoutez des dossiers depuis le <a href="{{ url_for('main.dashboard') }}">dashboard</a> ou les pages détail.</p>
+  </div>
+  {% else %}
+
+  <div class="watchlist-grid">
+    {% for entry in enriched %}
+    {% set item = entry.item %}
+    {% set dossier = entry.dossier %}
+
+    <div class="wl-card {{ 'wl-has-update' if entry.new_rectifs > 0 }}">
+      <div class="wl-card-header">
+        <div class="wl-card-badges">
+          {% if dossier %}
+            {% if dossier.has_attribution %}
+              <span class="badge-nature badge-attrib"><i class="fa-solid fa-trophy"></i> ATTRIBUÉ</span>
+            {% else %}
+              <span class="badge-nature"><i class="fa-solid fa-file-contract"></i> AVIS</span>
+            {% endif %}
+            {% if entry.new_rectifs > 0 %}
+              <span class="badge-new-rectif">
+                <i class="fa-solid fa-bell"></i> {{ entry.new_rectifs }} nouveau{{ 'x' if entry.new_rectifs > 1 }} rectif.
+              </span>
+            {% endif %}
+          {% else %}
+            <span class="badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> Dossier non trouvé</span>
+          {% endif %}
+        </div>
+        <span class="mono wl-ref">{{ item.idweb }}</span>
+      </div>
+
+      <div class="wl-card-body">
+        {% if dossier %}
+          <p class="wl-acheteur"><i class="fa-solid fa-building-columns"></i> {{ dossier.acheteur_nom or '—' }}</p>
+          <p class="wl-objet">{{ dossier.objet_marche | truncate(140) if dossier.objet_marche else '—' }}</p>
+
+          {% if dossier.datelimitereponse %}
+          <p class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else 'text-muted') }}">
+            <i class="fa-solid fa-calendar-xmark"></i>
+            Limite : {{ dossier.datelimitereponse | format_date }}
+            {% if dossier.is_expired %}
+              <span class="badge-expired">EXPIRÉ</span>
+            {% elif dossier.jours_restants is not none %}
+              <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
+            {% endif %}
+          </p>
+          {% endif %}
+        {% else %}
+          <p class="text-muted">Ce dossier n'est plus disponible dans le cache.</p>
+        {% endif %}
+
+        {% if item.note %}
+        <div class="wl-note">
+          <i class="fa-solid fa-note-sticky"></i> {{ item.note }}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="wl-card-footer">
+        <span class="wl-added-at text-muted">
+          <i class="fa-regular fa-clock"></i> Ajouté le {{ item.added_at.strftime('%d/%m/%Y') }}
+        </span>
+        <div class="wl-actions">
+          {% if dossier %}
+          <a href="{{ url_for('main.detail', idweb=item.idweb) }}" class="btn btn-sm btn-primary">
+            <i class="fa-solid fa-magnifying-glass"></i> Détail
+          </a>
+          {% endif %}
+          <form method="post" action="{{ url_for('watchlist.remove', idweb=item.idweb) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <input type="hidden" name="next" value="{{ url_for('watchlist.index') }}" />
+            <button type="submit" class="btn btn-sm btn-ghost btn-danger-ghost" title="Retirer">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

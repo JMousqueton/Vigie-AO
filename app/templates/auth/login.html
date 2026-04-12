@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Connexion — Vigie AO{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <i class="fa-solid fa-shield-halved"></i>
+      <h1>Vigie AO</h1>
+      <p>Appels d'offres publics</p>
+    </div>
+
+    <form method="post" action="{{ url_for('auth.login') }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="form-group">
+        <label for="email">{{ form.email.label }}</label>
+        {{ form.email(id='email', class='form-control' + (' is-invalid' if form.email.errors else ''), placeholder='vous@email.com', autocomplete='email') }}
+        {% for err in form.email.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+      </div>
+
+      <div class="form-group">
+        <label for="password">{{ form.password.label }}</label>
+        <div class="input-eye-wrap">
+          {{ form.password(id='password', class='form-control' + (' is-invalid' if form.password.errors else ''), placeholder='••••••••', autocomplete='current-password') }}
+          <button type="button" class="eye-toggle" onclick="togglePassword('password', this)">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+        {% for err in form.password.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+      </div>
+
+      <div class="form-check-row">
+        <label class="check-label">
+          {{ form.remember(id='remember', class='form-check-input') }}
+          <span>Se souvenir de moi (30 jours)</span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full">
+        <i class="fa-solid fa-right-to-bracket"></i>
+        {{ form.submit.label.text }}
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Pas encore de compte ?
+      <a href="{{ url_for('auth.register') }}">S'inscrire</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

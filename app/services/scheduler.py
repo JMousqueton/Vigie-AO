@@ -1,0 +1,369 @@
+"""
+Jobs APScheduler : refresh BOAMP et envoi d'alertes email.
+"""
+import json
+import logging
+from datetime import datetime
+
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.events import EVENT_JOB_ERROR
+
+logger = logging.getLogger(__name__)
+
+_scheduler: BackgroundScheduler | None = None
+
+
+def _on_job_error(event):
+    logger.error("Job APScheduler en erreur : %s — %s", event.job_id, event.exception)
+
+
+# ─── Job : refresh cache BOAMP ────────────────────────────────────────────────
+
+def refresh_boamp_cache(app=None):
+    """Récupère les données BOAMP et met à jour le cache SQLite."""
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+
+    with ctx_app.app_context():
+        from app.services.boamp_api import fetch_all_records, aggregate_into_dossiers
+        from app.services.scoring import calculate_score
+        from app.models import DossierCache
+        from app import db
+
+        logger.info("Début refresh BOAMP cache...")
+        try:
+            records = fetch_all_records()
+            dossiers = aggregate_into_dossiers(records)
+
+            # Marquer tous les dossiers existants comme non-nouveaux
+            DossierCache.query.update({'is_new': False})
+
+            updated = 0
+            created = 0
+
+            for dossier in dossiers:
+                if not dossier.avis_initial and not dossier.rectificatifs and not dossier.attribution:
+                    continue
+
+                # Données de référence : avis initial > premier rectificatif > attribution
+                # (les attributions BOAMP sont des notices INITIAL indépendantes — elles
+                #  portent elles-mêmes toutes les infos : acheteur, objet, dates…)
+                ref_data = (
+                    dossier.avis_initial
+                    or (dossier.rectificatifs[0] if dossier.rectificatifs else None)
+                    or dossier.attribution
+                    or {}
+                )
+
+                # Calcul du score
+                score, mots_cles = calculate_score(
+                    objet_marche=ref_data.get('objet_marche', ''),
+                    descripteur_libelle=ref_data.get('descripteur_libelle', ''),
+                    famille_denomination=ref_data.get('famille_denomination', ''),
+                )
+
+                # Parsing de la date de dernière activité
+                date_activite_str = dossier.date_derniere_activite
+                try:
+                    date_activite = datetime.strptime(date_activite_str, '%Y-%m-%d').date() if date_activite_str else None
+                except ValueError:
+                    date_activite = None
+
+                def parse_date(d):
+                    if not d:
+                        return None
+                    try:
+                        return datetime.strptime(str(d)[:10], '%Y-%m-%d').date()
+                    except ValueError:
+                        return None
+
+                existing = DossierCache.query.filter_by(idweb=dossier.idweb).first()
+                if existing:
+                    existing.acheteur_nom = ref_data.get('acheteur_nom')
+                    existing.acheteur_siret = ref_data.get('acheteur_siret')
+                    existing.objet_marche = ref_data.get('objet_marche')
+                    existing.nature = ref_data.get('nature')
+                    existing.type_marche = ref_data.get('type_marche')
+                    existing.famille_denomination = ref_data.get('famille_denomination')
+                    existing.descripteur_libelle = ref_data.get('descripteur_libelle')
+                    existing.code_departement = ref_data.get('code_departement')
+                    existing.lieu_execution = ref_data.get('lieu_execution')
+                    existing.dateparution = parse_date(ref_data.get('dateparution'))
+                    existing.datelimitereponse = parse_date(ref_data.get('datelimitereponse'))
+                    existing.urlgravure = ref_data.get('urlgravure')
+                    existing.reference_boamp_initial = ref_data.get('reference_boamp')
+                    existing.rectificatifs_json = json.dumps(dossier.rectificatifs, ensure_ascii=False)
+                    existing.attribution_json = json.dumps(dossier.attribution, ensure_ascii=False) if dossier.attribution else None
+                    existing.score_pertinence = score
+                    existing.mots_cles_matches = json.dumps(mots_cles, ensure_ascii=False)
+                    existing.has_rectificatif = len(dossier.rectificatifs) > 0
+                    existing.has_attribution = dossier.attribution is not None
+                    existing.date_derniere_activite = date_activite
+                    existing.fetched_at = datetime.utcnow()
+                    existing.is_new = False
+                    existing.source = 'BOAMP'
+                    updated += 1
+                else:
+                    new_dossier = DossierCache(
+                        idweb=dossier.idweb,
+                        acheteur_nom=ref_data.get('acheteur_nom'),
+                        acheteur_siret=ref_data.get('acheteur_siret'),
+                        objet_marche=ref_data.get('objet_marche'),
+                        nature=ref_data.get('nature'),
+                        type_marche=ref_data.get('type_marche'),
+                        famille_denomination=ref_data.get('famille_denomination'),
+                        descripteur_libelle=ref_data.get('descripteur_libelle'),
+                        code_departement=ref_data.get('code_departement'),
+                        lieu_execution=ref_data.get('lieu_execution'),
+                        dateparution=parse_date(ref_data.get('dateparution')),
+                        datelimitereponse=parse_date(ref_data.get('datelimitereponse')),
+                        urlgravure=ref_data.get('urlgravure'),
+                        reference_boamp_initial=ref_data.get('reference_boamp'),
+                        rectificatifs_json=json.dumps(dossier.rectificatifs, ensure_ascii=False),
+                        attribution_json=json.dumps(dossier.attribution, ensure_ascii=False) if dossier.attribution else None,
+                        score_pertinence=score,
+                        mots_cles_matches=json.dumps(mots_cles, ensure_ascii=False),
+                        has_rectificatif=len(dossier.rectificatifs) > 0,
+                        has_attribution=dossier.attribution is not None,
+                        date_derniere_activite=date_activite,
+                        fetched_at=datetime.utcnow(),
+                        is_new=True,
+                        source='BOAMP',
+                    )
+                    db.session.add(new_dossier)
+                    created += 1
+
+            db.session.commit()
+            logger.info(
+                "Refresh BOAMP terminé : %d créés, %d mis à jour",
+                created, updated,
+            )
+        except Exception as exc:
+            db.session.rollback()
+            logger.error("Erreur refresh BOAMP : %s", exc, exc_info=True)
+
+
+# ─── Job : refresh cache TED ─────────────────────────────────────────────────
+
+def refresh_ted_cache(app=None):
+    """Récupère les données TED et met à jour le cache SQLite."""
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+
+    with ctx_app.app_context():
+        # Vérifier l'activation : AppConfig (toggle admin) ou variable d'env en fallback
+        from app.models import AppConfig as _AppConfig
+        row = _AppConfig.query.filter_by(key='source_TED_enabled').first()
+        if row is not None:
+            ted_on = row.value.lower() == 'true'
+        else:
+            ted_on = ctx_app.config.get('TED_ENABLED', False)
+        if not ted_on:
+            logger.info("TED désactivé — refresh ignoré.")
+            return
+
+        from app.services.ted_api import fetch_ted_records, compute_ted_score
+        from app.models import DossierCache
+        from app import db
+
+        logger.info("Début refresh TED cache...")
+        try:
+            records = fetch_ted_records()
+            if not records:
+                logger.info("TED : aucun avis récupéré (désactivé ou aucun résultat).")
+                return
+
+            updated = 0
+            created = 0
+
+            def parse_date(d):
+                if not d:
+                    return None
+                try:
+                    return datetime.strptime(str(d)[:10], '%Y-%m-%d').date()
+                except ValueError:
+                    return None
+
+            for rec in records:
+                idweb = rec['idweb']
+                is_attribution = rec.get('_ted_is_attribution', False)
+
+                # Scoring TED : mots-clés dans le titre + codes CPV Cohesity
+                score, mots_cles = compute_ted_score(rec)
+
+                existing = DossierCache.query.filter_by(idweb=idweb).first()
+
+                # Ignorer les nouveaux dossiers sans aucun déclencheur (score 0)
+                # Le CPV peut correspondre côté API TED sans correspondre à nos CPV_COHESITY
+                if score == 0 and not existing:
+                    logger.debug("TED : ignoré (score 0) %s — %s", idweb, rec.get('objet_marche', '')[:60])
+                    continue
+
+                attribution_json = None
+                if is_attribution:
+                    attribution_json = json.dumps({
+                        'dateparution': rec.get('dateparution', ''),
+                        'urlgravure':   rec.get('urlgravure', ''),
+                        'reference_boamp': rec.get('reference_boamp', ''),
+                        'montant':      rec.get('montant', ''),
+                    }, ensure_ascii=False)
+                if existing:
+                    existing.acheteur_nom        = rec.get('acheteur_nom')
+                    existing.objet_marche        = rec.get('objet_marche')
+                    existing.nature              = rec.get('nature')
+                    existing.type_marche         = rec.get('type_marche')
+                    existing.famille_denomination= rec.get('famille_denomination')
+                    existing.descripteur_libelle = rec.get('descripteur_libelle')
+                    existing.code_departement    = rec.get('code_departement')
+                    existing.lieu_execution      = rec.get('lieu_execution')
+                    existing.dateparution        = parse_date(rec.get('dateparution'))
+                    existing.datelimitereponse   = parse_date(rec.get('datelimitereponse'))
+                    existing.urlgravure          = rec.get('urlgravure')
+                    existing.reference_boamp_initial = rec.get('reference_boamp')
+                    existing.score_pertinence    = score
+                    existing.mots_cles_matches   = json.dumps(mots_cles, ensure_ascii=False)
+                    existing.has_attribution     = is_attribution
+                    if is_attribution:
+                        existing.attribution_json = attribution_json
+                    existing.date_derniere_activite = parse_date(rec.get('dateparution'))
+                    existing.fetched_at          = datetime.utcnow()
+                    existing.source              = 'TED'
+                    updated += 1
+                else:
+                    new_dossier = DossierCache(
+                        idweb=idweb,
+                        acheteur_nom=rec.get('acheteur_nom'),
+                        objet_marche=rec.get('objet_marche'),
+                        nature=rec.get('nature'),
+                        type_marche=rec.get('type_marche'),
+                        famille_denomination=rec.get('famille_denomination'),
+                        descripteur_libelle=rec.get('descripteur_libelle'),
+                        code_departement=rec.get('code_departement'),
+                        lieu_execution=rec.get('lieu_execution'),
+                        dateparution=parse_date(rec.get('dateparution')),
+                        datelimitereponse=parse_date(rec.get('datelimitereponse')),
+                        urlgravure=rec.get('urlgravure'),
+                        reference_boamp_initial=rec.get('reference_boamp'),
+                        rectificatifs_json='[]',
+                        attribution_json=attribution_json,
+                        score_pertinence=score,
+                        mots_cles_matches=json.dumps(mots_cles, ensure_ascii=False),
+                        has_rectificatif=False,
+                        has_attribution=is_attribution,
+                        date_derniere_activite=parse_date(rec.get('dateparution')),
+                        fetched_at=datetime.utcnow(),
+                        is_new=True,
+                        source='TED',
+                    )
+                    db.session.add(new_dossier)
+                    created += 1
+
+            db.session.commit()
+            logger.info("Refresh TED terminé : %d créés, %d mis à jour", created, updated)
+
+        except Exception as exc:
+            db.session.rollback()
+            logger.error("Erreur refresh TED : %s", exc, exc_info=True)
+
+
+# ─── Jobs alertes email ───────────────────────────────────────────────────────
+
+def send_immediate_alerts(app=None):
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+    with ctx_app.app_context():
+        from app.models import User
+        from app.services.mailer import send_alert_digest
+        users = User.query.filter_by(is_active=True, alert_enabled=True, alert_frequency='IMMEDIATE').all()
+        for user in users:
+            send_alert_digest(user, 'IMMEDIATE')
+
+
+def send_daily_digest(app=None):
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+    with ctx_app.app_context():
+        from app.models import User
+        from app.services.mailer import send_alert_digest
+        users = User.query.filter_by(is_active=True, alert_enabled=True, alert_frequency='DAILY').all()
+        for user in users:
+            send_alert_digest(user, 'DAILY')
+
+
+def send_weekly_digest(app=None):
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+    with ctx_app.app_context():
+        from app.models import User
+        from app.services.mailer import send_alert_digest
+        users = User.query.filter_by(is_active=True, alert_enabled=True, alert_frequency='WEEKLY').all()
+        for user in users:
+            send_alert_digest(user, 'WEEKLY')
+
+
+# ─── Initialisation scheduler ─────────────────────────────────────────────────
+
+def _get_app():
+    try:
+        from flask import current_app
+        return current_app._get_current_object()
+    except RuntimeError:
+        return None
+
+
+def init_scheduler(app):
+    global _scheduler
+    if _scheduler and _scheduler.running:
+        return _scheduler
+
+    interval_hours = app.config.get('BOAMP_REFRESH_INTERVAL_HOURS', 4)
+
+    _scheduler = BackgroundScheduler(timezone='Europe/Paris')
+    _scheduler.add_listener(_on_job_error, EVENT_JOB_ERROR)
+
+    _scheduler.add_job(
+        lambda: refresh_boamp_cache(app),
+        'interval',
+        hours=interval_hours,
+        id='boamp_refresh',
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        lambda: refresh_ted_cache(app),
+        'interval',
+        hours=interval_hours,
+        id='ted_refresh',
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        lambda: send_immediate_alerts(app),
+        'interval',
+        hours=1,
+        id='alerts_immediate',
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        lambda: send_daily_digest(app),
+        'cron',
+        hour=8,
+        minute=0,
+        id='alerts_daily',
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        lambda: send_weekly_digest(app),
+        'cron',
+        day_of_week='mon',
+        hour=8,
+        id='alerts_weekly',
+        replace_existing=True,
+    )
+
+    _scheduler.start()
+    logger.info("Scheduler APScheduler démarré (refresh toutes les %dh)", interval_hours)
+    return _scheduler
