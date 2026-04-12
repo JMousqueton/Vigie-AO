@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Vigie AO{% endblock %}</title>
 
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="{% block og_title %}Vigie AO — Veille Appels d'Offres{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}Surveillance des marchés publics BOAMP et TED{% endblock %}" />
+  <meta property="og:image" content="{{ request.host_url }}{{ url_for('static', filename='og.png')[1:] }}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="{{ request.url }}" />
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

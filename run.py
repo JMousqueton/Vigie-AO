@@ -11,6 +11,9 @@ Premier démarrage :
 Port par défaut : 5001 (5000 est souvent occupé par AirPlay Receiver sur macOS)
 """
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from app import create_app, db
 
 app = create_app(os.environ.get('FLASK_ENV', 'development'))
