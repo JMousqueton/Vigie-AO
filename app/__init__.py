@@ -79,6 +79,10 @@ def create_app(config_name: str | None = None) -> Flask:
                 cursor.execute('PRAGMA foreign_keys=ON')
                 cursor.close()
 
+    # Migrations légères : colonnes ajoutées après la création initiale
+    with app.app_context():
+        _apply_schema_migrations()
+
     # Blueprints
     from app.routes.auth import auth_bp
     from app.routes.main import main_bp
@@ -160,6 +164,34 @@ def create_app(config_name: str | None = None) -> Flask:
             app.logger.warning("Scheduler non démarré : %s", exc)
 
     return app
+
+
+def _apply_schema_migrations():
+    """
+    Applique les migrations de schéma SQLite manquantes (colonnes ajoutées
+    après la création initiale de la base).
+    Idempotent : sans effet si la colonne existe déjà.
+    """
+    _migrations = [
+        # (table, colonne, définition SQL)
+        ('dossier_cache', 'contact_email', 'VARCHAR(255)'),
+    ]
+
+    with db.engine.connect() as conn:
+        for table, column, col_def in _migrations:
+            # Lire les colonnes existantes via PRAGMA
+            result = conn.execute(
+                db.text(f'PRAGMA table_info("{table}")')
+            )
+            existing_columns = {row[1] for row in result}
+            if column not in existing_columns:
+                conn.execute(
+                    db.text(f'ALTER TABLE "{table}" ADD COLUMN "{column}" {col_def}')
+                )
+                conn.commit()
+                logging.getLogger(__name__).info(
+                    "Migration DB : colonne '%s.%s' ajoutée.", table, column
+                )
 
 
 def _setup_logging(app: Flask):

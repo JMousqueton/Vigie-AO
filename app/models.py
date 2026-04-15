@@ -66,6 +66,7 @@ class DossierCache(db.Model):
     datelimitereponse = db.Column(db.Date, index=True)
     urlgravure = db.Column(db.String(500))
     reference_boamp_initial = db.Column(db.String(30))
+    contact_email = db.Column(db.String(255))
 
     # Données JSON
     rectificatifs_json = db.Column(db.Text, default='[]')

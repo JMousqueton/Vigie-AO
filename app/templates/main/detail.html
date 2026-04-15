@@ -404,6 +404,15 @@
             </dd>
             {% endif %}
 
+            {% if dossier.contact_email %}
+            <dt>Contact</dt>
+            <dd>
+              <a href="mailto:{{ dossier.contact_email }}" class="link-boamp">
+                <i class="fa-solid fa-envelope"></i> {{ dossier.contact_email }}
+              </a>
+            </dd>
+            {% endif %}
+
             <dt>Mis à jour</dt>
             <dd>{{ dossier.fetched_at.strftime('%d/%m/%Y %H:%M') if dossier.fetched_at else '—' }}</dd>
           </dl>

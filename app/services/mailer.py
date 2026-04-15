@@ -14,6 +14,22 @@ from app.models import User, DossierCache, WatchlistItem, AlertLog
 logger = logging.getLogger(__name__)
 
 
+# ─── Helpers URL ─────────────────────────────────────────────────────────────
+
+def _external_url(path: str) -> str:
+    """
+    Construit une URL absolue sans contexte de requête HTTP.
+    Lit APP_BASE_URL depuis la config Flask, avec fallback sur SERVER_NAME.
+    Exemple : _external_url('/dashboard') → 'https://vigie-ao.example.com/dashboard'
+    """
+    base = current_app.config.get('APP_BASE_URL', '').rstrip('/')
+    if not base:
+        server_name = current_app.config.get('SERVER_NAME', '')
+        scheme = 'https' if current_app.config.get('SESSION_COOKIE_SECURE') else 'http'
+        base = f'{scheme}://{server_name}' if server_name else ''
+    return f'{base}{path}' if base else path
+
+
 # ─── Tokens ──────────────────────────────────────────────────────────────────
 
 def generate_token(email: str, salt: str = 'email-confirm') -> str:
@@ -144,7 +160,7 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY') -> bool:
                 new_dossiers=new_dossiers,
                 watchlist_updates=watchlist_updates,
                 alert_type=alert_type,
-                dashboard_url=url_for('main.dashboard', _external=True),
+                dashboard_url=_external_url('/dashboard'),
             ),
         )
         mail.send(msg)

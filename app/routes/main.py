@@ -238,14 +238,25 @@ def mark_seen():
     if not isinstance(idwebs, list):
         return jsonify({'ok': False}), 400
 
+    idwebs = idwebs[:50]  # sécurité : max 50 par appel
     now = datetime.utcnow()
-    for idweb in idwebs[:50]:  # sécurité : max 50 par appel
-        if not UserSeenDossier.query.get((current_user.id, idweb)):
+
+    # Récupérer en une seule requête ceux déjà vus
+    already_seen = {
+        r.idweb for r in UserSeenDossier.query.filter(
+            UserSeenDossier.user_id == current_user.id,
+            UserSeenDossier.idweb.in_(idwebs),
+        ).all()
+    }
+
+    for idweb in idwebs:
+        if idweb not in already_seen:
             db.session.add(UserSeenDossier(user_id=current_user.id, idweb=idweb, seen_at=now))
+
     try:
         db.session.commit()
     except IntegrityError:
-        # Race condition : un autre onglet/requête a déjà inséré les mêmes lignes
+        # Race condition multi-onglets : on ignore, les lignes existent déjà
         db.session.rollback()
     return jsonify({'ok': True, 'marked': len(idwebs)})
 
@@ -254,7 +265,7 @@ def mark_seen():
 @login_required
 def hide_toggle(idweb):
     """Masque ou démasque un dossier pour l'utilisateur courant."""
-    existing = UserHiddenDossier.query.get((current_user.id, idweb))
+    existing = UserHiddenDossier.query.filter_by(user_id=current_user.id, idweb=idweb).first()
     if existing:
         db.session.delete(existing)
         db.session.commit()

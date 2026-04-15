@@ -57,3 +57,4 @@ htmlcov/
 # Distribution
 *.tar.gz
 *.zip
+vigie-ao.service

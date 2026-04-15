@@ -179,6 +179,8 @@ def normalize_record(record: dict) -> dict:
         'urlgravure':           record.get('url_avis', ''),
         # JSON brut
         'donnees':              record.get('donnees'),
+        # Contact email (extrait du JSON EForms)
+        'contact_email':        extract_contact_email(record.get('donnees')),
     }
 
 
@@ -468,6 +470,71 @@ def extract_lots_titulaires(attribution: dict) -> list[dict]:
 
 
 # ─── Diff rectificatifs ───────────────────────────────────────────────────────
+
+def extract_contact_email(donnees) -> str:
+    """
+    Extrait l'email de contact de l'acheteur depuis le JSON EForms BOAMP.
+
+    Essaie dans l'ordre :
+      1. Chemins EForms standards (ContractNotice, ContractAwardNotice, etc.)
+      2. Fallback regex sur la représentation JSON brute (pour anciens formats).
+
+    Retourne la première adresse email trouvée, ou '' si aucune.
+    """
+    import re as _re
+
+    if not donnees:
+        return ''
+
+    # Désérialiser si c'est une chaîne
+    if isinstance(donnees, str):
+        try:
+            donnees = json.loads(donnees)
+        except Exception:
+            emails = _re.findall(
+                r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', donnees
+            )
+            return emails[0] if emails else ''
+
+    if not isinstance(donnees, dict):
+        return ''
+
+    # Parcourir les types de notice EForms connus
+    eforms = donnees.get('EFORMS', {})
+    if isinstance(eforms, dict):
+        for notice_type in (
+            'ContractNotice', 'ContractAwardNotice',
+            'PriorInformationNotice', 'Modification', 'ExAnte',
+        ):
+            notice = eforms.get(notice_type)
+            if not isinstance(notice, dict):
+                continue
+
+            # cac:ContractingParty peut être un dict ou une liste
+            parties = notice.get('cac:ContractingParty', [])
+            if isinstance(parties, dict):
+                parties = [parties]
+
+            for cp in parties:
+                if not isinstance(cp, dict):
+                    continue
+                party = cp.get('cac:Party', {})
+                contact = party.get('cac:Contact', {})
+                email_raw = contact.get('cbc:ElectronicMail', '')
+                email = _eforms_text(email_raw).strip()
+                if email and '@' in email:
+                    return email
+
+    # Fallback : regex sur le JSON brut (anciens formats BOAMP non-EForms)
+    try:
+        donnees_str = json.dumps(donnees, ensure_ascii=False)
+        emails = _re.findall(
+            r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', donnees_str
+        )
+        return emails[0] if emails else ''
+    except Exception:
+        return ''
+
 
 def diff_rectificatif(avis_precedent: dict, rectificatif: dict) -> dict:
     """Retourne les champs modifiés entre deux avis (clés normalisées)."""

@@ -37,6 +37,10 @@ class Config:
     )
 
     # Application
+    # URL publique de l'application — utilisée pour les liens dans les emails
+    # envoyés par le scheduler (hors contexte de requête HTTP).
+    # Exemple : APP_BASE_URL=https://vigie-ao.example.com
+    APP_BASE_URL = os.environ.get('APP_BASE_URL', '')
     ALLOWED_EMAIL_DOMAIN = os.environ.get('ALLOWED_EMAIL_DOMAIN', '')
     AUTO_ACTIVATE = os.environ.get('AUTO_ACTIVATE', 'True').lower() == 'true'
     ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@domain.com')

@@ -93,6 +93,7 @@ def refresh_boamp_cache(app=None):
                     existing.datelimitereponse = parse_date(ref_data.get('datelimitereponse'))
                     existing.urlgravure = ref_data.get('urlgravure')
                     existing.reference_boamp_initial = ref_data.get('reference_boamp')
+                    existing.contact_email = ref_data.get('contact_email') or ''
                     existing.rectificatifs_json = json.dumps(dossier.rectificatifs, ensure_ascii=False)
                     existing.attribution_json = json.dumps(dossier.attribution, ensure_ascii=False) if dossier.attribution else None
                     existing.score_pertinence = score
@@ -120,6 +121,7 @@ def refresh_boamp_cache(app=None):
                         datelimitereponse=parse_date(ref_data.get('datelimitereponse')),
                         urlgravure=ref_data.get('urlgravure'),
                         reference_boamp_initial=ref_data.get('reference_boamp'),
+                        contact_email=ref_data.get('contact_email') or '',
                         rectificatifs_json=json.dumps(dossier.rectificatifs, ensure_ascii=False),
                         attribution_json=json.dumps(dossier.attribution, ensure_ascii=False) if dossier.attribution else None,
                         score_pertinence=score,
