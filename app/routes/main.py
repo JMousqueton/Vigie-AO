@@ -247,7 +247,7 @@ def dashboard():
         attribue=attribue,
         periode=periode,
         sources=sources,
-        all_sources=['BOAMP', 'TED'],
+        all_sources=['BOAMP', 'TED'] if active_country == 'FR' else ['TED'],
         total=total,
         nb_rectifs=nb_rectifs,
         nb_attributions=nb_attributions,
@@ -257,6 +257,7 @@ def dashboard():
         dept_list=dept_list,
         today=today,
         supervisor_country=supervisor_country,
+        active_country=active_country,
     )
 
 

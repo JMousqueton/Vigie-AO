@@ -10,28 +10,28 @@
       <i class="fa-solid fa-file-lines"></i>
       <div>
         <span class="stat-value">{{ total }}</span>
-        <span class="stat-label">Dossiers</span>
+        <span class="stat-label">{{ _('Dossiers') }}</span>
       </div>
     </div>
     <div class="stat-item stat-warning">
       <i class="fa-solid fa-triangle-exclamation"></i>
       <div>
         <span class="stat-value">{{ nb_rectifs }}</span>
-        <span class="stat-label">Rectificatifs</span>
+        <span class="stat-label">{{ _('Rectificatifs') }}</span>
       </div>
     </div>
     <div class="stat-item stat-success">
       <i class="fa-solid fa-trophy"></i>
       <div>
         <span class="stat-value">{{ nb_attributions }}</span>
-        <span class="stat-label">Attributions</span>
+        <span class="stat-label">{{ _('Attributions') }}</span>
       </div>
     </div>
     <div class="stat-item stat-danger">
       <i class="fa-solid fa-clock"></i>
       <div>
         <span class="stat-value">{{ nb_urgents }}</span>
-        <span class="stat-label">Urgents</span>
+        <span class="stat-label">{{ _('Urgents') }}</span>
       </div>
     </div>
     <div class="stat-item stat-meta freshness-{{ freshness }}">
@@ -41,9 +41,9 @@
           {% if last_fetched %}{{ last_fetched.strftime('%d/%m %H:%M') }}{% else %}—{% endif %}
         </span>
         <span class="stat-label">
-          Mis à jour
-          {% if freshness == 'stale' %}<i class="fa-solid fa-circle-exclamation" title="Données de plus de 4h"></i>{% endif %}
-          {% if freshness == 'old' %}<i class="fa-solid fa-triangle-exclamation" title="Données de plus de 24h"></i>{% endif %}
+          {{ _('Mis à jour') }}
+          {% if freshness == 'stale' %}<i class="fa-solid fa-circle-exclamation" title="{{ _('Données de plus de 4h') }}"></i>{% endif %}
+          {% if freshness == 'old' %}<i class="fa-solid fa-triangle-exclamation" title="{{ _('Données de plus de 24h') }}"></i>{% endif %}
         </span>
       </div>
     </div>
@@ -51,7 +51,7 @@
 
   {% if current_user.is_admin %}
   <form id="refreshForm" method="post" action="{{ url_for('main.manual_refresh') }}" style="display:none;"
-        onsubmit="showLoading('Récupération des données BOAMP / TED…')">
+        onsubmit="showLoading('{{ _('Récupération des données…') }}')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
   </form>
   {% endif %}
@@ -64,29 +64,31 @@
       <div class="filter-tabs">
         <a href="{{ url_for('main.dashboard', q=search, dept=dept, tri=tri) }}"
            class="filter-tab {{ 'active' if filtre == 'tous' }}">
-          <i class="fa-solid fa-border-all"></i> Tous
+          <i class="fa-solid fa-border-all"></i> {{ _('Tous') }}
         </a>
         <a href="{{ url_for('main.dashboard', filtre='avis', q=search, dept=dept, tri=tri) }}"
            class="filter-tab {{ 'active' if filtre == 'avis' }}">
-          <i class="fa-solid fa-file-circle-plus"></i> Avis
+          <i class="fa-solid fa-file-circle-plus"></i> {{ _('Avis') }}
         </a>
+        {% if active_country == 'FR' %}
         <a href="{{ url_for('main.dashboard', filtre='rectificatifs', q=search, dept=dept, tri=tri) }}"
            class="filter-tab filter-tab-warning {{ 'active' if filtre == 'rectificatifs' }}">
-          <i class="fa-solid fa-file-pen"></i> Rectificatifs
+          <i class="fa-solid fa-file-pen"></i> {{ _('Rectificatifs') }}
         </a>
         <a href="{{ url_for('main.dashboard', filtre='attributions', q=search, dept=dept, tri=tri) }}"
            class="filter-tab filter-tab-success {{ 'active' if filtre == 'attributions' }}">
-          <i class="fa-solid fa-trophy"></i> Attributions
+          <i class="fa-solid fa-trophy"></i> {{ _('Attributions') }}
         </a>
+        {% endif %}
         <a href="{{ url_for('main.dashboard', filtre='watchlist', q=search, dept=dept, tri=tri) }}"
            class="filter-tab filter-tab-star {{ 'active' if filtre == 'watchlist' }}">
-          <i class="fa-solid fa-star"></i> Ma watchlist
+          <i class="fa-solid fa-star"></i> {{ _('Ma watchlist') }}
         </a>
         {% if nb_hidden > 0 %}
         <a href="{{ url_for('main.dashboard', filtre='hidden', q=search, dept=dept, tri=tri) }}"
            class="filter-tab filter-tab-hidden {{ 'active' if filtre == 'hidden' }}"
-           title="Afficher uniquement les dossiers masqués">
-          <i class="fa-solid fa-eye-slash"></i> Masqués : {{ nb_hidden }}
+           title="{{ _('Afficher uniquement les dossiers masqués') }}">
+          <i class="fa-solid fa-eye-slash"></i> {{ _('Masqués') }} : {{ nb_hidden }}
         </a>
         {% endif %}
       </div>
@@ -98,7 +100,7 @@
         <div class="search-wrap">
           <i class="fa-solid fa-magnifying-glass search-icon"></i>
           <input type="text" name="q" id="searchInput" value="{{ search }}"
-                 placeholder="Rechercher un dossier, acheteur…"
+                 placeholder="{{ _('Rechercher un dossier, acheteur…') }}"
                  class="form-control search-input" autocomplete="off" />
           {% if search %}
           <a href="{{ url_for('main.dashboard', filtre=filtre, dept=dept, tri=tri) }}" class="search-clear">
@@ -108,14 +110,14 @@
         </div>
 
         <select name="tri" class="form-control select-sm" onchange="this.form.submit()">
-          <option value="date_desc" {{ 'selected' if tri == 'date_desc' }}>Date ↓</option>
-          <option value="date_asc" {{ 'selected' if tri == 'date_asc' }}>Date ↑</option>
-          <option value="score_desc" {{ 'selected' if tri == 'score_desc' }}>Score ↓</option>
-          <option value="deadline_asc" {{ 'selected' if tri == 'deadline_asc' }}>Deadline ↑</option>
+          <option value="date_desc" {{ 'selected' if tri == 'date_desc' }}>{{ _('Date') }} ↓</option>
+          <option value="date_asc" {{ 'selected' if tri == 'date_asc' }}>{{ _('Date') }} ↑</option>
+          <option value="score_desc" {{ 'selected' if tri == 'score_desc' }}>{{ _('Score') }} ↓</option>
+          <option value="deadline_asc" {{ 'selected' if tri == 'deadline_asc' }}>{{ _('Deadline') }} ↑</option>
         </select>
 
         <select name="dept" class="form-control select-sm" onchange="this.form.submit()">
-          <option value="">Tous dépts.</option>
+          <option value="">{{ _('Tous dépts.') }}</option>
           {% for d in dept_list %}
           <option value="{{ d }}" {{ 'selected' if dept == d }}>{{ d }}</option>
           {% endfor %}
@@ -125,39 +127,39 @@
         <button type="button"
                 class="btn btn-sm {{ 'btn-ghost expire-btn-off' if expire == 'sans' else 'btn-ghost expire-btn-on' }}"
                 onclick="toggleExpire(this)"
-                title="{{ 'Afficher les dossiers expirés' if expire == 'sans' else 'Masquer les dossiers expirés' }}">
+                title="{{ _('Afficher les dossiers expirés') if expire == 'sans' else _('Masquer les dossiers expirés') }}">
           <i class="fa-solid fa-ban"></i>
-          Expirés : <strong>{{ 'avec' if expire == 'avec' else 'sans' }}</strong>
+          {{ _('Expirés') }} : <strong>{{ _('avec') if expire == 'avec' else _('sans') }}</strong>
         </button>
 
         <input type="hidden" name="attribue" id="attribueInput" value="{{ attribue }}" />
         <button type="button"
                 class="btn btn-sm {{ 'btn-ghost attribue-btn-off' if attribue == 'sans' else 'btn-ghost attribue-btn-on' }}"
                 onclick="toggleAttribue(this)"
-                title="{{ 'Afficher les dossiers attribués' if attribue == 'sans' else 'Masquer les dossiers attribués' }}">
+                title="{{ _('Afficher les dossiers attribués') if attribue == 'sans' else _('Masquer les dossiers attribués') }}">
           <i class="fa-solid fa-trophy"></i>
-          Attribués : <strong>{{ 'avec' if attribue == 'avec' else 'sans' }}</strong>
+          {{ _('Attribués') }} : <strong>{{ _('avec') if attribue == 'avec' else _('sans') }}</strong>
         </button>
 
         <input type="hidden" name="periode" id="periodeInput" value="{{ periode }}" />
         <button type="button"
                 class="btn btn-sm {{ 'btn-ghost periode-btn-actifs' if periode == 'actifs' else 'btn-ghost periode-btn-tous' }}"
                 onclick="togglePeriode(this)"
-                title="{{ 'Afficher tous les dossiers' if periode == 'actifs' else 'Afficher uniquement les dossiers des 90 derniers jours' }}">
+                title="{{ _('Afficher tous les dossiers') if periode == 'actifs' else _('Afficher uniquement les dossiers des 90 derniers jours') }}">
           <i class="fa-solid fa-calendar-days"></i>
-          <strong>{{ 'Actifs' if periode == 'actifs' else 'Tous' }}</strong>
+          <strong>{{ _('Actifs') if periode == 'actifs' else _('Tous') }}</strong>
         </button>
 
         {% if current_user.is_admin %}
-        <button type="submit" form="refreshForm" class="btn btn-sm btn-ghost" title="Rafraîchir toutes les bases (BOAMP + TED)">
-          <i class="fa-solid fa-rotate"></i> Refresh
+        <button type="submit" form="refreshForm" class="btn btn-sm btn-ghost" title="{{ _('Rafraîchir toutes les bases') }}">
+          <i class="fa-solid fa-rotate"></i> {{ _('Refresh') }}
         </button>
         {% endif %}
       </div>
 
       <!-- Ligne source -->
       <div class="filter-source-row">
-        <span class="filter-source-label">Source :</span>
+        <span class="filter-source-label">{{ _('Source') }} :</span>
         {% for src in all_sources %}
         <label class="source-checkbox badge-source badge-source-{{ src | lower }} {{ '' if not sources or src in sources else 'source-inactive' }}">
           <input type="checkbox" name="sources" value="{{ src }}"
@@ -175,22 +177,22 @@
   {% if not dossiers %}
   <div class="empty-state">
     <i class="fa-solid fa-inbox"></i>
-    <h3>Aucun dossier trouvé</h3>
+    <h3>{{ _('Aucun dossier trouvé') }}</h3>
     <p>
       {% if search or dept or filtre != 'tous' %}
-        Modifiez vos filtres ou
-        <a href="{{ url_for('main.dashboard') }}">réinitialisez la recherche</a>.
+        {{ _('Modifiez vos filtres ou') }}
+        <a href="{{ url_for('main.dashboard') }}">{{ _('réinitialisez la recherche') }}</a>.
       {% elif total == 0 %}
-        La base est vide.
+        {{ _('La base est vide.') }}
         {% if current_user.is_admin %}
           <form method="post" action="{{ url_for('admin.manual_refresh') }}" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn btn-sm btn-primary">
-              <i class="fa-solid fa-rotate"></i> Charger les données BOAMP
+              <i class="fa-solid fa-rotate"></i> {{ _('Charger les données') }}
             </button>
           </form>
         {% else %}
-          Contactez un administrateur.
+          {{ _('Contactez un administrateur.') }}
         {% endif %}
       {% endif %}
     </p>
@@ -217,26 +219,26 @@
       <div class="card-badges">
         <span class="badge-nature {% if dossier.has_attribution %}badge-attrib{% endif %}">
           {% if dossier.has_attribution %}
-            <i class="fa-solid fa-trophy"></i> ATTRIBUÉ
+            <i class="fa-solid fa-trophy"></i> {{ _('ATTRIBUÉ') }}
           {% elif dossier.nature == 'APPEL_OFFRE' %}
-            <i class="fa-solid fa-file-contract"></i> APPEL D'OFFRES
+            <i class="fa-solid fa-file-contract"></i> {{ _("APPEL D'OFFRES") }}
           {% elif dossier.nature %}
             <i class="fa-solid fa-file"></i> {{ dossier.nature | replace('_', ' ') }}
           {% else %}
-            <i class="fa-solid fa-file"></i> AVIS
+            <i class="fa-solid fa-file"></i> {{ _('AVIS') }}
           {% endif %}
         </span>
 
         {% if dossier.has_rectificatif %}
         <span class="badge-rectif">
           <i class="fa-solid fa-triangle-exclamation"></i>
-          RECTIFIÉ ({{ dossier.nb_rectificatifs }})
+          {{ _('RECTIFIÉ') }} ({{ dossier.nb_rectificatifs }})
         </span>
         {% endif %}
 
         {% if dossier.is_urgent %}
         <span class="badge-urgent blink">
-          <i class="fa-solid fa-clock"></i> URGENT
+          <i class="fa-solid fa-clock"></i> {{ _('URGENT') }}
         </span>
         {% endif %}
 
@@ -262,7 +264,7 @@
         <!-- Watchlist toggle -->
         <button class="wl-toggle {{ 'wl-active' if in_wl else '' }}"
                 data-idweb="{{ dossier.idweb }}"
-                title="{{ 'Retirer de la watchlist' if in_wl else 'Ajouter à la watchlist' }}"
+                title="{{ _('Retirer de la watchlist') if in_wl else _('Ajouter à la watchlist') }}"
                 onclick="toggleWatchlist(this)">
           <i class="fa-{{ 'solid' if in_wl else 'regular' }} fa-star"></i>
         </button>
@@ -270,7 +272,7 @@
         <!-- Hide toggle -->
         <button class="hide-toggle {{ 'hide-active' if dossier.idweb in hidden_ids else '' }}"
                 data-idweb="{{ dossier.idweb }}"
-                title="{{ 'Réafficher ce dossier' if dossier.idweb in hidden_ids else 'Masquer ce dossier' }}"
+                title="{{ _('Réafficher ce dossier') if dossier.idweb in hidden_ids else _('Masquer ce dossier') }}"
                 onclick="toggleHide(this)">
           <i class="fa-solid fa-eye-slash"></i>
         </button>
@@ -290,7 +292,7 @@
         </div>
 
         <p class="card-objet">
-          {{ dossier.objet_marche | truncate(160) if dossier.objet_marche else 'Objet non renseigné' }}
+          {{ dossier.objet_marche | truncate(160) if dossier.objet_marche else _('Objet non renseigné') }}
         </p>
 
         <!-- Mots-clés matchés -->
@@ -309,7 +311,7 @@
         <div class="card-timeline">
           <div class="tl-item tl-initial">
             <span class="tl-dot"></span>
-            <span class="tl-label">Initial</span>
+            <span class="tl-label">{{ _('Initial') }}</span>
             <span class="tl-date">{{ dossier.dateparution | format_date }}</span>
             <span class="tl-ref">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
           </div>
@@ -317,7 +319,7 @@
           {% set rectifs = dossier.rectificatifs %}
           <div class="tl-item tl-rectif">
             <span class="tl-dot"></span>
-            <span class="tl-label">Rectif #{{ rectifs | length }}</span>
+            <span class="tl-label">{{ _('Rectif') }} #{{ rectifs | length }}</span>
             <span class="tl-date">{{ rectifs[-1].get('dateparution', '') | format_date if rectifs else '—' }}</span>
             <span class="tl-ref">{{ rectifs[-1].get('reference_boamp', '') if rectifs else '' }}</span>
           </div>
@@ -325,7 +327,7 @@
           {% if dossier.has_attribution %}
           <div class="tl-item tl-attrib">
             <span class="tl-dot"></span>
-            <span class="tl-label">Attribution</span>
+            <span class="tl-label">{{ _('Attribution') }}</span>
             <span class="tl-date">
               {% set attr = dossier.attribution %}
               {{ attr.get('dateparution', '') | format_date if attr else '—' }}
@@ -334,8 +336,8 @@
           {% else %}
           <div class="tl-item tl-pending">
             <span class="tl-dot tl-dot-empty"></span>
-            <span class="tl-label">Attribution</span>
-            <span class="tl-date tl-pending-label">en attente</span>
+            <span class="tl-label">{{ _('Attribution') }}</span>
+            <span class="tl-date tl-pending-label">{{ _('en attente') }}</span>
           </div>
           {% endif %}
         </div>
@@ -344,15 +346,15 @@
       <!-- Footer card -->
       <div class="card-footer">
         <div class="card-dates">
-          <span><i class="fa-solid fa-calendar-plus"></i> Paru : {{ dossier.dateparution | format_date }}</span>
+          <span><i class="fa-solid fa-calendar-plus"></i> {{ _('Paru :') }} {{ dossier.dateparution | format_date }}</span>
           {% if dossier.datelimitereponse %}
           <span class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
             <i class="fa-solid fa-calendar-xmark"></i>
-            Limite : {{ dossier.datelimitereponse | format_date }}
+            {{ _('Limite :') }} {{ dossier.datelimitereponse | format_date }}
             {% if dossier.is_expired %}
-              <span class="badge-expired">EXPIRÉ</span>
+              <span class="badge-expired">{{ _('EXPIRÉ') }}</span>
             {% elif dossier.jours_restants is not none %}
-              <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
+              <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">{{ _('J-') }}{{ dossier.jours_restants }}</span>
             {% endif %}
           </span>
           {% endif %}
@@ -360,7 +362,7 @@
 
         <div class="card-ref">
           <span class="ref-text mono">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
-          <button class="btn-copy" title="Copier la référence"
+          <button class="btn-copy" title="{{ _('Copier la référence') }}"
                   onclick="copyRef('{{ dossier.reference_boamp_initial or dossier.idweb }}', this)">
             <i class="fa-regular fa-copy"></i>
           </button>
@@ -373,9 +375,9 @@
           </a>
           {% endif %}
           <a href="{{ url_for('main.detail', idweb=dossier.idweb) }}" class="btn btn-sm btn-primary">
-            <i class="fa-solid fa-magnifying-glass"></i> Détail
+            <i class="fa-solid fa-magnifying-glass"></i> {{ _('Détail') }}
           </a>
-          <button class="btn btn-sm btn-ghost" title="Partager ce dossier"
+          <button class="btn btn-sm btn-ghost" title="{{ _('Partager ce dossier') }}"
                   onclick="shareDossier('{{ dossier.idweb }}', this)">
             <i class="fa-solid fa-share-nodes"></i>
           </button>
@@ -409,8 +411,8 @@
     {% endif %}
 
     <span class="page-info">
-      Page {{ pagination.page }} / {{ pagination.pages }}
-      · {{ pagination.total }} dossier{{ 's' if pagination.total > 1 }}
+      {{ _('Page') }} {{ pagination.page }} / {{ pagination.pages }}
+      · {{ pagination.total }} {{ _('dossier') }}{{ 's' if pagination.total > 1 }}
     </span>
   </nav>
   {% endif %}

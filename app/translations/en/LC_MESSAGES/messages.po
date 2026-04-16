@@ -168,3 +168,190 @@ msgstr "Weekly (Monday morning)"
 
 msgid "Europe (tous)"
 msgstr "Europe (all)"
+
+# ─── Dashboard — stat bar ─────────────────────────────────────────────────────
+msgid "Dossiers"
+msgstr "Tenders"
+
+msgid "Rectificatifs"
+msgstr "Amendments"
+
+msgid "Attributions"
+msgstr "Awards"
+
+msgid "Urgents"
+msgstr "Urgent"
+
+msgid "Mis à jour"
+msgstr "Updated"
+
+msgid "Données de plus de 4h"
+msgstr "Data older than 4h"
+
+msgid "Données de plus de 24h"
+msgstr "Data older than 24h"
+
+# ─── Dashboard — filtres ──────────────────────────────────────────────────────
+msgid "Récupération des données…"
+msgstr "Fetching data…"
+
+msgid "Tous"
+msgstr "All"
+
+msgid "Avis"
+msgstr "Notices"
+
+msgid "Ma watchlist"
+msgstr "My watchlist"
+
+msgid "Masqués"
+msgstr "Hidden"
+
+msgid "Afficher uniquement les dossiers masqués"
+msgstr "Show only hidden tenders"
+
+msgid "Rechercher un dossier, acheteur…"
+msgstr "Search a tender, buyer…"
+
+msgid "Date"
+msgstr "Date"
+
+msgid "Score"
+msgstr "Score"
+
+msgid "Deadline"
+msgstr "Deadline"
+
+msgid "Tous dépts."
+msgstr "All regions"
+
+msgid "Expirés"
+msgstr "Expired"
+
+msgid "avec"
+msgstr "on"
+
+msgid "sans"
+msgstr "off"
+
+msgid "Afficher les dossiers expirés"
+msgstr "Show expired tenders"
+
+msgid "Masquer les dossiers expirés"
+msgstr "Hide expired tenders"
+
+msgid "Attribués"
+msgstr "Awarded"
+
+msgid "Afficher les dossiers attribués"
+msgstr "Show awarded tenders"
+
+msgid "Masquer les dossiers attribués"
+msgstr "Hide awarded tenders"
+
+msgid "Actifs"
+msgstr "Active"
+
+msgid "Afficher tous les dossiers"
+msgstr "Show all tenders"
+
+msgid "Afficher uniquement les dossiers des 90 derniers jours"
+msgstr "Show only tenders from the last 90 days"
+
+msgid "Rafraîchir toutes les bases"
+msgstr "Refresh all data sources"
+
+msgid "Refresh"
+msgstr "Refresh"
+
+msgid "Source"
+msgstr "Source"
+
+# ─── Dashboard — empty state ──────────────────────────────────────────────────
+msgid "Aucun dossier trouvé"
+msgstr "No tenders found"
+
+msgid "Modifiez vos filtres ou"
+msgstr "Adjust your filters or"
+
+msgid "réinitialisez la recherche"
+msgstr "reset the search"
+
+msgid "La base est vide."
+msgstr "The database is empty."
+
+msgid "Charger les données"
+msgstr "Load data"
+
+msgid "Contactez un administrateur."
+msgstr "Contact an administrator."
+
+# ─── Dashboard — cards ────────────────────────────────────────────────────────
+msgid "ATTRIBUÉ"
+msgstr "AWARDED"
+
+msgid "APPEL D'OFFRES"
+msgstr "TENDER"
+
+msgid "AVIS"
+msgstr "NOTICE"
+
+msgid "RECTIFIÉ"
+msgstr "AMENDED"
+
+msgid "URGENT"
+msgstr "URGENT"
+
+msgid "Retirer de la watchlist"
+msgstr "Remove from watchlist"
+
+msgid "Ajouter à la watchlist"
+msgstr "Add to watchlist"
+
+msgid "Réafficher ce dossier"
+msgstr "Unhide this tender"
+
+msgid "Masquer ce dossier"
+msgstr "Hide this tender"
+
+msgid "Objet non renseigné"
+msgstr "No description"
+
+msgid "Initial"
+msgstr "Initial"
+
+msgid "Rectif"
+msgstr "Amendment"
+
+msgid "Attribution"
+msgstr "Award"
+
+msgid "en attente"
+msgstr "pending"
+
+msgid "Paru :"
+msgstr "Published:"
+
+msgid "Limite :"
+msgstr "Deadline:"
+
+msgid "EXPIRÉ"
+msgstr "EXPIRED"
+
+msgid "J-"
+msgstr "D-"
+
+msgid "Copier la référence"
+msgstr "Copy reference"
+
+msgid "Détail"
+msgstr "Details"
+
+msgid "Partager ce dossier"
+msgstr "Share this tender"
+
+msgid "Page"
+msgstr "Page"
+
+msgid "dossier"
+msgstr "tender"

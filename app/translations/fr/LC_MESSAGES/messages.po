@@ -168,3 +168,190 @@ msgstr ""
 
 msgid "Europe (tous)"
 msgstr ""
+
+# ─── Dashboard — stat bar ─────────────────────────────────────────────────────
+msgid "Dossiers"
+msgstr ""
+
+msgid "Rectificatifs"
+msgstr ""
+
+msgid "Attributions"
+msgstr ""
+
+msgid "Urgents"
+msgstr ""
+
+msgid "Mis à jour"
+msgstr ""
+
+msgid "Données de plus de 4h"
+msgstr ""
+
+msgid "Données de plus de 24h"
+msgstr ""
+
+# ─── Dashboard — filtres ──────────────────────────────────────────────────────
+msgid "Récupération des données…"
+msgstr ""
+
+msgid "Tous"
+msgstr ""
+
+msgid "Avis"
+msgstr ""
+
+msgid "Ma watchlist"
+msgstr ""
+
+msgid "Masqués"
+msgstr ""
+
+msgid "Afficher uniquement les dossiers masqués"
+msgstr ""
+
+msgid "Rechercher un dossier, acheteur…"
+msgstr ""
+
+msgid "Date"
+msgstr ""
+
+msgid "Score"
+msgstr ""
+
+msgid "Deadline"
+msgstr ""
+
+msgid "Tous dépts."
+msgstr ""
+
+msgid "Expirés"
+msgstr ""
+
+msgid "avec"
+msgstr ""
+
+msgid "sans"
+msgstr ""
+
+msgid "Afficher les dossiers expirés"
+msgstr ""
+
+msgid "Masquer les dossiers expirés"
+msgstr ""
+
+msgid "Attribués"
+msgstr ""
+
+msgid "Afficher les dossiers attribués"
+msgstr ""
+
+msgid "Masquer les dossiers attribués"
+msgstr ""
+
+msgid "Actifs"
+msgstr ""
+
+msgid "Afficher tous les dossiers"
+msgstr ""
+
+msgid "Afficher uniquement les dossiers des 90 derniers jours"
+msgstr ""
+
+msgid "Rafraîchir toutes les bases"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Source"
+msgstr ""
+
+# ─── Dashboard — empty state ──────────────────────────────────────────────────
+msgid "Aucun dossier trouvé"
+msgstr ""
+
+msgid "Modifiez vos filtres ou"
+msgstr ""
+
+msgid "réinitialisez la recherche"
+msgstr ""
+
+msgid "La base est vide."
+msgstr ""
+
+msgid "Charger les données"
+msgstr ""
+
+msgid "Contactez un administrateur."
+msgstr ""
+
+# ─── Dashboard — cards ────────────────────────────────────────────────────────
+msgid "ATTRIBUÉ"
+msgstr ""
+
+msgid "APPEL D'OFFRES"
+msgstr ""
+
+msgid "AVIS"
+msgstr ""
+
+msgid "RECTIFIÉ"
+msgstr ""
+
+msgid "URGENT"
+msgstr ""
+
+msgid "Retirer de la watchlist"
+msgstr ""
+
+msgid "Ajouter à la watchlist"
+msgstr ""
+
+msgid "Réafficher ce dossier"
+msgstr ""
+
+msgid "Masquer ce dossier"
+msgstr ""
+
+msgid "Objet non renseigné"
+msgstr ""
+
+msgid "Initial"
+msgstr ""
+
+msgid "Rectif"
+msgstr ""
+
+msgid "Attribution"
+msgstr ""
+
+msgid "en attente"
+msgstr ""
+
+msgid "Paru :"
+msgstr ""
+
+msgid "Limite :"
+msgstr ""
+
+msgid "EXPIRÉ"
+msgstr ""
+
+msgid "J-"
+msgstr ""
+
+msgid "Copier la référence"
+msgstr ""
+
+msgid "Détail"
+msgstr ""
+
+msgid "Partager ce dossier"
+msgstr ""
+
+msgid "Page"
+msgstr ""
+
+msgid "dossier"
+msgstr ""

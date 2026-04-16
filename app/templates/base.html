@@ -56,12 +56,14 @@
       <a href="{{ url_for('watchlist.index') }}" class="nav-link {% if request.blueprint == 'watchlist' %}active{% endif %}">
         <i class="fa-solid fa-star"></i> {{ _('Watchlist') }}
       </a>
+      {% if current_user.country == 'FR' or not current_user.country %}
       <a href="{{ url_for('reminders.index') }}" class="nav-link nav-link-badge {% if request.blueprint == 'reminders' %}active{% endif %}">
         <i class="fa-solid fa-thumbtack"></i> {{ _('Pense-bêtes') }}
         {% if reminders_badge > 0 %}
         <span class="nav-badge">{{ reminders_badge }}</span>
         {% endif %}
       </a>
+      {% endif %}
       {% if current_user.is_admin %}
       <a href="{{ url_for('admin.index') }}" class="nav-link {% if request.blueprint == 'admin' %}active{% endif %}">
         <i class="fa-solid fa-gear"></i> {{ _('Admin') }}
