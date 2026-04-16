@@ -160,7 +160,7 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY') -> bool:
                 new_dossiers=new_dossiers,
                 watchlist_updates=watchlist_updates,
                 alert_type=alert_type,
-                dashboard_url=_external_url('/dashboard'),
+                base_url=_external_url('/'),
             ),
         )
         mail.send(msg)

@@ -116,7 +116,7 @@
         {% endif %}
         <span>🔖 Réf : {{ dossier.reference_boamp_initial or dossier.idweb }}</span>
       </div>
-      <a href="{{ dashboard_url }}dossier/{{ dossier.idweb }}" class="btn-view">Voir le dossier →</a>
+      <a href="{{ base_url }}dossier/{{ dossier.idweb }}" class="btn-view">Voir le dossier →</a>
     </div>
     {% endfor %}
 
@@ -136,19 +136,19 @@
         ⚠ {{ update.dossier.nb_rectificatifs - update.item.nb_rectifs_at_add }} nouveau(x) rectificatif(s)
       </p>
       <p style="margin:0; color:#94a3b8; font-size:13px;">{{ (update.dossier.objet_marche or '—') | truncate(120) }}</p>
-      <a href="{{ dashboard_url }}dossier/{{ update.dossier.idweb }}" class="btn-view" style="background:#F59E0B;">Voir le dossier →</a>
+      <a href="{{ base_url }}dossier/{{ update.dossier.idweb }}" class="btn-view" style="background:#F59E0B;">Voir le dossier →</a>
     </div>
     {% endfor %}
     {% endif %}
 
-    <a href="{{ dashboard_url }}" class="btn-dashboard">
+    <a href="{{ base_url }}dashboard" class="btn-dashboard">
       Accéder au dashboard complet →
     </a>
   </div>
 
   <div class="footer">
     <p>Vous recevez cet email car vous êtes abonné aux alertes BOAMP (fréquence : {{ user.alert_frequency }}).</p>
-    <p>Pour modifier vos préférences : <a href="{{ dashboard_url }}auth/profile">Mon profil</a></p>
+    <p>Pour modifier vos préférences : <a href="{{ base_url }}auth/profile">Mon profil</a></p>
     <p>© 2026 Julien Mousqueton — Vigie AO</p>
   </div>
 </div>
