@@ -74,6 +74,10 @@
             onclick="switchTab('logs')">
       <i class="fa-solid fa-list-check"></i> Logs alertes
     </button>
+    <button class="admin-tab {{ 'active' if active_tab == 'database' }}"
+            onclick="switchTab('database')">
+      <i class="fa-solid fa-hard-drive"></i> Base de données
+    </button>
   </div>
 
   <!-- ─── TAB : Import emails (mode preview) -->
@@ -443,7 +447,148 @@
   {% endif %}
   </div>{# /tab-panel logs #}
 
+  <!-- ─── TAB : Base de données -->
+  <div class="tab-panel" id="tab-database">
+  <div class="card mt-4">
+    <div class="card-header">
+      <i class="fa-solid fa-hard-drive"></i>
+      <h2>Base de données</h2>
+    </div>
+    <div class="card-body">
+
+      <!-- Fichier -->
+      <div class="db-section-title">Fichier</div>
+      <div class="db-stats-grid">
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-file"></i> Chemin</span>
+          <span class="db-stat-value mono text-small">{{ db_file.path }}</span>
+        </div>
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-weight-hanging"></i> Taille</span>
+          <span class="db-stat-value">
+            {% if db_file.size_bytes is not none %}
+              {% set size = db_file.size_bytes %}
+              {% if size >= 1073741824 %}
+                {{ '%.2f'|format(size / 1073741824) }} Go
+              {% elif size >= 1048576 %}
+                {{ '%.2f'|format(size / 1048576) }} Mo
+              {% elif size >= 1024 %}
+                {{ '%.1f'|format(size / 1024) }} Ko
+              {% else %}
+                {{ size }} octets
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-clock"></i> Dernière modification</span>
+          <span class="db-stat-value">
+            {% if db_file.mtime %}{{ db_file.mtime.strftime('%d/%m/%Y à %H:%M') }} UTC{% else %}—{% endif %}
+          </span>
+        </div>
+      </div>
+
+      <!-- Dossiers -->
+      <div class="db-section-title" style="margin-top:28px;">Dossiers (cache)</div>
+      <div class="db-stats-grid">
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-building-columns"></i> BOAMP</span>
+          <span class="db-stat-value">{{ db_boamp | default(0) }}</span>
+        </div>
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-globe"></i> TED</span>
+          <span class="db-stat-value">{{ db_ted | default(0) }}</span>
+        </div>
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-copy"></i> Doublons masqués</span>
+          <span class="db-stat-value">{{ db_duplicates | default(0) }}</span>
+        </div>
+        <div class="db-stat-row total-row">
+          <span class="db-stat-label"><i class="fa-solid fa-sigma"></i> Total</span>
+          <span class="db-stat-value">{{ (db_boamp + db_ted) | default(0) }}</span>
+        </div>
+      </div>
+
+      <!-- Autres tables -->
+      <div class="db-section-title" style="margin-top:28px;">Autres tables</div>
+      <div class="db-stats-grid">
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-users"></i> Utilisateurs</span>
+          <span class="db-stat-value">{{ nb_users }}</span>
+        </div>
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-star"></i> Watchlist</span>
+          <span class="db-stat-value">{{ db_watchlist | default(0) }}</span>
+        </div>
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-thumbtack"></i> Pense-bêtes</span>
+          <span class="db-stat-value">{{ db_reminders | default(0) }}</span>
+        </div>
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-envelope"></i> Logs alertes</span>
+          <span class="db-stat-value">{{ db_alert_logs | default(0) }}</span>
+        </div>
+        <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-sliders"></i> Config app</span>
+          <span class="db-stat-value">{{ db_appconfig | default(0) }} entrées</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </div>{# /tab-panel database #}
+
 </div>
+{% endblock %}
+
+{% block head_extra %}
+<style>
+.db-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.db-stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.db-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+.db-stat-row:last-child { border-bottom: none; }
+.db-stat-row.total-row {
+  background: var(--bg-hover, rgba(79,142,247,.07));
+  font-weight: 600;
+}
+.db-stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.db-stat-label i { width: 14px; text-align: center; }
+.db-stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}

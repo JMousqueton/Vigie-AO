@@ -52,6 +52,39 @@ def _source_enabled(source: str) -> bool:
     return True  # BOAMP activé par défaut
 
 
+def _db_file_info() -> dict:
+    """Retourne la taille et le chemin du fichier SQLite."""
+    import os
+    from flask import current_app
+    db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    # Extraire le chemin depuis sqlite:////absolute/path ou sqlite:///relative
+    path = db_uri.replace('sqlite:///', '')
+    if not os.path.isabs(path):
+        path = os.path.join(current_app.instance_path, path)
+    try:
+        size_bytes = os.path.getsize(path)
+        mtime = datetime.utcfromtimestamp(os.path.getmtime(path))
+    except OSError:
+        size_bytes = None
+        mtime = None
+    return {'path': path, 'size_bytes': size_bytes, 'mtime': mtime}
+
+
+def _db_reminders_count() -> int:
+    try:
+        from app.models import Reminder
+        return Reminder.query.count()
+    except Exception:
+        return 0
+
+
+def _db_appconfig_count() -> int:
+    try:
+        return AppConfig.query.count()
+    except Exception:
+        return 0
+
+
 def _admin_context(**extra):
     """Données communes à toutes les vues admin."""
     from app.services.keywords import get_search_keywords, get_scoring_keywords, get_exclude_keywords
@@ -91,6 +124,15 @@ def _admin_context(**extra):
         kw_moyenne='\n'.join(kws.get('moyenne', [])),
         kw_contexte='\n'.join(kws.get('contexte', [])),
         kw_exclude='\n'.join(get_exclude_keywords()),
+        # Base de données
+        db_boamp=DossierCache.query.filter_by(source='BOAMP').count(),
+        db_ted=DossierCache.query.filter_by(source='TED').count(),
+        db_duplicates=DossierCache.query.filter_by(is_duplicate=True).count(),
+        db_watchlist=WatchlistItem.query.count(),
+        db_reminders=_db_reminders_count(),
+        db_alert_logs=AlertLog.query.count(),
+        db_appconfig=_db_appconfig_count(),
+        db_file=_db_file_info(),
         active_tab=request.args.get('tab', 'users'),
     )
     ctx.update(extra)
