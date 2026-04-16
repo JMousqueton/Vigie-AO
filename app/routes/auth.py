@@ -10,6 +10,7 @@ from flask import (
     Blueprint, render_template, redirect, url_for,
     flash, request, current_app,
 )
+from flask_babel import lazy_gettext as _l
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SelectField, SubmitField
@@ -25,10 +26,10 @@ auth_bp = Blueprint('auth', __name__)
 # ─── Formulaires ──────────────────────────────────────────────────────────────
 
 class LoginForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Mot de passe', validators=[DataRequired()])
-    remember = BooleanField('Se souvenir de moi')
-    submit = SubmitField('Connexion')
+    email = StringField(_l('Email'), validators=[DataRequired(), Email()])
+    password = PasswordField(_l('Mot de passe'), validators=[DataRequired()])
+    remember = BooleanField(_l('Se souvenir de moi'))
+    submit = SubmitField(_l('Connexion'))
 
 
 class RegisterForm(FlaskForm):
@@ -75,34 +76,34 @@ COUNTRY_CHOICES = [
     ('NO', '🇳🇴 Norvège'),
     ('GB', '🇬🇧 Royaume-Uni'),
     ('IE', '🇮🇪 Irlande'),
-    ('EU', '🇪🇺 Europe (tous)'),
+    ('EU', _l('🇪🇺 Europe (tous)')),
 ]
 
 
 class ProfileForm(FlaskForm):
-    prenom = StringField('Prénom', validators=[DataRequired(), Length(2, 50)])
-    nom = StringField('Nom', validators=[DataRequired(), Length(2, 50)])
-    country = SelectField('Pays', choices=COUNTRY_CHOICES, default='FR')
-    alert_enabled = BooleanField('Recevoir les alertes email')
+    prenom = StringField(_l('Prénom'), validators=[DataRequired(), Length(2, 50)])
+    nom = StringField(_l('Nom'), validators=[DataRequired(), Length(2, 50)])
+    country = SelectField(_l('Pays'), choices=COUNTRY_CHOICES, default='FR')
+    alert_enabled = BooleanField(_l('Recevoir les alertes email'))
     alert_frequency = SelectField(
-        'Fréquence',
+        _l('Fréquence'),
         choices=[
-            ('IMMEDIATE', 'Immédiate (toutes les heures)'),
-            ('DAILY', 'Quotidienne (chaque matin à 8h)'),
-            ('WEEKLY', 'Hebdomadaire (lundi matin)'),
+            ('IMMEDIATE', _l('Immédiate (toutes les heures)')),
+            ('DAILY',     _l('Quotidienne (chaque matin à 8h)')),
+            ('WEEKLY',    _l('Hebdomadaire (lundi matin)')),
         ],
     )
-    submit = SubmitField('Enregistrer')
+    submit = SubmitField(_l('Enregistrer'))
 
 
 class ChangePasswordForm(FlaskForm):
-    current_password = PasswordField('Mot de passe actuel', validators=[DataRequired()])
-    new_password = PasswordField('Nouveau mot de passe', validators=[DataRequired(), Length(8, 128)])
+    current_password = PasswordField(_l('Mot de passe actuel'), validators=[DataRequired()])
+    new_password = PasswordField(_l('Nouveau mot de passe'), validators=[DataRequired(), Length(8, 128)])
     new_password2 = PasswordField(
-        'Confirmer',
+        _l('Confirmer'),
         validators=[DataRequired(), EqualTo('new_password', message='Les mots de passe ne correspondent pas.')],
     )
-    submit = SubmitField('Changer le mot de passe')
+    submit = SubmitField(_l('Changer le mot de passe'))
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────

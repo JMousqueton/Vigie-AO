@@ -7,7 +7,7 @@
     <div class="auth-logo">
       <i class="fa-solid fa-shield-halved"></i>
       <h1>Vigie AO</h1>
-      <p>Appels d'offres publics</p>
+      <p>{{ _("Appels d'offres publics") }}</p>
     </div>
 
     <form method="post" action="{{ url_for('auth.login') }}" novalidate>
@@ -33,7 +33,7 @@
       <div class="form-check-row">
         <label class="check-label">
           {{ form.remember(id='remember', class='form-check-input') }}
-          <span>Se souvenir de moi (30 jours)</span>
+          <span>{{ _('Se souvenir de moi (30 jours)') }}</span>
         </label>
       </div>
 
@@ -44,8 +44,8 @@
     </form>
 
     <div class="auth-footer">
-      Pas encore de compte ?
-      <a href="{{ url_for('auth.register') }}">S'inscrire</a>
+      {{ _('Pas encore de compte ?') }}
+      <a href="{{ url_for('auth.register') }}">{{ _("S'inscrire") }}</a>
     </div>
   </div>
 </div>

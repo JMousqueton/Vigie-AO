@@ -1,0 +1,170 @@
+# English translations for Vigie AO.
+msgid ""
+msgstr ""
+"Project-Id-Version: Vigie AO\n"
+"POT-Creation-Date: 2026-04-16 00:00+0000\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# ─── Navigation ───────────────────────────────────────────────────────────────
+msgid "Dashboard"
+msgstr "Dashboard"
+
+msgid "Watchlist"
+msgstr "Watchlist"
+
+msgid "Pense-bêtes"
+msgstr "Reminders"
+
+msgid "Admin"
+msgstr "Admin"
+
+msgid "Mots-clés"
+msgstr "Keywords"
+
+msgid "Mon profil"
+msgstr "My Profile"
+
+msgid "Mode sombre"
+msgstr "Dark mode"
+
+msgid "Mode clair"
+msgstr "Light mode"
+
+msgid "Déconnexion"
+msgstr "Sign out"
+
+# ─── UI commun ────────────────────────────────────────────────────────────────
+msgid "Chargement…"
+msgstr "Loading…"
+
+msgid "Mots-clés de détection"
+msgstr "Detection Keywords"
+
+msgid "Recherche BOAMP"
+msgstr "BOAMP Search"
+
+msgid "Haute pertinence"
+msgstr "High relevance"
+
+msgid "Moyenne pertinence"
+msgstr "Medium relevance"
+
+msgid "Contexte"
+msgstr "Context"
+
+msgid "Lecture seule — contactez un administrateur pour toute modification."
+msgstr "Read only — contact an administrator for any changes."
+
+msgid "Erreur de chargement."
+msgstr "Loading error."
+
+# ─── Login ────────────────────────────────────────────────────────────────────
+msgid "Appels d'offres publics"
+msgstr "Public procurement notices"
+
+msgid "Se souvenir de moi (30 jours)"
+msgstr "Remember me (30 days)"
+
+msgid "Pas encore de compte ?"
+msgstr "No account yet?"
+
+msgid "S'inscrire"
+msgstr "Sign up"
+
+# ─── Profil ───────────────────────────────────────────────────────────────────
+msgid "Gérez vos informations et préférences d'alertes"
+msgstr "Manage your information and alert preferences"
+
+msgid "Informations personnelles"
+msgstr "Personal information"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "Préférences d'interface"
+msgstr "Display preferences"
+
+msgid "Thème d'affichage"
+msgstr "Display theme"
+
+msgid "Préférences d'alertes"
+msgstr "Alert preferences"
+
+msgid "Dernière alerte envoyée :"
+msgstr "Last alert sent:"
+
+msgid "jamais"
+msgstr "never"
+
+msgid "Enregistrer les modifications"
+msgstr "Save changes"
+
+msgid "Sécurité"
+msgstr "Security"
+
+msgid "Rôle"
+msgstr "Role"
+
+msgid "Inscription"
+msgstr "Registration"
+
+msgid "Dernière connexion"
+msgstr "Last login"
+
+# ─── Formulaires WTForms ──────────────────────────────────────────────────────
+msgid "Mot de passe"
+msgstr "Password"
+
+msgid "Se souvenir de moi"
+msgstr "Remember me"
+
+msgid "Connexion"
+msgstr "Sign in"
+
+msgid "Prénom"
+msgstr "First name"
+
+msgid "Nom"
+msgstr "Last name"
+
+msgid "Pays"
+msgstr "Country"
+
+msgid "Recevoir les alertes email"
+msgstr "Receive email alerts"
+
+msgid "Recevoir les alertes email BOAMP"
+msgstr "Receive BOAMP email alerts"
+
+msgid "Fréquence"
+msgstr "Frequency"
+
+msgid "Enregistrer"
+msgstr "Save"
+
+msgid "Mot de passe actuel"
+msgstr "Current password"
+
+msgid "Nouveau mot de passe"
+msgstr "New password"
+
+msgid "Confirmer"
+msgstr "Confirm"
+
+msgid "Changer le mot de passe"
+msgstr "Change password"
+
+msgid "Immédiate (toutes les heures)"
+msgstr "Immediate (every hour)"
+
+msgid "Quotidienne (chaque matin à 8h)"
+msgstr "Daily (every morning at 8am)"
+
+msgid "Hebdomadaire (lundi matin)"
+msgstr "Weekly (Monday morning)"
+
+msgid "Europe (tous)"
+msgstr "Europe (all)"

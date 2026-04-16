@@ -6,6 +6,7 @@ import os
 from logging.handlers import RotatingFileHandler
 
 from flask import Flask
+from flask_babel import Babel
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 from flask_mail import Mail
@@ -16,12 +17,29 @@ from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 
 db = SQLAlchemy()
+babel = Babel()
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 mail = Mail()
 csrf = CSRFProtect()
 limiter = Limiter(key_func=get_remote_address)
 talisman = Talisman()
+
+
+def _get_locale():
+    """Détermine la locale à partir du pays de l'utilisateur connecté."""
+    try:
+        from flask_login import current_user
+        from flask import session
+        if current_user.is_authenticated:
+            if current_user.is_supervisor:
+                country = session.get('supervisor_country', current_user.country or 'FR')
+            else:
+                country = current_user.country or 'FR'
+            return 'fr' if country == 'FR' else 'en'
+    except Exception:
+        pass
+    return 'fr'
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -37,6 +55,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # Extensions
     db.init_app(app)
+    babel.init_app(app, locale_selector=_get_locale)
     bcrypt.init_app(app)
     mail.init_app(app)
     csrf.init_app(app)

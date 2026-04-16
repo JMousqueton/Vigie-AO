@@ -1,0 +1,170 @@
+# French translations for Vigie AO (source language — passthrough).
+msgid ""
+msgstr ""
+"Project-Id-Version: Vigie AO\n"
+"POT-Creation-Date: 2026-04-16 00:00+0000\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# ─── Navigation ───────────────────────────────────────────────────────────────
+msgid "Dashboard"
+msgstr ""
+
+msgid "Watchlist"
+msgstr ""
+
+msgid "Pense-bêtes"
+msgstr ""
+
+msgid "Admin"
+msgstr ""
+
+msgid "Mots-clés"
+msgstr ""
+
+msgid "Mon profil"
+msgstr ""
+
+msgid "Mode sombre"
+msgstr ""
+
+msgid "Mode clair"
+msgstr ""
+
+msgid "Déconnexion"
+msgstr ""
+
+# ─── UI commun ────────────────────────────────────────────────────────────────
+msgid "Chargement…"
+msgstr ""
+
+msgid "Mots-clés de détection"
+msgstr ""
+
+msgid "Recherche BOAMP"
+msgstr ""
+
+msgid "Haute pertinence"
+msgstr ""
+
+msgid "Moyenne pertinence"
+msgstr ""
+
+msgid "Contexte"
+msgstr ""
+
+msgid "Lecture seule — contactez un administrateur pour toute modification."
+msgstr ""
+
+msgid "Erreur de chargement."
+msgstr ""
+
+# ─── Login ────────────────────────────────────────────────────────────────────
+msgid "Appels d'offres publics"
+msgstr ""
+
+msgid "Se souvenir de moi (30 jours)"
+msgstr ""
+
+msgid "Pas encore de compte ?"
+msgstr ""
+
+msgid "S'inscrire"
+msgstr ""
+
+# ─── Profil ───────────────────────────────────────────────────────────────────
+msgid "Gérez vos informations et préférences d'alertes"
+msgstr ""
+
+msgid "Informations personnelles"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "Préférences d'interface"
+msgstr ""
+
+msgid "Thème d'affichage"
+msgstr ""
+
+msgid "Préférences d'alertes"
+msgstr ""
+
+msgid "Dernière alerte envoyée :"
+msgstr ""
+
+msgid "jamais"
+msgstr ""
+
+msgid "Enregistrer les modifications"
+msgstr ""
+
+msgid "Sécurité"
+msgstr ""
+
+msgid "Rôle"
+msgstr ""
+
+msgid "Inscription"
+msgstr ""
+
+msgid "Dernière connexion"
+msgstr ""
+
+# ─── Formulaires WTForms ──────────────────────────────────────────────────────
+msgid "Mot de passe"
+msgstr ""
+
+msgid "Se souvenir de moi"
+msgstr ""
+
+msgid "Connexion"
+msgstr ""
+
+msgid "Prénom"
+msgstr ""
+
+msgid "Nom"
+msgstr ""
+
+msgid "Pays"
+msgstr ""
+
+msgid "Recevoir les alertes email"
+msgstr ""
+
+msgid "Recevoir les alertes email BOAMP"
+msgstr ""
+
+msgid "Fréquence"
+msgstr ""
+
+msgid "Enregistrer"
+msgstr ""
+
+msgid "Mot de passe actuel"
+msgstr ""
+
+msgid "Nouveau mot de passe"
+msgstr ""
+
+msgid "Confirmer"
+msgstr ""
+
+msgid "Changer le mot de passe"
+msgstr ""
+
+msgid "Immédiate (toutes les heures)"
+msgstr ""
+
+msgid "Quotidienne (chaque matin à 8h)"
+msgstr ""
+
+msgid "Hebdomadaire (lundi matin)"
+msgstr ""
+
+msgid "Europe (tous)"
+msgstr ""

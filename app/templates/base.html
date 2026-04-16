@@ -51,24 +51,24 @@
     {% if current_user.is_authenticated %}
     <nav class="main-nav">
       <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
-        <i class="fa-solid fa-gauge-high"></i> Dashboard
+        <i class="fa-solid fa-gauge-high"></i> {{ _('Dashboard') }}
       </a>
       <a href="{{ url_for('watchlist.index') }}" class="nav-link {% if request.blueprint == 'watchlist' %}active{% endif %}">
-        <i class="fa-solid fa-star"></i> Watchlist
+        <i class="fa-solid fa-star"></i> {{ _('Watchlist') }}
       </a>
       <a href="{{ url_for('reminders.index') }}" class="nav-link nav-link-badge {% if request.blueprint == 'reminders' %}active{% endif %}">
-        <i class="fa-solid fa-thumbtack"></i> Pense-bêtes
+        <i class="fa-solid fa-thumbtack"></i> {{ _('Pense-bêtes') }}
         {% if reminders_badge > 0 %}
         <span class="nav-badge">{{ reminders_badge }}</span>
         {% endif %}
       </a>
       {% if current_user.is_admin %}
       <a href="{{ url_for('admin.index') }}" class="nav-link {% if request.blueprint == 'admin' %}active{% endif %}">
-        <i class="fa-solid fa-gear"></i> Admin
+        <i class="fa-solid fa-gear"></i> {{ _('Admin') }}
       </a>
       {% else %}
       <button class="nav-link" onclick="openKeywordsModal()" type="button">
-        <i class="fa-solid fa-tags"></i> Mots-clés
+        <i class="fa-solid fa-tags"></i> {{ _('Mots-clés') }}
       </button>
       {% endif %}
       {% if current_user.is_supervisor %}
@@ -112,22 +112,22 @@
           </div>
           <div class="dropdown-divider"></div>
           <a href="{{ url_for('auth.profile') }}" class="dropdown-item">
-            <i class="fa-solid fa-user-pen"></i> Mon profil
+            <i class="fa-solid fa-user-pen"></i> {{ _('Mon profil') }}
           </a>
           <div class="dropdown-divider"></div>
           <!-- Toggle dark / light -->
           <button class="dropdown-item" id="themeToggle" onclick="toggleTheme()" type="button">
             {% if active_theme == 'light' %}
-              <i class="fa-solid fa-moon"></i> Mode sombre
+              <i class="fa-solid fa-moon"></i> {{ _('Mode sombre') }}
             {% else %}
-              <i class="fa-solid fa-sun"></i> Mode clair
+              <i class="fa-solid fa-sun"></i> {{ _('Mode clair') }}
             {% endif %}
           </button>
           <div class="dropdown-divider"></div>
           <form method="post" action="{{ url_for('auth.logout') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="dropdown-item danger">
-              <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
+              <i class="fa-solid fa-right-from-bracket"></i> {{ _('Déconnexion') }}
             </button>
           </form>
         </div>
@@ -156,7 +156,7 @@
 <div id="loadingOverlay" class="loading-overlay" style="display:none;">
   <div class="loading-box">
     <div class="loading-spinner"></div>
-    <p class="loading-msg" id="loadingMsg">Chargement…</p>
+    <p class="loading-msg" id="loadingMsg">{{ _('Chargement…') }}</p>
   </div>
 </div>
 
@@ -183,11 +183,11 @@
 <div id="keywordsModal" class="kw-modal-overlay" onclick="if(event.target===this)closeKeywordsModal()">
   <div class="kw-modal">
     <div class="kw-modal-header">
-      <span><i class="fa-solid fa-tags"></i> Mots-clés de détection</span>
+      <span><i class="fa-solid fa-tags"></i> {{ _('Mots-clés de détection') }}</span>
       <button class="kw-modal-close" onclick="closeKeywordsModal()"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="kw-modal-body" id="kwModalBody">
-      <div class="kw-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Chargement…</div>
+      <div class="kw-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> {{ _('Chargement…') }}</div>
     </div>
   </div>
 </div>
@@ -321,12 +321,12 @@ function openKeywordsModal() {
     .then(r => r.json())
     .then(data => {
       const sections = [
-        { key: 'search',   label: 'Recherche BOAMP',    icon: 'fa-magnifying-glass', cls: 'kw-tag-search'   },
-        { key: 'haute',    label: 'Haute pertinence',   icon: 'fa-star',             cls: 'kw-tag-haute',
+        { key: 'search',   label: '{{ _("Recherche BOAMP") }}',    icon: 'fa-magnifying-glass', cls: 'kw-tag-search'   },
+        { key: 'haute',    label: '{{ _("Haute pertinence") }}',   icon: 'fa-star',             cls: 'kw-tag-haute',
           hint: '+20 pts' },
-        { key: 'moyenne',  label: 'Moyenne pertinence', icon: 'fa-star-half-stroke', cls: 'kw-tag-moyenne',
+        { key: 'moyenne',  label: '{{ _("Moyenne pertinence") }}', icon: 'fa-star-half-stroke', cls: 'kw-tag-moyenne',
           hint: '+10 pts' },
-        { key: 'contexte', label: 'Contexte',           icon: 'fa-regular fa-star',  cls: 'kw-tag-contexte',
+        { key: 'contexte', label: '{{ _("Contexte") }}',           icon: 'fa-regular fa-star',  cls: 'kw-tag-contexte',
           hint: '+5 pts'  },
       ];
 
@@ -346,12 +346,12 @@ function openKeywordsModal() {
           </div>`;
       }
       html += '</div>';
-      html += '<p class="kw-readonly-note"><i class="fa-solid fa-lock"></i> Lecture seule — contactez un administrateur pour toute modification.</p>';
+      html += '<p class="kw-readonly-note"><i class="fa-solid fa-lock"></i> {{ _("Lecture seule — contactez un administrateur pour toute modification.") }}</p>';
       body.innerHTML = html;
     })
     .catch(() => {
       document.getElementById('kwModalBody').innerHTML =
-        '<div class="kw-loading"><i class="fa-solid fa-circle-exclamation"></i> Erreur de chargement.</div>';
+        '<div class="kw-loading"><i class="fa-solid fa-circle-exclamation"></i> {{ _("Erreur de chargement.") }}</div>';
     });
 }
 

@@ -101,6 +101,56 @@ init_db()
 # ─── Commandes CLI Flask ──────────────────────────────────────────────────────
 
 import click
+import subprocess
+import sys
+
+
+@app.cli.group('translate')
+def translate():
+    """Commandes de gestion des traductions i18n."""
+
+
+@translate.command('extract')
+def translate_extract():
+    """Extrait les chaînes traduisibles (messages.pot)."""
+    result = subprocess.run(
+        ['pybabel', 'extract', '-F', 'babel.cfg', '-o', 'app/translations/messages.pot', '.'],
+        capture_output=True, text=True,
+    )
+    click.echo(result.stdout)
+    if result.returncode != 0:
+        click.echo(result.stderr, err=True)
+        sys.exit(result.returncode)
+    click.echo('Extraction terminée → app/translations/messages.pot')
+
+
+@translate.command('update')
+def translate_update():
+    """Met à jour les fichiers .po depuis messages.pot."""
+    result = subprocess.run(
+        ['pybabel', 'update', '-i', 'app/translations/messages.pot', '-d', 'app/translations'],
+        capture_output=True, text=True,
+    )
+    click.echo(result.stdout)
+    if result.returncode != 0:
+        click.echo(result.stderr, err=True)
+        sys.exit(result.returncode)
+    click.echo('Fichiers .po mis à jour.')
+
+
+@translate.command('compile')
+def translate_compile():
+    """Compile les fichiers .po en .mo (binaires utilisés par Flask-Babel)."""
+    result = subprocess.run(
+        ['pybabel', 'compile', '-d', 'app/translations'],
+        capture_output=True, text=True,
+    )
+    click.echo(result.stdout)
+    if result.returncode != 0:
+        click.echo(result.stderr, err=True)
+        sys.exit(result.returncode)
+    click.echo('Compilation terminée — fichiers .mo générés.')
+
 
 @app.cli.command('send-digest')
 @click.option('--type', 'alert_type',
