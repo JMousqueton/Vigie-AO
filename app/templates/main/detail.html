@@ -338,6 +338,13 @@
                         {% if p.start_date %}
                           <span class="period-dates">(à compter du {{ p.start_date | format_date }})</span>
                         {% endif %}
+                        {% if p.end_date %}
+                          — <i class="fa-solid fa-calendar-xmark"></i>
+                          {{ p.end_date | format_date }}
+                          {% if p.end_date_computed %}
+                            <span class="period-dates" title="Date calculée : début + durée">&#x1F4D0;</span>
+                          {% endif %}
+                        {% endif %}
                       {% elif p.start_date and p.end_date %}
                         <i class="fa-solid fa-calendar-range"></i>
                         {{ p.start_date | format_date }} → {{ p.end_date | format_date }}

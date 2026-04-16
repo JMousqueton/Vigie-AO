@@ -536,6 +536,32 @@ def extract_contract_period(attribution: dict) -> list[dict]:
         start_date = start_raw[:10] if start_raw else None
         end_date   = end_raw[:10]   if end_raw   else None
 
+        # Calculer end_date depuis start_date + duration si end_date absent
+        if not end_date and duration_value and duration_unit and start_date:
+            try:
+                from datetime import date as _date
+                import datetime as _dt
+                sd = _dt.date.fromisoformat(start_date)
+                n  = int(duration_value)
+                if duration_unit == 'DAY':
+                    computed = sd + _dt.timedelta(days=n)
+                elif duration_unit == 'MONTH':
+                    # Décalage mensuel robuste
+                    month = sd.month - 1 + n
+                    year  = sd.year + month // 12
+                    month = month % 12 + 1
+                    import calendar as _cal
+                    day   = min(sd.day, _cal.monthrange(year, month)[1])
+                    computed = _date(year, month, day)
+                elif duration_unit == 'YEAR':
+                    computed = _date(sd.year + n, sd.month, sd.day)
+                else:
+                    computed = None
+                if computed:
+                    end_date = computed.isoformat()
+            except Exception:
+                pass
+
         key = (duration_value, duration_unit, start_date, end_date)
         if key == (None, None, None, None) or key in seen_periods:
             continue
@@ -547,6 +573,9 @@ def extract_contract_period(attribution: dict) -> list[dict]:
             'end_date':       end_date,
             'duration_value': duration_value,
             'duration_unit':  duration_unit,
+            'end_date_computed': bool(
+                end_date and duration_value and not _eforms_text(pp.get('cbc:EndDate', ''))
+            ),
         })
 
     return results
