@@ -378,6 +378,20 @@ def set_theme():
     return jsonify({'theme': theme})
 
 
+@main_bp.route('/api/keywords')
+@login_required
+def api_keywords():
+    """Retourne les mots-clés de détection en lecture seule (tous utilisateurs)."""
+    from app.services.keywords import get_search_keywords, get_scoring_keywords
+    kws = get_scoring_keywords()
+    return jsonify({
+        'search':  get_search_keywords(),
+        'haute':   kws.get('haute', []),
+        'moyenne': kws.get('moyenne', []),
+        'contexte': kws.get('contexte', []),
+    })
+
+
 @main_bp.route('/api/stats')
 @login_required
 def api_stats():

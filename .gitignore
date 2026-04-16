@@ -58,3 +58,5 @@ htmlcov/
 *.tar.gz
 *.zip
 vigie-ao.service
+docs/documentation.html
+docs/Vigie-AO_Documentation.pdf
