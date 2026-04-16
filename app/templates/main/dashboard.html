@@ -244,6 +244,13 @@
         <span class="badge-source badge-source-{{ dossier.source | lower }}">
           <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo"> {{ dossier.source }}
         </span>
+        {% if dossier.alt_source_url %}
+        <a href="{{ dossier.alt_source_url }}" target="_blank" rel="noopener"
+           class="badge-source badge-source-ted"
+           title="Aussi publié sur TED" onclick="event.stopPropagation()">
+          <img src="{{ url_for('static', filename='TED.png') }}" alt="TED" class="source-logo"> TED
+        </a>
+        {% endif %}
 
         <!-- Score étoiles -->
         <div class="score-stars ml-auto">
