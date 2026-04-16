@@ -71,6 +71,27 @@
         <i class="fa-solid fa-tags"></i> Mots-clés
       </button>
       {% endif %}
+      {% if current_user.is_supervisor %}
+      {% set sup_country = session.get('supervisor_country', current_user.country or 'FR') %}
+      {% set country_flags = {'FR':'🇫🇷','BE':'🇧🇪','CH':'🇨🇭','LU':'🇱🇺','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','NL':'🇳🇱','PT':'🇵🇹','AT':'🇦🇹','PL':'🇵🇱','SE':'🇸🇪','DK':'🇩🇰','FI':'🇫🇮','NO':'🇳🇴','GB':'🇬🇧','IE':'🇮🇪','EU':'🇪🇺'} %}
+      {% set country_names = {'FR':'France','BE':'Belgique','CH':'Suisse','LU':'Luxembourg','DE':'Allemagne','ES':'Espagne','IT':'Italie','NL':'Pays-Bas','PT':'Portugal','AT':'Autriche','PL':'Pologne','SE':'Suède','DK':'Danemark','FI':'Finlande','NO':'Norvège','GB':'Royaume-Uni','IE':'Irlande','EU':'Europe (tous)'} %}
+      <div class="country-picker" id="countryPicker">
+        <button class="nav-link country-picker-btn" id="countryPickerBtn" type="button"
+                onclick="toggleCountryPicker()" aria-haspopup="true">
+          <span>{{ country_flags.get(sup_country, '🌍') }}</span>
+          <span class="country-picker-label">{{ country_names.get(sup_country, sup_country) }}</span>
+          <i class="fa-solid fa-chevron-down" style="font-size:10px;opacity:.6;"></i>
+        </button>
+        <div class="country-picker-dropdown" id="countryPickerDropdown">
+          {% for code, name in [('FR','France'),('BE','Belgique'),('CH','Suisse'),('LU','Luxembourg'),('DE','Allemagne'),('ES','Espagne'),('IT','Italie'),('NL','Pays-Bas'),('PT','Portugal'),('AT','Autriche'),('PL','Pologne'),('SE','Suède'),('DK','Danemark'),('FI','Finlande'),('NO','Norvège'),('GB','Royaume-Uni'),('IE','Irlande'),('EU','Europe (tous)')] %}
+          <a href="{{ url_for('main.set_supervisor_country', country=code) }}"
+             class="country-option {% if sup_country == code %}active{% endif %}">
+            {{ country_flags.get(code, '') }} {{ name }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </nav>
 
     <!-- Actions droite -->
@@ -85,7 +106,9 @@
           <div class="dropdown-header">
             <strong>{{ current_user.full_name }}</strong>
             <small>{{ current_user.email }}</small>
-            {% if current_user.is_admin %}<span class="badge-admin">ADMIN</span>{% endif %}
+            {% if current_user.is_admin %}<span class="badge-admin">ADMIN</span>
+            {% elif current_user.is_supervisor %}<span class="badge-supervisor">SUPERVISEUR</span>
+            {% endif %}
           </div>
           <div class="dropdown-divider"></div>
           <a href="{{ url_for('auth.profile') }}" class="dropdown-item">
@@ -342,8 +365,41 @@ document.addEventListener('keydown', e => {
 </script>
 {% endif %}
 
+<!-- Styles country picker superviseur -->
+<style>
+.badge-supervisor { background: rgba(139,92,246,.2); color: #a78bfa; border: 1px solid rgba(139,92,246,.3); border-radius: 4px; font-size: 10px; font-weight: 700; padding: 2px 6px; letter-spacing: .05em; }
+.country-picker { position: relative; }
+.country-picker-btn { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.country-picker-label { font-size: 13px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.country-picker-dropdown {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0;
+  background: var(--bg-card, #1e293b); border: 1px solid var(--border, #334155);
+  border-radius: 10px; min-width: 200px; box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  z-index: 500; padding: 6px; max-height: 340px; overflow-y: auto;
+}
+.country-picker-dropdown.open { display: block; }
+.country-option {
+  display: block; padding: 8px 12px; border-radius: 6px; font-size: 13px;
+  color: var(--text, #e2e8f0); text-decoration: none; white-space: nowrap;
+  transition: background .12s;
+}
+.country-option:hover { background: var(--bg-hover, #334155); }
+.country-option.active { background: rgba(79,142,247,.15); color: #4f8ef7; font-weight: 600; }
+</style>
+
 <!-- JS principal -->
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+function toggleCountryPicker() {
+  document.getElementById('countryPickerDropdown').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  const picker = document.getElementById('countryPicker');
+  if (picker && !picker.contains(e.target)) {
+    document.getElementById('countryPickerDropdown').classList.remove('open');
+  }
+});
+</script>
 {% block scripts %}{% endblock %}
 
 </body>

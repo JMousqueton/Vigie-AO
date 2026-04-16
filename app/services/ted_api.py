@@ -43,6 +43,18 @@ import urllib3
 logger = logging.getLogger(__name__)
 
 _SSL_VERIFY = not (os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true'))
+
+# Mapping ISO 3166-1 alpha-3 (TED) → alpha-2 (notre système)
+ISO3_TO_ISO2: dict[str, str] = {
+    'FRA': 'FR', 'ESP': 'ES', 'DEU': 'DE', 'BEL': 'BE', 'CHE': 'CH',
+    'LUX': 'LU', 'NLD': 'NL', 'PRT': 'PT', 'AUT': 'AT', 'POL': 'PL',
+    'SWE': 'SE', 'DNK': 'DK', 'FIN': 'FI', 'NOR': 'NO', 'GBR': 'GB',
+    'IRL': 'IE', 'ITA': 'IT', 'GRC': 'GR', 'CZE': 'CZ', 'HUN': 'HU',
+    'ROU': 'RO', 'SVK': 'SK', 'SVN': 'SI', 'HRV': 'HR', 'BGR': 'BG',
+}
+
+# Inverse : ISO2 → ISO3 pour construire les queries TED
+ISO2_TO_ISO3: dict[str, str] = {v: k for k, v in ISO3_TO_ISO2.items()}
 if not _SSL_VERIFY:
     warnings.filterwarnings('ignore', category=urllib3.exceptions.InsecureRequestWarning)
 
@@ -189,12 +201,14 @@ def _save_fetch_date() -> None:
         logger.warning("Impossible de sauvegarder ted_last_fetch_date : %s", exc)
 
 
-def _build_ted_query() -> str:
+def _build_ted_query(country_iso2: str = 'FR') -> str:
     """
     Construit la requête TED combinant :
     - mots-clés dans le titre (depuis AppConfig)
     - OU codes CPV pertinents
-    - filtrée sur les avis français des XX derniers jours
+    - filtrée sur le pays demandé et les XX derniers jours
+
+    country_iso2 : code ISO2 ('FR', 'ES', 'DE'…) ou 'EU' pour tous les pays UE.
     """
     try:
         from app.services.keywords import get_search_keywords
@@ -209,7 +223,12 @@ def _build_ted_query() -> str:
     cpv_clause = ' OR '.join(f'PC = {cpv}' for cpv in CPV_COHESITY)
 
     content = f'({kw_clause} OR {cpv_clause})' if kw_clause else f'({cpv_clause})'
-    return f'{content} AND CY = FRA AND PD >= {since}'
+
+    if country_iso2 == 'EU':
+        return f'{content} AND PD >= {since}'
+
+    iso3 = ISO2_TO_ISO3.get(country_iso2.upper(), 'FRA')
+    return f'{content} AND CY = {iso3} AND PD >= {since}'
 
 
 # ─── Scoring TED ─────────────────────────────────────────────────────────────
@@ -388,6 +407,11 @@ def _normalize_ted_record(notice: dict) -> dict:
     """
     nd = notice.get('ND', '')
 
+    # Pays : CY = ['FRA'] ou ['ESP'] etc. → ISO2
+    cy = notice.get('CY', [])
+    iso3 = cy[0] if isinstance(cy, list) and cy else (cy if isinstance(cy, str) else 'FRA')
+    country_iso2 = ISO3_TO_ISO2.get(str(iso3).upper(), 'FR')
+
     # Titre : BT-21-Procedure est le titre pur, TI contient le préfixe pays/CPV
     bt21 = notice.get('BT-21-Procedure') or {}
     title = _multilang(bt21, 'fra', 'eng') if bt21 else ''
@@ -424,6 +448,7 @@ def _normalize_ted_record(notice: dict) -> dict:
 
     return {
         'idweb':                f'TED-{nd}',
+        'country':              country_iso2,
         'reference_boamp':      nd,
         'etat':                 'INITIAL',
         'nature':               nature,
@@ -477,17 +502,18 @@ def _search_ted(query: str, page: int = 1, limit: int = 100) -> list[dict]:
         return []
 
 
-def fetch_ted_records() -> list[dict]:
+def fetch_ted_records(country_iso2: str = 'FR') -> list[dict]:
     """
-    Récupère tous les avis TED pertinents (avec pagination).
+    Récupère tous les avis TED pertinents pour un pays (avec pagination).
+    country_iso2 : 'FR', 'ES', 'DE'… ou 'EU' pour tous les pays.
     Retourne une liste de records normalisés prêts pour le scheduler.
     """
     if not _is_enabled():
         logger.info("TED désactivé (TED_ENABLED=False)")
         return []
 
-    query = _build_ted_query()
-    logger.info("TED query : %s", query[:120])
+    query = _build_ted_query(country_iso2)
+    logger.info("TED [%s] query : %s", country_iso2, query[:120])
 
     all_records: list[dict] = []
     page = 1

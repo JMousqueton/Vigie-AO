@@ -179,10 +179,11 @@ def deactivate_user(user_id):
 @admin_required
 def promote_user(user_id):
     user = User.query.get_or_404(user_id)
-    user.role = 'ADMIN' if user.role == 'USER' else 'USER'
+    cycle = {'USER': 'SUPERVISEUR', 'SUPERVISEUR': 'ADMIN', 'ADMIN': 'USER'}
+    user.role = cycle.get(user.role, 'USER')
     db.session.commit()
-    action = 'promu admin' if user.role == 'ADMIN' else 'rétrogradé utilisateur'
-    flash(f'{user.email} {action}.', 'success')
+    labels = {'USER': 'utilisateur', 'SUPERVISEUR': 'superviseur', 'ADMIN': 'admin'}
+    flash(f'{user.email} → rôle {labels[user.role]}.', 'success')
     return redirect(url_for('admin.index'))
 
 

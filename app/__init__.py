@@ -205,6 +205,8 @@ def _apply_schema_migrations():
         ('dossier_cache', 'contact_email',   'VARCHAR(255)'),
         ('dossier_cache', 'is_duplicate',    'BOOLEAN NOT NULL DEFAULT 0'),
         ('dossier_cache', 'alt_source_url',  'VARCHAR(500)'),
+        ('users',         'country',         "VARCHAR(2) NOT NULL DEFAULT 'FR'"),
+        ('dossier_cache', 'country',         "VARCHAR(2) NOT NULL DEFAULT 'FR'"),
     ]
 
     with db.engine.connect() as conn:

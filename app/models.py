@@ -25,6 +25,7 @@ class User(db.Model, UserMixin):
 
     # Préférences interface
     theme = db.Column(db.String(10), default='light')  # 'dark' ou 'light'
+    country = db.Column(db.String(2), default='FR')    # Code ISO 2 lettres
 
     # Relations
     watchlist_items = db.relationship(
@@ -41,6 +42,10 @@ class User(db.Model, UserMixin):
     @property
     def is_admin(self):
         return self.role == 'ADMIN'
+
+    @property
+    def is_supervisor(self):
+        return self.role == 'SUPERVISEUR'
 
     def __repr__(self):
         return f'<User {self.email}>'
@@ -74,6 +79,7 @@ class DossierCache(db.Model):
 
     # Source
     source = db.Column(db.String(10), default='BOAMP', nullable=False, index=True)  # 'BOAMP' | 'TED'
+    country = db.Column(db.String(2), default='FR', nullable=False, index=True)      # Code ISO2
     # Déduplication BOAMP ↔ TED
     is_duplicate = db.Column(db.Boolean, default=False, index=True)  # TED doublon d'un avis BOAMP
     alt_source_url = db.Column(db.String(500))  # URL de la source alternative (ex. lien TED sur la fiche BOAMP)

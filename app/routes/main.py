@@ -52,6 +52,25 @@ def dashboard():
 
     query = DossierCache.query.filter(DossierCache.is_duplicate == False)
 
+    # Filtre pays — superviseur uniquement (session), admin voit tout
+    supervisor_country = None
+    if current_user.is_supervisor:
+        supervisor_country = session.get('supervisor_country', current_user.country or 'FR')
+        if supervisor_country == 'FR':
+            query = query.filter(
+                or_(
+                    DossierCache.source == 'BOAMP',
+                    db.and_(DossierCache.source == 'TED', DossierCache.country == 'FR'),
+                )
+            )
+        elif supervisor_country == 'EU':
+            query = query.filter(DossierCache.source == 'TED')
+        else:
+            query = query.filter(
+                DossierCache.source == 'TED',
+                DossierCache.country == supervisor_country,
+            )
+
     # Mots-clés d'exclusion (admin)
     from app.services.keywords import get_exclude_keywords
     exclude_kws = get_exclude_keywords()
@@ -233,7 +252,22 @@ def dashboard():
         freshness=freshness,
         dept_list=dept_list,
         today=today,
+        supervisor_country=supervisor_country,
     )
+
+
+@main_bp.route('/set-supervisor-country')
+@login_required
+def set_supervisor_country():
+    """Permet à un superviseur de changer le pays affiché dans le dashboard."""
+    if not current_user.is_supervisor:
+        return redirect(url_for('main.dashboard'))
+    from app.routes.auth import COUNTRY_CHOICES
+    valid = {c[0] for c in COUNTRY_CHOICES}
+    country = request.args.get('country', 'FR')
+    if country in valid:
+        session['supervisor_country'] = country
+    return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/mark-seen', methods=['POST'])

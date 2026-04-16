@@ -162,7 +162,7 @@
               </td>
               <td class="mono text-small">{{ user.email }}</td>
               <td>
-                <span class="badge {{ 'badge-admin' if user.is_admin else 'badge-user' }}">
+                <span class="badge {% if user.is_admin %}badge-admin{% elif user.is_supervisor %}badge-supervisor{% else %}badge-user{% endif %}">
                   {{ user.role }}
                 </span>
               </td>

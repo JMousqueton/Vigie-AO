@@ -150,13 +150,13 @@ def refresh_boamp_cache(app=None):
 # ─── Job : refresh cache TED ─────────────────────────────────────────────────
 
 def refresh_ted_cache(app=None):
-    """Récupère les données TED et met à jour le cache SQLite."""
+    """Récupère les données TED pour chaque pays des utilisateurs actifs."""
     ctx_app = app or _get_app()
     if not ctx_app:
         return
 
     with ctx_app.app_context():
-        # Vérifier l'activation : AppConfig (toggle admin) ou variable d'env en fallback
+        # Vérifier l'activation
         from app.models import AppConfig as _AppConfig
         row = _AppConfig.query.filter_by(key='source_TED_enabled').first()
         if row is not None:
@@ -168,108 +168,116 @@ def refresh_ted_cache(app=None):
             return
 
         from app.services.ted_api import fetch_ted_records, compute_ted_score
-        from app.models import DossierCache
+        from app.models import DossierCache, User
         from app import db
 
-        logger.info("Début refresh TED cache...")
-        try:
-            records = fetch_ted_records()
-            if not records:
-                logger.info("TED : aucun avis récupéré (désactivé ou aucun résultat).")
-                return
+        def parse_date(d):
+            if not d:
+                return None
+            try:
+                return datetime.strptime(str(d)[:10], '%Y-%m-%d').date()
+            except ValueError:
+                return None
 
-            updated = 0
-            created = 0
+        # Pays des utilisateurs actifs (FR toujours inclus)
+        active_countries = {
+            u.country for u in User.query.filter_by(is_active=True).all()
+            if u.country
+        } or {'FR'}
 
-            def parse_date(d):
-                if not d:
-                    return None
-                try:
-                    return datetime.strptime(str(d)[:10], '%Y-%m-%d').date()
-                except ValueError:
-                    return None
+        logger.info("Refresh TED pour les pays : %s", sorted(active_countries))
 
-            for rec in records:
-                idweb = rec['idweb']
-                is_attribution = rec.get('_ted_is_attribution', False)
-
-                # Scoring TED : mots-clés dans le titre + codes CPV Cohesity
-                score, mots_cles = compute_ted_score(rec)
-
-                existing = DossierCache.query.filter_by(idweb=idweb).first()
-
-                # Ignorer les nouveaux dossiers sans aucun déclencheur (score 0)
-                # Le CPV peut correspondre côté API TED sans correspondre à nos CPV_COHESITY
-                if score == 0 and not existing:
-                    logger.debug("TED : ignoré (score 0) %s — %s", idweb, rec.get('objet_marche', '')[:60])
+        for country in sorted(active_countries):
+            logger.info("Début refresh TED [%s]...", country)
+            try:
+                records = fetch_ted_records(country)
+                if not records:
+                    logger.info("TED [%s] : aucun avis récupéré.", country)
                     continue
 
-                attribution_json = None
-                if is_attribution:
-                    attribution_json = json.dumps({
-                        'dateparution': rec.get('dateparution', ''),
-                        'urlgravure':   rec.get('urlgravure', ''),
-                        'reference_boamp': rec.get('reference_boamp', ''),
-                        'montant':      rec.get('montant', ''),
-                    }, ensure_ascii=False)
-                if existing:
-                    existing.acheteur_nom        = rec.get('acheteur_nom')
-                    existing.objet_marche        = rec.get('objet_marche')
-                    existing.nature              = rec.get('nature')
-                    existing.type_marche         = rec.get('type_marche')
-                    existing.famille_denomination= rec.get('famille_denomination')
-                    existing.descripteur_libelle = rec.get('descripteur_libelle')
-                    existing.code_departement    = rec.get('code_departement')
-                    existing.lieu_execution      = rec.get('lieu_execution')
-                    existing.dateparution        = parse_date(rec.get('dateparution'))
-                    existing.datelimitereponse   = parse_date(rec.get('datelimitereponse'))
-                    existing.urlgravure          = rec.get('urlgravure')
-                    existing.reference_boamp_initial = rec.get('reference_boamp')
-                    existing.score_pertinence    = score
-                    existing.mots_cles_matches   = json.dumps(mots_cles, ensure_ascii=False)
-                    existing.has_attribution     = is_attribution
+                updated = 0
+                created = 0
+
+                for rec in records:
+                    idweb = rec['idweb']
+                    is_attribution = rec.get('_ted_is_attribution', False)
+                    score, mots_cles = compute_ted_score(rec)
+                    existing = DossierCache.query.filter_by(idweb=idweb).first()
+
+                    if score == 0 and not existing:
+                        logger.debug("TED : ignoré (score 0) %s — %s", idweb, rec.get('objet_marche', '')[:60])
+                        continue
+
+                    attribution_json = None
                     if is_attribution:
-                        existing.attribution_json = attribution_json
-                    existing.date_derniere_activite = parse_date(rec.get('dateparution'))
-                    existing.fetched_at          = datetime.utcnow()
-                    existing.source              = 'TED'
-                    updated += 1
-                else:
-                    new_dossier = DossierCache(
-                        idweb=idweb,
-                        acheteur_nom=rec.get('acheteur_nom'),
-                        objet_marche=rec.get('objet_marche'),
-                        nature=rec.get('nature'),
-                        type_marche=rec.get('type_marche'),
-                        famille_denomination=rec.get('famille_denomination'),
-                        descripteur_libelle=rec.get('descripteur_libelle'),
-                        code_departement=rec.get('code_departement'),
-                        lieu_execution=rec.get('lieu_execution'),
-                        dateparution=parse_date(rec.get('dateparution')),
-                        datelimitereponse=parse_date(rec.get('datelimitereponse')),
-                        urlgravure=rec.get('urlgravure'),
-                        reference_boamp_initial=rec.get('reference_boamp'),
-                        rectificatifs_json='[]',
-                        attribution_json=attribution_json,
-                        score_pertinence=score,
-                        mots_cles_matches=json.dumps(mots_cles, ensure_ascii=False),
-                        has_rectificatif=False,
-                        has_attribution=is_attribution,
-                        date_derniere_activite=parse_date(rec.get('dateparution')),
-                        fetched_at=datetime.utcnow(),
-                        is_new=True,
-                        source='TED',
-                    )
-                    db.session.add(new_dossier)
-                    created += 1
+                        attribution_json = json.dumps({
+                            'dateparution':    rec.get('dateparution', ''),
+                            'urlgravure':      rec.get('urlgravure', ''),
+                            'reference_boamp': rec.get('reference_boamp', ''),
+                            'montant':         rec.get('montant', ''),
+                        }, ensure_ascii=False)
 
-            db.session.commit()
-            logger.info("Refresh TED terminé : %d créés, %d mis à jour", created, updated)
-            deduplicate_boamp_ted(ctx_app)
+                    rec_country = rec.get('country', country)
+                    if existing:
+                        existing.acheteur_nom             = rec.get('acheteur_nom')
+                        existing.objet_marche             = rec.get('objet_marche')
+                        existing.nature                   = rec.get('nature')
+                        existing.type_marche              = rec.get('type_marche')
+                        existing.famille_denomination     = rec.get('famille_denomination')
+                        existing.descripteur_libelle      = rec.get('descripteur_libelle')
+                        existing.code_departement         = rec.get('code_departement')
+                        existing.lieu_execution           = rec.get('lieu_execution')
+                        existing.dateparution             = parse_date(rec.get('dateparution'))
+                        existing.datelimitereponse        = parse_date(rec.get('datelimitereponse'))
+                        existing.urlgravure               = rec.get('urlgravure')
+                        existing.reference_boamp_initial  = rec.get('reference_boamp')
+                        existing.score_pertinence         = score
+                        existing.mots_cles_matches        = json.dumps(mots_cles, ensure_ascii=False)
+                        existing.has_attribution          = is_attribution
+                        if is_attribution:
+                            existing.attribution_json     = attribution_json
+                        existing.date_derniere_activite   = parse_date(rec.get('dateparution'))
+                        existing.fetched_at               = datetime.utcnow()
+                        existing.source                   = 'TED'
+                        existing.country                  = rec_country
+                        updated += 1
+                    else:
+                        db.session.add(DossierCache(
+                            idweb=idweb,
+                            acheteur_nom=rec.get('acheteur_nom'),
+                            objet_marche=rec.get('objet_marche'),
+                            nature=rec.get('nature'),
+                            type_marche=rec.get('type_marche'),
+                            famille_denomination=rec.get('famille_denomination'),
+                            descripteur_libelle=rec.get('descripteur_libelle'),
+                            code_departement=rec.get('code_departement'),
+                            lieu_execution=rec.get('lieu_execution'),
+                            dateparution=parse_date(rec.get('dateparution')),
+                            datelimitereponse=parse_date(rec.get('datelimitereponse')),
+                            urlgravure=rec.get('urlgravure'),
+                            reference_boamp_initial=rec.get('reference_boamp'),
+                            rectificatifs_json='[]',
+                            attribution_json=attribution_json,
+                            score_pertinence=score,
+                            mots_cles_matches=json.dumps(mots_cles, ensure_ascii=False),
+                            has_rectificatif=False,
+                            has_attribution=is_attribution,
+                            date_derniere_activite=parse_date(rec.get('dateparution')),
+                            fetched_at=datetime.utcnow(),
+                            is_new=True,
+                            source='TED',
+                            country=rec_country,
+                        ))
+                        created += 1
 
-        except Exception as exc:
-            db.session.rollback()
-            logger.error("Erreur refresh TED : %s", exc, exc_info=True)
+                db.session.commit()
+                logger.info("Refresh TED [%s] terminé : %d créés, %d mis à jour", country, created, updated)
+
+            except Exception as exc:
+                db.session.rollback()
+                logger.error("Erreur refresh TED [%s] : %s", country, exc, exc_info=True)
+
+        deduplicate_boamp_ted(ctx_app)
 
 
 # ─── Déduplication BOAMP ↔ TED ───────────────────────────────────────────────

@@ -57,9 +57,32 @@ class RegisterForm(FlaskForm):
             raise ValidationError('Le mot de passe doit contenir au moins un chiffre.')
 
 
+COUNTRY_CHOICES = [
+    ('FR', '🇫🇷 France'),
+    ('BE', '🇧🇪 Belgique'),
+    ('CH', '🇨🇭 Suisse'),
+    ('LU', '🇱🇺 Luxembourg'),
+    ('DE', '🇩🇪 Allemagne'),
+    ('ES', '🇪🇸 Espagne'),
+    ('IT', '🇮🇹 Italie'),
+    ('NL', '🇳🇱 Pays-Bas'),
+    ('PT', '🇵🇹 Portugal'),
+    ('AT', '🇦🇹 Autriche'),
+    ('PL', '🇵🇱 Pologne'),
+    ('SE', '🇸🇪 Suède'),
+    ('DK', '🇩🇰 Danemark'),
+    ('FI', '🇫🇮 Finlande'),
+    ('NO', '🇳🇴 Norvège'),
+    ('GB', '🇬🇧 Royaume-Uni'),
+    ('IE', '🇮🇪 Irlande'),
+    ('EU', '🇪🇺 Europe (tous)'),
+]
+
+
 class ProfileForm(FlaskForm):
     prenom = StringField('Prénom', validators=[DataRequired(), Length(2, 50)])
     nom = StringField('Nom', validators=[DataRequired(), Length(2, 50)])
+    country = SelectField('Pays', choices=COUNTRY_CHOICES, default='FR')
     alert_enabled = BooleanField('Recevoir les alertes email')
     alert_frequency = SelectField(
         'Fréquence',
@@ -192,6 +215,7 @@ def profile():
     if form.validate_on_submit() and 'submit' in request.form:
         current_user.prenom = form.prenom.data.strip()
         current_user.nom = form.nom.data.strip().upper()
+        current_user.country = form.country.data
         current_user.alert_enabled = form.alert_enabled.data
         current_user.alert_frequency = form.alert_frequency.data
         db.session.commit()

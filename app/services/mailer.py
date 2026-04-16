@@ -120,13 +120,41 @@ def send_temp_password_email(user: User, temp_password: str) -> bool:
 # ─── Alertes digest ──────────────────────────────────────────────────────────
 
 def _get_new_dossiers_for_user(user: User) -> list[DossierCache]:
-    """Retourne les dossiers pertinents depuis la dernière alerte."""
+    """Retourne les dossiers pertinents depuis la dernière alerte, filtrés par pays.
+
+    - FR  → BOAMP (toujours FR) + TED France
+    - EU  → tous les dossiers TED toutes sources
+    - Autre → TED uniquement pour ce pays
+    """
+    from app import db
     cutoff = user.alert_last_sent or (datetime.utcnow() - timedelta(days=7))
-    return DossierCache.query.filter(
+    user_country = getattr(user, 'country', 'FR') or 'FR'
+
+    base = DossierCache.query.filter(
         DossierCache.fetched_at >= cutoff,
         DossierCache.score_pertinence > 0,
         DossierCache.is_duplicate == False,  # noqa: E712
-    ).order_by(DossierCache.score_pertinence.desc()).limit(50).all()
+    )
+
+    if user_country == 'FR':
+        # BOAMP (toujours France) + TED France
+        base = base.filter(
+            db.or_(
+                DossierCache.source == 'BOAMP',
+                db.and_(DossierCache.source == 'TED', DossierCache.country == 'FR'),
+            )
+        )
+    elif user_country == 'EU':
+        # Tous les dossiers TED sans restriction de pays
+        base = base.filter(DossierCache.source == 'TED')
+    else:
+        # TED uniquement pour le pays de l'utilisateur
+        base = base.filter(
+            DossierCache.source == 'TED',
+            DossierCache.country == user_country,
+        )
+
+    return base.order_by(DossierCache.score_pertinence.desc()).limit(50).all()
 
 
 def _get_watchlist_updates(user: User) -> list[dict]:
