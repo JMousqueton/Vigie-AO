@@ -103,6 +103,25 @@ def create_app(config_name: str | None = None) -> Flask:
     def load_user(user_id):
         return User.query.get(int(user_id))
 
+    # Context processor : pense-bêtes arrivant à échéance dans 365 jours
+    @app.context_processor
+    def inject_reminders_badge():
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                from datetime import date, timedelta
+                from app.models import Reminder
+                cutoff = date.today() + timedelta(days=365)
+                count = Reminder.query.filter(
+                    Reminder.user_id == current_user.id,
+                    Reminder.end_date.isnot(None),
+                    Reminder.end_date <= cutoff,
+                ).count()
+                return {'reminders_badge': count}
+        except Exception:
+            pass
+        return {'reminders_badge': 0}
+
     # Context processor : thème actif
     @app.context_processor
     def inject_theme():
