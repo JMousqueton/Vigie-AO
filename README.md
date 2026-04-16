@@ -67,6 +67,27 @@ Copier `.env.example` en `.env` et renseigner :
 | `TED_API_KEY` | Clé API TED (gratuite sur developer.ted.europa.eu) |
 | `MAIL_*` | Configuration SMTP pour les alertes email |
 
+## Commandes CLI
+
+Des commandes Flask permettent de déclencher manuellement les jobs sans attendre le cron.
+
+### Envoyer les digests email
+
+```bash
+# Digest quotidien (défaut) à tous les abonnés DAILY
+flask send-digest
+
+# Choisir le type
+flask send-digest --type WEEKLY
+flask send-digest --type IMMEDIATE
+
+# Tester sur un seul utilisateur (ignore la fréquence configurée)
+flask send-digest --user julien@example.com
+flask send-digest --type WEEKLY --user julien@example.com
+```
+
+> **Note** : ces commandes nécessitent que les variables d'environnement soient chargées (`source venv/bin/activate` + `.env` présent).
+
 ## Sources de données
 
 - **BOAMP** — [boamp-datadila.opendatasoft.com](https://boamp-datadila.opendatasoft.com) · API v2.1

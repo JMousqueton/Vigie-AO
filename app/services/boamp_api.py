@@ -355,7 +355,7 @@ def extract_lots_titulaires(attribution: dict) -> list[dict]:
     Fonctionne avec attributions mono-lot et multi-lots.
     Retourne [] si le format n'est pas reconnu.
     """
-    if not attribution:
+    if not attribution or not isinstance(attribution, dict):
         return []
 
     # Le champ `donnees` peut être une str JSON ou déjà un dict
