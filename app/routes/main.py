@@ -50,7 +50,7 @@ def dashboard():
     hidden_rows = UserHiddenDossier.query.filter_by(user_id=current_user.id).all()
     hidden_ids = {r.idweb for r in hidden_rows}
 
-    query = DossierCache.query
+    query = DossierCache.query.filter(DossierCache.is_duplicate == False)
 
     # Filtre type
     if filtre == 'hidden':

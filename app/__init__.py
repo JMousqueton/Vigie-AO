@@ -174,7 +174,9 @@ def _apply_schema_migrations():
     """
     _migrations = [
         # (table, colonne, définition SQL)
-        ('dossier_cache', 'contact_email', 'VARCHAR(255)'),
+        ('dossier_cache', 'contact_email',   'VARCHAR(255)'),
+        ('dossier_cache', 'is_duplicate',    'BOOLEAN NOT NULL DEFAULT 0'),
+        ('dossier_cache', 'alt_source_url',  'VARCHAR(500)'),
     ]
 
     with db.engine.connect() as conn:

@@ -141,6 +141,7 @@ def refresh_boamp_cache(app=None):
                 "Refresh BOAMP terminé : %d créés, %d mis à jour",
                 created, updated,
             )
+            deduplicate_boamp_ted(ctx_app)
         except Exception as exc:
             db.session.rollback()
             logger.error("Erreur refresh BOAMP : %s", exc, exc_info=True)
@@ -264,10 +265,89 @@ def refresh_ted_cache(app=None):
 
             db.session.commit()
             logger.info("Refresh TED terminé : %d créés, %d mis à jour", created, updated)
+            deduplicate_boamp_ted(ctx_app)
 
         except Exception as exc:
             db.session.rollback()
             logger.error("Erreur refresh TED : %s", exc, exc_info=True)
+
+
+# ─── Déduplication BOAMP ↔ TED ───────────────────────────────────────────────
+
+def _normalize(s: str) -> str:
+    """Normalise une chaîne pour la comparaison : minuscules + espaces réduits."""
+    return ' '.join((s or '').lower().split())
+
+
+def deduplicate_boamp_ted(app=None):
+    """
+    Identifie les avis TED qui sont des doublons d'un avis BOAMP existant.
+
+    Critères de doublon (les trois doivent correspondre) :
+      - datelimitereponse identique (non nulle)
+      - objet_marche normalisé identique
+      - acheteur_nom normalisé identique
+
+    Action :
+      - Le dossier TED est marqué is_duplicate=True (masqué du dashboard)
+      - Le dossier BOAMP reçoit alt_source_url = URL de l'avis TED
+    """
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+
+    with ctx_app.app_context():
+        from app.models import DossierCache
+        from app import db
+
+        # Récupérer les avis TED avec une date limite définie
+        ted_records = DossierCache.query.filter(
+            DossierCache.source == 'TED',
+            DossierCache.datelimitereponse.isnot(None),
+        ).all()
+
+        if not ted_records:
+            return
+
+        # Construire un index des avis BOAMP par (date_limite, objet_norm, acheteur_norm)
+        boamp_records = DossierCache.query.filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.datelimitereponse.isnot(None),
+        ).all()
+
+        boamp_index: dict[tuple, DossierCache] = {}
+        for b in boamp_records:
+            key = (
+                b.datelimitereponse,
+                _normalize(b.objet_marche),
+                _normalize(b.acheteur_nom),
+            )
+            if key[1] and key[2]:  # ignorer les champs vides
+                boamp_index[key] = b
+
+        marked = 0
+        for ted in ted_records:
+            key = (
+                ted.datelimitereponse,
+                _normalize(ted.objet_marche),
+                _normalize(ted.acheteur_nom),
+            )
+            if not key[1] or not key[2]:
+                continue
+
+            boamp = boamp_index.get(key)
+            if boamp:
+                # Marquer le TED comme doublon
+                if not ted.is_duplicate:
+                    ted.is_duplicate = True
+                # Mémoriser l'URL TED sur la fiche BOAMP
+                if ted.urlgravure and boamp.alt_source_url != ted.urlgravure:
+                    boamp.alt_source_url = ted.urlgravure
+                marked += 1
+
+        if marked:
+            db.session.commit()
+            logger.info("Déduplication BOAMP/TED : %d doublon(s) TED identifié(s).", marked)
 
 
 # ─── Jobs alertes email ───────────────────────────────────────────────────────

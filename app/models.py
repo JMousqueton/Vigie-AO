@@ -74,6 +74,9 @@ class DossierCache(db.Model):
 
     # Source
     source = db.Column(db.String(10), default='BOAMP', nullable=False, index=True)  # 'BOAMP' | 'TED'
+    # Déduplication BOAMP ↔ TED
+    is_duplicate = db.Column(db.Boolean, default=False, index=True)  # TED doublon d'un avis BOAMP
+    alt_source_url = db.Column(db.String(500))  # URL de la source alternative (ex. lien TED sur la fiche BOAMP)
 
     # Métadonnées scoring
     score_pertinence = db.Column(db.Integer, default=0, index=True)

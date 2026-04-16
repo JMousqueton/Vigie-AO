@@ -162,6 +162,22 @@
                   </span>
                 </div>
                 {% endif %}
+                {% if dossier.alt_source_url %}
+                <div class="field-item">
+                  <span class="field-label">
+                    {% if dossier.source == 'BOAMP' %}Aussi sur TED{% else %}Aussi sur BOAMP{% endif %}
+                  </span>
+                  <span class="field-value">
+                    <a href="{{ dossier.alt_source_url }}" target="_blank" rel="noopener" class="link-boamp">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                      {% if dossier.source == 'BOAMP' %}
+                        <img src="{{ url_for('static', filename='TED.png') }}" alt="TED" style="height:14px;vertical-align:middle;margin-right:4px;">
+                      {% endif %}
+                      Voir l'avis
+                    </a>
+                  </span>
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>
