@@ -471,6 +471,87 @@ def extract_lots_titulaires(attribution: dict) -> list[dict]:
 
 # ─── Diff rectificatifs ───────────────────────────────────────────────────────
 
+def extract_contract_period(attribution: dict) -> list[dict]:
+    """
+    Extrait la durée du marché depuis le JSON EForms d'un avis d'attribution.
+
+    Retourne une liste (un élément par lot) de dicts :
+      {
+        'lot_id'        : 'LOT-0001' | None,
+        'start_date'    : 'YYYY-MM-DD' | None,
+        'end_date'      : 'YYYY-MM-DD' | None,
+        'duration_value': '48' | None,
+        'duration_unit' : 'MONTH' | 'YEAR' | 'DAY' | None,
+      }
+
+    Retourne [] si non disponible.
+    """
+    if not attribution:
+        return []
+
+    donnees = attribution.get('donnees')
+    if not donnees:
+        return []
+    if isinstance(donnees, str):
+        try:
+            donnees = json.loads(donnees)
+        except Exception:
+            return []
+
+    try:
+        notice = donnees['EFORMS']['ContractAwardNotice']
+    except (KeyError, TypeError):
+        return []
+
+    lots = notice.get('cac:ProcurementProjectLot', [])
+    if isinstance(lots, dict):
+        lots = [lots]
+
+    results = []
+    seen_periods: set[tuple] = set()
+
+    for lot in lots:
+        if not isinstance(lot, dict):
+            continue
+        lot_id_raw = lot.get('cbc:ID', '')
+        lot_id = _eforms_text(lot_id_raw)
+        pp = lot.get('cac:ProcurementProject', {}).get('cac:PlannedPeriod', {})
+        if not pp:
+            continue
+
+        # DurationMeasure
+        dm = pp.get('cbc:DurationMeasure', {})
+        duration_value = None
+        duration_unit = None
+        if isinstance(dm, dict):
+            duration_value = dm.get('#text') or dm.get('@unitCode')
+            duration_unit = dm.get('@unitCode')
+            duration_value = dm.get('#text')
+        elif isinstance(dm, str) and dm:
+            duration_value = dm
+
+        # Dates
+        start_raw = _eforms_text(pp.get('cbc:StartDate', ''))
+        end_raw   = _eforms_text(pp.get('cbc:EndDate', ''))
+        start_date = start_raw[:10] if start_raw else None
+        end_date   = end_raw[:10]   if end_raw   else None
+
+        key = (duration_value, duration_unit, start_date, end_date)
+        if key == (None, None, None, None) or key in seen_periods:
+            continue
+        seen_periods.add(key)
+
+        results.append({
+            'lot_id':         lot_id or None,
+            'start_date':     start_date,
+            'end_date':       end_date,
+            'duration_value': duration_value,
+            'duration_unit':  duration_unit,
+        })
+
+    return results
+
+
 def extract_contact_email(donnees) -> str:
     """
     Extrait l'email de contact de l'acheteur depuis le JSON EForms BOAMP.

@@ -318,6 +318,40 @@
                   <span class="field-label">Date attribution</span>
                   <span class="field-value">{{ attribution.get('dateparution', '') | format_date }}</span>
                 </div>
+
+                {% if contract_periods %}
+                <div class="field-item">
+                  <span class="field-label">Durée du marché</span>
+                  <span class="field-value">
+                    {% for p in contract_periods %}
+                    <span class="period-entry">
+                      {% if contract_periods | length > 1 %}
+                        <span class="period-lot">{{ p.lot_id or ('Lot ' ~ loop.index) }}</span>
+                      {% endif %}
+                      {% if p.duration_value and p.duration_unit %}
+                        <i class="fa-solid fa-clock"></i>
+                        {{ p.duration_value }}
+                        {% if p.duration_unit == 'MONTH' %}mois
+                        {% elif p.duration_unit == 'YEAR' %}an{{ 's' if p.duration_value | int > 1 }}
+                        {% elif p.duration_unit == 'DAY' %}jour{{ 's' if p.duration_value | int > 1 }}
+                        {% else %}{{ p.duration_unit | lower }}{% endif %}
+                        {% if p.start_date %}
+                          <span class="period-dates">(à compter du {{ p.start_date | format_date }})</span>
+                        {% endif %}
+                      {% elif p.start_date and p.end_date %}
+                        <i class="fa-solid fa-calendar-range"></i>
+                        {{ p.start_date | format_date }} → {{ p.end_date | format_date }}
+                      {% elif p.start_date %}
+                        <i class="fa-solid fa-calendar-plus"></i> dès {{ p.start_date | format_date }}
+                      {% elif p.end_date %}
+                        <i class="fa-solid fa-calendar-xmark"></i> jusqu'au {{ p.end_date | format_date }}
+                      {% endif %}
+                    </span>
+                    {% if not loop.last %}<br>{% endif %}
+                    {% endfor %}
+                  </span>
+                </div>
+                {% endif %}
                 {% if attribution.get('urlgravure') %}
                 <div class="field-item">
                   <span class="field-label">Avis BOAMP</span>

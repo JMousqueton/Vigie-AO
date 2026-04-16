@@ -872,6 +872,9 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .lots-table tbody tr:last-child td { border-bottom: none; }
 .lots-table tbody tr:hover td { background: var(--bg-hover); }
 .lot-num { color: var(--accent-blue); font-weight: 600; white-space: nowrap; }
+.period-entry { display: inline-block; }
+.period-lot { background: var(--bg-subtle); color: var(--accent-blue); font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
+.period-dates { color: var(--text-muted); font-size: 12px; margin-left: 4px; }
 .lot-titulaire { color: var(--text-primary); }
 .lot-titulaire i { color: var(--text-muted); margin-right: 6px; }
 .lot-montant { color: var(--accent-green); font-family: var(--font-mono); font-size: 12px; white-space: nowrap; text-align: right; }

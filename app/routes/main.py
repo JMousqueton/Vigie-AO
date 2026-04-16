@@ -311,8 +311,9 @@ def detail(idweb):
 
     # Données attribution enrichies
     attribution = dossier.attribution
-    from app.services.boamp_api import extract_lots_titulaires
+    from app.services.boamp_api import extract_lots_titulaires, extract_contract_period
     lots_titulaires = extract_lots_titulaires(attribution) if attribution else []
+    contract_periods = extract_contract_period(attribution) if attribution else []
 
     # Explication détaillée des déclencheurs (calculée à l'affichage, pas stockée)
     if dossier.source == 'TED':
@@ -336,6 +337,7 @@ def detail(idweb):
         wl_item=wl_item,
         attribution=attribution,
         lots_titulaires=lots_titulaires,
+        contract_periods=contract_periods,
         trigger_details=trigger_details,
         today=date.today(),
     )
