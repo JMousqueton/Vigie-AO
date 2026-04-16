@@ -52,24 +52,28 @@ def dashboard():
 
     query = DossierCache.query.filter(DossierCache.is_duplicate == False)
 
-    # Filtre pays — superviseur uniquement (session), admin voit tout
+    # Filtre pays — superviseur via session, tous les autres via leur profil
     supervisor_country = None
     if current_user.is_supervisor:
-        supervisor_country = session.get('supervisor_country', current_user.country or 'FR')
-        if supervisor_country == 'FR':
-            query = query.filter(
-                or_(
-                    DossierCache.source == 'BOAMP',
-                    db.and_(DossierCache.source == 'TED', DossierCache.country == 'FR'),
-                )
+        active_country = session.get('supervisor_country', current_user.country or 'FR')
+        supervisor_country = active_country
+    else:
+        active_country = current_user.country or 'FR'
+
+    if active_country == 'FR':
+        query = query.filter(
+            or_(
+                DossierCache.source == 'BOAMP',
+                db.and_(DossierCache.source == 'TED', DossierCache.country == 'FR'),
             )
-        elif supervisor_country == 'EU':
-            query = query.filter(DossierCache.source == 'TED')
-        else:
-            query = query.filter(
-                DossierCache.source == 'TED',
-                DossierCache.country == supervisor_country,
-            )
+        )
+    elif active_country == 'EU':
+        query = query.filter(DossierCache.source == 'TED')
+    else:
+        query = query.filter(
+            DossierCache.source == 'TED',
+            DossierCache.country == active_country,
+        )
 
     # Mots-clés d'exclusion (admin)
     from app.services.keywords import get_exclude_keywords
