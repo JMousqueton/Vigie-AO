@@ -416,6 +416,44 @@
         </div>
       </div>
 
+      <!-- Pense-bêtes (uniquement sur les attributions) -->
+      {% if dossier.has_attribution %}
+      <div class="card sidebar-card">
+        <div class="card-header">
+          <i class="fa-solid fa-thumbtack"></i> <h3>Pense-bête</h3>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{{ url_for('reminders.add', idweb=dossier.idweb) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <div class="form-group">
+              <label>Fin de marché</label>
+              <input type="date" name="end_date" class="form-control"
+                     value="{{ reminder_item.end_date.isoformat() if reminder_item and reminder_item.end_date
+                              else (contract_periods[0].end_date if contract_periods and contract_periods[0].end_date else '') }}" />
+            </div>
+            <div class="form-group">
+              <label>Note (facultatif)</label>
+              <textarea name="note" class="form-control" rows="2"
+                        placeholder="Ex : renouvellement prévu…">{{ reminder_item.note if reminder_item else '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">
+              <i class="fa-solid fa-thumbtack"></i>
+              {{ 'Mettre à jour' if reminder_item else 'Ajouter aux pense-bêtes' }}
+            </button>
+          </form>
+          {% if reminder_item %}
+          <form method="post" action="{{ url_for('reminders.remove', idweb=dossier.idweb) }}" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <input type="hidden" name="next" value="{{ request.url }}" />
+            <button type="submit" class="btn btn-outline-danger btn-full">
+              <i class="fa-solid fa-trash"></i> Supprimer le pense-bête
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Infos clés -->
       <div class="card sidebar-card">
         <div class="card-header"><i class="fa-solid fa-circle-info"></i> <h3>Informations clés</h3></div>

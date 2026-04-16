@@ -192,6 +192,25 @@ class UserHiddenDossier(db.Model):
         return f'<UserHiddenDossier user={self.user_id} idweb={self.idweb}>'
 
 
+class Reminder(db.Model):
+    """Pense-bêtes : suivi de fin de marché par utilisateur."""
+    __tablename__ = 'reminders'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    user_id      = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    idweb        = db.Column(db.String(20), nullable=False, index=True)
+    objet_marche = db.Column(db.Text)
+    acheteur_nom = db.Column(db.String(255))
+    end_date     = db.Column(db.Date)
+    note         = db.Column(db.Text)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'idweb', name='uq_reminder_user_idweb'),)
+
+    def __repr__(self):
+        return f'<Reminder user={self.user_id} idweb={self.idweb}>'
+
+
 class AlertLog(db.Model):
     __tablename__ = 'alert_logs'
 

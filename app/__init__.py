@@ -88,11 +88,13 @@ def create_app(config_name: str | None = None) -> Flask:
     from app.routes.main import main_bp
     from app.routes.watchlist import watchlist_bp
     from app.routes.admin import admin_bp
+    from app.routes.reminders import reminders_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)
     app.register_blueprint(watchlist_bp, url_prefix='/watchlist')
     app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(reminders_bp, url_prefix='/reminders')
 
     # User loader
     from app.models import User

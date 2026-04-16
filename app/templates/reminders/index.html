@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Mes pense-bêtes — Vigie AO{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-thumbtack"></i> Mes pense-bêtes</h1>
+    <p>{{ reminders | length }} rappel{{ 's' if reminders | length > 1 }}</p>
+  </div>
+
+  {% if not reminders %}
+  <div class="empty-state">
+    <i class="fa-regular fa-note-sticky"></i>
+    <h3>Aucun pense-bête</h3>
+    <p>Ajoutez des rappels depuis les fiches d'<strong>avis d'attribution</strong>.</p>
+  </div>
+  {% else %}
+
+  <div class="reminders-table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Objet du marché</th>
+          <th>Acheteur</th>
+          <th>Fin de marché</th>
+          <th>Note</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reminders %}
+        {% set is_past = r.end_date and r.end_date < today %}
+        {% set is_soon = r.end_date and not is_past and (r.end_date - today).days <= 90 %}
+        <tr class="{{ 'row-danger' if is_past else ('row-warning' if is_soon else '') }}">
+          <td>
+            <a href="{{ url_for('main.detail', idweb=r.idweb) }}" class="reminder-objet-link">
+              {{ r.objet_marche | truncate(100) if r.objet_marche else r.idweb }}
+            </a>
+            <span class="mono text-muted reminder-ref">{{ r.idweb }}</span>
+          </td>
+          <td class="text-small">{{ r.acheteur_nom or '—' }}</td>
+          <td class="text-small reminder-date-cell">
+            {% if r.end_date %}
+              <span class="{{ 'text-danger' if is_past else ('text-warning' if is_soon else '') }}">
+                <i class="fa-solid fa-calendar-xmark"></i>
+                {{ r.end_date | format_date }}
+              </span>
+              {% if is_past %}
+                <span class="badge-expired" style="margin-left:6px;">TERMINÉ</span>
+              {% elif is_soon %}
+                {% set days_left = (r.end_date - today).days %}
+                <span class="badge-days urgent" style="margin-left:6px;">J-{{ days_left }}</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-small text-muted">{{ r.note or '—' }}</td>
+          <td>
+            <div class="table-actions">
+              <a href="{{ url_for('main.detail', idweb=r.idweb) }}" class="btn btn-xs btn-ghost" title="Voir le dossier">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </a>
+              {% if r.end_date %}
+              <a href="{{ url_for('reminders.download_ics', reminder_id=r.id) }}"
+                 class="btn btn-xs btn-ghost" title="Télécharger ICS (alarme J-365)">
+                <i class="fa-solid fa-calendar-plus"></i>
+              </a>
+              <a href="{{ url_for('reminders.outlook_event', reminder_id=r.id) }}"
+                 target="_blank" rel="noopener"
+                 class="btn btn-xs btn-ghost btn-outlook" title="Créer dans Outlook Web (J-365)">
+                <i class="fa-regular fa-calendar"></i> Outlook
+              </a>
+              {% endif %}
+              <form method="post" action="{{ url_for('reminders.remove', idweb=r.idweb) }}"
+                    onsubmit="return confirm('Supprimer ce pense-bête ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="next" value="{{ request.url }}" />
+                <button type="submit" class="btn btn-xs btn-danger" title="Supprimer">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% endif %}
+</div>
+
+<style>
+.reminders-table-wrap { overflow-x: auto; }
+.reminder-objet-link { display: block; font-weight: 500; color: var(--text); text-decoration: none; }
+.reminder-objet-link:hover { color: var(--accent-blue); }
+.reminder-ref { display: block; font-size: 11px; margin-top: 2px; }
+.reminder-date-cell { white-space: nowrap; }
+.row-danger td { background: rgba(239,68,68,.06); }
+.row-warning td { background: rgba(245,158,11,.06); }
+.btn-outlook { color: #0078d4 !important; border-color: rgba(0,120,212,.3) !important; }
+.btn-outlook:hover { background: rgba(0,120,212,.1) !important; }
+</style>
+{% endblock %}

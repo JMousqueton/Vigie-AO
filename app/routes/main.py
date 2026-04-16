@@ -309,6 +309,12 @@ def detail(idweb):
         user_id=current_user.id, idweb=idweb
     ).first()
 
+    # Pense-bête
+    from app.models import Reminder
+    reminder_item = Reminder.query.filter_by(
+        user_id=current_user.id, idweb=idweb
+    ).first()
+
     # Données attribution enrichies
     attribution = dossier.attribution
     from app.services.boamp_api import extract_lots_titulaires, extract_contract_period
@@ -338,6 +344,7 @@ def detail(idweb):
         attribution=attribution,
         lots_titulaires=lots_titulaires,
         contract_periods=contract_periods,
+        reminder_item=reminder_item,
         trigger_details=trigger_details,
         today=date.today(),
     )
