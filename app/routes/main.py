@@ -200,13 +200,33 @@ def dashboard():
     else:
         seen_ids = set()
 
-    # Stats générales — entièrement en SQL, sans charger les objets en mémoire
+    # Stats filtrées par pays (même logique que le filtre principal)
     today = date.today()
     deadline_cutoff = today + timedelta(days=14)
-    total = DossierCache.query.count()
-    nb_rectifs = DossierCache.query.filter(DossierCache.has_rectificatif == True).count()
-    nb_attributions = DossierCache.query.filter(DossierCache.has_attribution == True).count()
-    nb_urgents = DossierCache.query.filter(
+
+    stats_base = DossierCache.query.filter(
+        DossierCache.is_duplicate == False,
+        DossierCache.score_pertinence > 0,
+    )
+    if active_country == 'FR':
+        stats_base = stats_base.filter(
+            or_(
+                DossierCache.source == 'BOAMP',
+                db.and_(DossierCache.source == 'TED', DossierCache.country == 'FR'),
+            )
+        )
+    elif active_country == 'EU':
+        stats_base = stats_base.filter(DossierCache.source == 'TED')
+    else:
+        stats_base = stats_base.filter(
+            DossierCache.source == 'TED',
+            DossierCache.country == active_country,
+        )
+
+    total = stats_base.count()
+    nb_rectifs = stats_base.filter(DossierCache.has_rectificatif == True).count()
+    nb_attributions = stats_base.filter(DossierCache.has_attribution == True).count()
+    nb_urgents = stats_base.filter(
         DossierCache.datelimitereponse >= today,
         DossierCache.datelimitereponse <= deadline_cutoff,
         DossierCache.has_attribution == False,

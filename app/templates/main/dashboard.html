@@ -13,6 +13,7 @@
         <span class="stat-label">{{ _('Dossiers') }}</span>
       </div>
     </div>
+    {% if active_country == 'FR' %}
     <div class="stat-item stat-warning">
       <i class="fa-solid fa-triangle-exclamation"></i>
       <div>
@@ -27,6 +28,7 @@
         <span class="stat-label">{{ _('Attributions') }}</span>
       </div>
     </div>
+    {% endif %}
     <div class="stat-item stat-danger">
       <i class="fa-solid fa-clock"></i>
       <div>
