@@ -358,115 +358,122 @@ def extract_lots_titulaires(attribution: dict) -> list[dict]:
     if not attribution or not isinstance(attribution, dict):
         return []
 
-    # Le champ `donnees` peut être une str JSON ou déjà un dict
-    donnees = attribution.get('donnees')
-    if not donnees:
-        return []
-    if isinstance(donnees, str):
+    try:
+        # Le champ `donnees` peut être une str JSON ou déjà un dict
+        donnees = attribution.get('donnees')
+        if not donnees:
+            return []
+        if isinstance(donnees, str):
+            try:
+                donnees = json.loads(donnees)
+            except Exception:
+                return []
+
         try:
-            donnees = json.loads(donnees)
-        except Exception:
+            notice = donnees['EFORMS']['ContractAwardNotice']
+        except (KeyError, TypeError):
             return []
 
-    try:
-        notice = donnees['EFORMS']['ContractAwardNotice']
-    except (KeyError, TypeError):
+        # Naviguer jusqu'aux extensions EForms
+        try:
+            ext = (notice['ext:UBLExtensions']['ext:UBLExtension']
+                   ['ext:ExtensionContent']['efext:EformsExtension'])
+        except (KeyError, TypeError):
+            return []
+
+        notice_result = ext.get('efac:NoticeResult', {})
+        if not isinstance(notice_result, dict):
+            return []
+
+        # ── 1. Index des organisations : ORG-xxx → nom ───────────────────────────
+        orgs_container = ext.get('efac:Organizations', {})
+        orgs_raw = orgs_container.get('efac:Organization', []) if isinstance(orgs_container, dict) else []
+        if isinstance(orgs_raw, dict):
+            orgs_raw = [orgs_raw]
+        org_index: dict[str, str] = {}
+        for org in orgs_raw:
+            company = org.get('efac:Company', {})
+            oid = _eforms_text(company.get('cac:PartyIdentification', {}).get('cbc:ID', ''))
+            name = _eforms_text(company.get('cac:PartyName', {}).get('cbc:Name', ''))
+            if oid:
+                org_index[oid] = name
+
+        # ── 2. Index des TenderingParty : TPA-xxx → (nom_court, ORG-xxx) ─────────
+        tpa_list = notice_result.get('efac:TenderingParty', [])
+        if isinstance(tpa_list, dict):
+            tpa_list = [tpa_list]
+        tpa_index: dict[str, dict] = {}
+        for tpa in tpa_list:
+            tpa_id = _eforms_text(tpa.get('cbc:ID', ''))
+            tpa_name = _eforms_text(tpa.get('cbc:Name', ''))
+            org_id = _eforms_text(tpa.get('efac:Tenderer', {}).get('cbc:ID', ''))
+            if tpa_id:
+                tpa_index[tpa_id] = {'name': tpa_name, 'org_id': org_id}
+
+        # ── 3. Index des LotTender : TEN-xxx → (LOT-xxx, TPA-xxx, montant) ───────
+        tender_list = notice_result.get('efac:LotTender', [])
+        if isinstance(tender_list, dict):
+            tender_list = [tender_list]
+        tender_index: dict[str, dict] = {}
+        for lt in tender_list:
+            ten_id = _eforms_text(lt.get('cbc:ID', ''))
+            lot_id = _eforms_text(lt.get('efac:TenderLot', {}).get('cbc:ID', ''))
+            tpa_id = _eforms_text(lt.get('efac:TenderingParty', {}).get('cbc:ID', ''))
+            montant = _eforms_text(
+                lt.get('cac:LegalMonetaryTotal', {}).get('cbc:PayableAmount', '')
+            )
+            if ten_id:
+                tender_index[ten_id] = {'lot_id': lot_id, 'tpa_id': tpa_id, 'montant': montant}
+
+        # ── 4. Parcourir LotResult pour assembler le résultat ────────────────────
+        lot_results = notice_result.get('efac:LotResult', [])
+        if isinstance(lot_results, dict):
+            lot_results = [lot_results]
+
+        # Filtrer uniquement les lots attribués (selec-w = winner selected)
+        result: list[dict] = []
+        seen_lots: set[str] = set()
+
+        for lr in lot_results:
+            status = _eforms_text(lr.get('cbc:TenderResultCode', ''))
+            if status and status != 'selec-w':
+                continue  # lot sans attributaire (infructueux, etc.)
+
+            ten_id = _eforms_text(lr.get('efac:LotTender', {}).get('cbc:ID', ''))
+            lot_id = _eforms_text(lr.get('efac:TenderLot', {}).get('cbc:ID', ''))
+
+            if not lot_id or lot_id in seen_lots:
+                continue
+            seen_lots.add(lot_id)
+
+            # Numéro de lot lisible (LOT-0001 → 1)
+            lot_num = lot_id.replace('LOT-', '').lstrip('0') or lot_id
+
+            # Retrouver le titulaire via la chaîne TEN → TPA → ORG
+            titulaire = ''
+            montant = ''
+            if ten_id and ten_id in tender_index:
+                td = tender_index[ten_id]
+                montant = td['montant']
+                tpa_id = td['tpa_id']
+                if tpa_id and tpa_id in tpa_index:
+                    tpa = tpa_index[tpa_id]
+                    org_name = org_index.get(tpa['org_id'], '')
+                    titulaire = org_name or tpa['name']
+
+            result.append({
+                'lot_num':   lot_num,
+                'lot_id':    lot_id,
+                'titulaire': titulaire,
+                'montant':   montant,
+            })
+
+        # Trier par numéro de lot
+        result.sort(key=lambda x: x['lot_id'])
+        return result
+
+    except Exception:
         return []
-
-    # Naviguer jusqu'aux extensions EForms
-    try:
-        ext = (notice['ext:UBLExtensions']['ext:UBLExtension']
-               ['ext:ExtensionContent']['efext:EformsExtension'])
-    except (KeyError, TypeError):
-        return []
-
-    notice_result = ext.get('efac:NoticeResult', {})
-
-    # ── 1. Index des organisations : ORG-xxx → nom ───────────────────────────
-    orgs_raw = ext.get('efac:Organizations', {}).get('efac:Organization', [])
-    if isinstance(orgs_raw, dict):
-        orgs_raw = [orgs_raw]
-    org_index: dict[str, str] = {}
-    for org in orgs_raw:
-        company = org.get('efac:Company', {})
-        oid = _eforms_text(company.get('cac:PartyIdentification', {}).get('cbc:ID', ''))
-        name = _eforms_text(company.get('cac:PartyName', {}).get('cbc:Name', ''))
-        if oid:
-            org_index[oid] = name
-
-    # ── 2. Index des TenderingParty : TPA-xxx → (nom_court, ORG-xxx) ─────────
-    tpa_list = notice_result.get('efac:TenderingParty', [])
-    if isinstance(tpa_list, dict):
-        tpa_list = [tpa_list]
-    tpa_index: dict[str, dict] = {}
-    for tpa in tpa_list:
-        tpa_id = _eforms_text(tpa.get('cbc:ID', ''))
-        tpa_name = _eforms_text(tpa.get('cbc:Name', ''))
-        org_id = _eforms_text(tpa.get('efac:Tenderer', {}).get('cbc:ID', ''))
-        if tpa_id:
-            tpa_index[tpa_id] = {'name': tpa_name, 'org_id': org_id}
-
-    # ── 3. Index des LotTender : TEN-xxx → (LOT-xxx, TPA-xxx, montant) ───────
-    tender_list = notice_result.get('efac:LotTender', [])
-    if isinstance(tender_list, dict):
-        tender_list = [tender_list]
-    tender_index: dict[str, dict] = {}
-    for lt in tender_list:
-        ten_id = _eforms_text(lt.get('cbc:ID', ''))
-        lot_id = _eforms_text(lt.get('efac:TenderLot', {}).get('cbc:ID', ''))
-        tpa_id = _eforms_text(lt.get('efac:TenderingParty', {}).get('cbc:ID', ''))
-        montant = _eforms_text(
-            lt.get('cac:LegalMonetaryTotal', {}).get('cbc:PayableAmount', '')
-        )
-        if ten_id:
-            tender_index[ten_id] = {'lot_id': lot_id, 'tpa_id': tpa_id, 'montant': montant}
-
-    # ── 4. Parcourir LotResult pour assembler le résultat ────────────────────
-    lot_results = notice_result.get('efac:LotResult', [])
-    if isinstance(lot_results, dict):
-        lot_results = [lot_results]
-
-    # Filtrer uniquement les lots attribués (selec-w = winner selected)
-    result: list[dict] = []
-    seen_lots: set[str] = set()
-
-    for lr in lot_results:
-        status = _eforms_text(lr.get('cbc:TenderResultCode', ''))
-        if status and status != 'selec-w':
-            continue  # lot sans attributaire (infructueux, etc.)
-
-        ten_id = _eforms_text(lr.get('efac:LotTender', {}).get('cbc:ID', ''))
-        lot_id = _eforms_text(lr.get('efac:TenderLot', {}).get('cbc:ID', ''))
-
-        if not lot_id or lot_id in seen_lots:
-            continue
-        seen_lots.add(lot_id)
-
-        # Numéro de lot lisible (LOT-0001 → 1)
-        lot_num = lot_id.replace('LOT-', '').lstrip('0') or lot_id
-
-        # Retrouver le titulaire via la chaîne TEN → TPA → ORG
-        titulaire = ''
-        montant = ''
-        if ten_id and ten_id in tender_index:
-            td = tender_index[ten_id]
-            montant = td['montant']
-            tpa_id = td['tpa_id']
-            if tpa_id and tpa_id in tpa_index:
-                tpa = tpa_index[tpa_id]
-                org_name = org_index.get(tpa['org_id'], '')
-                titulaire = org_name or tpa['name']
-
-        result.append({
-            'lot_num':   lot_num,
-            'lot_id':    lot_id,
-            'titulaire': titulaire,
-            'montant':   montant,
-        })
-
-    # Trier par numéro de lot
-    result.sort(key=lambda x: x['lot_id'])
-    return result
 
 
 # ─── Diff rectificatifs ───────────────────────────────────────────────────────
