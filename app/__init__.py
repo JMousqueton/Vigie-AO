@@ -106,6 +106,9 @@ def create_app(config_name: str | None = None) -> Flask:
     # Context processor : pense-bêtes arrivant à échéance dans 365 jours
     @app.context_processor
     def inject_reminders_badge():
+        from flask import has_request_context
+        if not has_request_context():
+            return {'reminders_badge': 0}
         try:
             from flask_login import current_user
             if current_user.is_authenticated:
@@ -125,8 +128,10 @@ def create_app(config_name: str | None = None) -> Flask:
     # Context processor : thème actif
     @app.context_processor
     def inject_theme():
-        from flask import session
+        from flask import session, has_request_context
         from flask_login import current_user
+        if not has_request_context():
+            return {'active_theme': 'light'}
         # Priorité : préférence User > session > dark par défaut
         theme = 'light'
         try:
@@ -135,7 +140,7 @@ def create_app(config_name: str | None = None) -> Flask:
             else:
                 theme = session.get('theme', 'light')
         except Exception:
-            theme = session.get('theme', 'light')
+            pass
         return {'active_theme': theme}
 
     # Jinja2 helpers
