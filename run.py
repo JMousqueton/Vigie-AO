@@ -97,6 +97,55 @@ def init_db():
 
 init_db()
 
+
+# ─── Commandes CLI Flask ──────────────────────────────────────────────────────
+
+import click
+
+@app.cli.command('send-digest')
+@click.option('--type', 'alert_type',
+              type=click.Choice(['DAILY', 'WEEKLY', 'IMMEDIATE'], case_sensitive=False),
+              default='DAILY', show_default=True,
+              help='Type de digest à envoyer.')
+@click.option('--user', 'user_email', default=None,
+              help='Envoyer uniquement à cet email (test).')
+def send_digest_cmd(alert_type, user_email):
+    """Envoie manuellement les digests email sans attendre le cron."""
+    alert_type = alert_type.upper()
+    with app.app_context():
+        from app.models import User
+        from app.services.mailer import send_alert_digest
+
+        if user_email:
+            users = User.query.filter_by(email=user_email, is_active=True).all()
+            if not users:
+                click.echo(f"Aucun utilisateur actif trouvé pour {user_email}.", err=True)
+                raise SystemExit(1)
+        else:
+            users = User.query.filter_by(
+                is_active=True,
+                alert_enabled=True,
+                alert_frequency=alert_type,
+            ).all()
+
+        if not users:
+            click.echo(f"Aucun utilisateur éligible pour un digest {alert_type}.")
+            return
+
+        click.echo(f"Envoi digest {alert_type} à {len(users)} utilisateur(s)…")
+        ok = ko = 0
+        for user in users:
+            success = send_alert_digest(user, alert_type)
+            if success:
+                ok += 1
+                click.echo(f"  [OK] {user.email}")
+            else:
+                ko += 1
+                click.echo(f"  [KO] {user.email}", err=True)
+
+        click.echo(f"Terminé — {ok} OK, {ko} erreur(s).")
+
+
 if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
