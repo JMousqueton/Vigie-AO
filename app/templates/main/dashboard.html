@@ -116,12 +116,14 @@
           <option value="deadline_asc" {{ 'selected' if tri == 'deadline_asc' }}>{{ _('Deadline') }} ↑</option>
         </select>
 
+        {% if active_country == 'FR' %}
         <select name="dept" class="form-control select-sm" onchange="this.form.submit()">
           <option value="">{{ _('Tous dépts.') }}</option>
           {% for d in dept_list %}
           <option value="{{ d }}" {{ 'selected' if dept == d }}>{{ d }}</option>
           {% endfor %}
         </select>
+        {% endif %}
 
         <input type="hidden" name="expire" id="expireInput" value="{{ expire }}" />
         <button type="button"
@@ -132,6 +134,7 @@
           {{ _('Expirés') }} : <strong>{{ _('avec') if expire == 'avec' else _('sans') }}</strong>
         </button>
 
+        {% if active_country == 'FR' %}
         <input type="hidden" name="attribue" id="attribueInput" value="{{ attribue }}" />
         <button type="button"
                 class="btn btn-sm {{ 'btn-ghost attribue-btn-off' if attribue == 'sans' else 'btn-ghost attribue-btn-on' }}"
@@ -140,6 +143,7 @@
           <i class="fa-solid fa-trophy"></i>
           {{ _('Attribués') }} : <strong>{{ _('avec') if attribue == 'avec' else _('sans') }}</strong>
         </button>
+        {% endif %}
 
         <input type="hidden" name="periode" id="periodeInput" value="{{ periode }}" />
         <button type="button"
