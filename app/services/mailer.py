@@ -120,10 +120,12 @@ def send_temp_password_email(user: User, temp_password: str) -> bool:
 # ─── Alertes digest ──────────────────────────────────────────────────────────
 
 def _get_new_dossiers_for_user(user: User) -> list[DossierCache]:
-    """Retourne les dossiers nouveaux ou mis à jour depuis la dernière alerte."""
+    """Retourne les dossiers pertinents depuis la dernière alerte."""
     cutoff = user.alert_last_sent or (datetime.utcnow() - timedelta(days=7))
     return DossierCache.query.filter(
-        DossierCache.fetched_at >= cutoff
+        DossierCache.fetched_at >= cutoff,
+        DossierCache.score_pertinence > 0,
+        DossierCache.is_duplicate == False,  # noqa: E712
     ).order_by(DossierCache.score_pertinence.desc()).limit(50).all()
 
 
@@ -137,9 +139,11 @@ def _get_watchlist_updates(user: User) -> list[dict]:
     return updates
 
 
-def send_alert_digest(user: User, alert_type: str = 'DAILY') -> bool:
-    """Envoie un digest d'alertes à un utilisateur."""
-    if not user.alert_enabled or not user.is_active:
+def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False) -> bool:
+    """Envoie un digest d'alertes à un utilisateur.
+    force=True bypasse la garde alert_enabled (usage CLI --user).
+    """
+    if not force and (not user.alert_enabled or not user.is_active):
         return False
 
     new_dossiers = _get_new_dossiers_for_user(user)

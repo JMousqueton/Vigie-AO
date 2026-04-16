@@ -108,13 +108,15 @@ import click
               default='DAILY', show_default=True,
               help='Type de digest à envoyer.')
 @click.option('--user', 'user_email', default=None,
-              help='Envoyer uniquement à cet email (test).')
-def send_digest_cmd(alert_type, user_email):
+              help='Envoyer uniquement à cet email (bypass alert_enabled).')
+@click.option('--dry-run', is_flag=True, default=False,
+              help='Affiche ce qui serait envoyé sans envoyer.')
+def send_digest_cmd(alert_type, user_email, dry_run):
     """Envoie manuellement les digests email sans attendre le cron."""
     alert_type = alert_type.upper()
     with app.app_context():
         from app.models import User
-        from app.services.mailer import send_alert_digest
+        from app.services.mailer import send_alert_digest, _get_new_dossiers_for_user, _get_watchlist_updates
 
         if user_email:
             users = User.query.filter_by(email=user_email, is_active=True).all()
@@ -132,10 +134,20 @@ def send_digest_cmd(alert_type, user_email):
             click.echo(f"Aucun utilisateur éligible pour un digest {alert_type}.")
             return
 
+        if dry_run:
+            click.echo(f"[DRY-RUN] digest {alert_type} — {len(users)} utilisateur(s) :")
+            for user in users:
+                dossiers = _get_new_dossiers_for_user(user)
+                watchlist = _get_watchlist_updates(user)
+                click.echo(f"  {user.email} → {len(dossiers)} dossier(s), {len(watchlist)} màj watchlist")
+            return
+
         click.echo(f"Envoi digest {alert_type} à {len(users)} utilisateur(s)…")
         ok = ko = 0
         for user in users:
-            success = send_alert_digest(user, alert_type)
+            # --user bypasse alert_enabled pour les tests
+            force = user_email is not None
+            success = send_alert_digest(user, alert_type, force=force)
             if success:
                 ok += 1
                 click.echo(f"  [OK] {user.email}")

@@ -182,7 +182,9 @@ def create_app(config_name: str | None = None) -> Flask:
     _setup_logging(app)
 
     # Scheduler (seulement si pas en test et pas en mode CLI)
-    if not app.testing and os.environ.get('WERKZEUG_RUN_MAIN') != 'false':
+    import sys
+    _is_cli = sys.argv[0].endswith('flask') if sys.argv else False
+    if not app.testing and not _is_cli and os.environ.get('WERKZEUG_RUN_MAIN') != 'false':
         try:
             from app.services.scheduler import init_scheduler
             init_scheduler(app)
