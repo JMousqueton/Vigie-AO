@@ -73,6 +73,11 @@ def get_scoring_keywords() -> dict[str, list[str]]:
     }
 
 
+def get_exclude_keywords() -> list[str]:
+    """Mots-clés d'exclusion : tout dossier dont l'objet contient l'un d'eux est masqué."""
+    return _load('keywords_exclude')
+
+
 # ─── Écriture ─────────────────────────────────────────────────────────────────
 
 def save_keywords(
@@ -80,16 +85,20 @@ def save_keywords(
     haute: list[str],
     moyenne: list[str],
     contexte: list[str],
+    exclude: list[str] | None = None,
     updated_by: int | None = None,
 ) -> dict[str, list[str]]:
     """
-    Persiste les quatre listes en base et vide le cache.
+    Persiste les cinq listes en base et vide le cache.
     Les mots-clés de scoring absents de la liste de recherche sont retirés
     automatiquement. Retourne les listes après nettoyage.
     """
     from app.models import AppConfig
     from app import db
     from datetime import datetime
+
+    if exclude is None:
+        exclude = []
 
     # Normaliser en minuscules pour la comparaison
     search_lower = {kw.lower() for kw in search}
@@ -110,6 +119,7 @@ def save_keywords(
         ('keywords_scoring_haute',    haute),
         ('keywords_scoring_moyenne',  moyenne),
         ('keywords_scoring_contexte', contexte),
+        ('keywords_exclude',          exclude),
     ]:
         row = AppConfig.query.filter_by(key=key).first()
         if row:
@@ -126,7 +136,7 @@ def save_keywords(
     db.session.commit()
     invalidate_cache()
     logger.info("Mots-clés mis à jour par user_id=%s", updated_by)
-    return {'search': search, 'haute': haute, 'moyenne': moyenne, 'contexte': contexte}
+    return {'search': search, 'haute': haute, 'moyenne': moyenne, 'contexte': contexte, 'exclude': exclude}
 
 
 def invalidate_cache() -> None:

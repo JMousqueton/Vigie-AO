@@ -30,13 +30,30 @@
       <tbody>
         {% for r in reminders %}
         {% set is_past = r.end_date and r.end_date < today %}
-        {% set is_soon = r.end_date and not is_past and (r.end_date - today).days <= 90 %}
+        {% set days_left = (r.end_date - today).days if r.end_date and not is_past else 0 %}
+        {% set is_soon = r.end_date and not is_past and days_left <= 90 %}
+        {% if not r.end_date %}
+          {% set dot_cls = 'dot-grey' %}
+        {% elif is_past %}
+          {% set dot_cls = 'dot-red' %}
+        {% elif days_left < 365 %}
+          {% set dot_cls = 'dot-red' %}
+        {% elif days_left < 730 %}
+          {% set dot_cls = 'dot-orange' %}
+        {% else %}
+          {% set dot_cls = 'dot-green' %}
+        {% endif %}
         <tr class="{{ 'row-danger' if is_past else ('row-warning' if is_soon else '') }}">
           <td>
-            <a href="{{ url_for('main.detail', idweb=r.idweb) }}" class="reminder-objet-link">
-              {{ r.objet_marche | truncate(100) if r.objet_marche else r.idweb }}
-            </a>
-            <span class="mono text-muted reminder-ref">{{ r.idweb }}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="reminder-dot {{ dot_cls }}" title="{% if not r.end_date %}Pas de date de fin{% elif is_past %}Marché terminé{% elif days_left < 365 %}Moins d'un an{% elif days_left < 730 %}Entre 1 et 2 ans{% else %}Plus de 2 ans{% endif %}"></span>
+              <div>
+                <a href="{{ url_for('main.detail', idweb=r.idweb) }}" class="reminder-objet-link">
+                  {{ r.objet_marche | truncate(100) if r.objet_marche else r.idweb }}
+                </a>
+                <span class="mono text-muted reminder-ref">{{ r.idweb }}</span>
+              </div>
+            </div>
           </td>
           <td class="text-small">{{ r.acheteur_nom or '—' }}</td>
           <td class="text-small reminder-date-cell">
@@ -48,7 +65,6 @@
               {% if is_past %}
                 <span class="badge-expired" style="margin-left:6px;">TERMINÉ</span>
               {% elif is_soon %}
-                {% set days_left = (r.end_date - today).days %}
                 <span class="badge-days urgent" style="margin-left:6px;">J-{{ days_left }}</span>
               {% endif %}
             {% else %}
@@ -101,5 +117,19 @@
 .row-warning td { background: rgba(245,158,11,.06); }
 .btn-outlook { color: #0078d4 !important; border-color: rgba(0,120,212,.3) !important; }
 .btn-outlook:hover { background: rgba(0,120,212,.1) !important; }
+
+/* Colored dots */
+.reminder-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: help;
+}
+.dot-red    { background: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,.2); }
+.dot-orange { background: #f97316; box-shadow: 0 0 0 2px rgba(249,115,22,.2); }
+.dot-green  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,.2); }
+.dot-grey   { background: var(--text-muted, #64748b); box-shadow: 0 0 0 2px rgba(100,116,139,.2); }
 </style>
 {% endblock %}

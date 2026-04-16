@@ -54,7 +54,7 @@ def _source_enabled(source: str) -> bool:
 
 def _admin_context(**extra):
     """Données communes à toutes les vues admin."""
-    from app.services.keywords import get_search_keywords, get_scoring_keywords
+    from app.services.keywords import get_search_keywords, get_scoring_keywords, get_exclude_keywords
     kws = get_scoring_keywords()
 
     # Stats par source pour le tab Sources
@@ -90,6 +90,7 @@ def _admin_context(**extra):
         kw_haute='\n'.join(kws.get('haute', [])),
         kw_moyenne='\n'.join(kws.get('moyenne', [])),
         kw_contexte='\n'.join(kws.get('contexte', [])),
+        kw_exclude='\n'.join(get_exclude_keywords()),
         active_tab=request.args.get('tab', 'users'),
     )
     ctx.update(extra)
@@ -272,6 +273,7 @@ def save_keywords():
     haute    = parse('kw_haute')
     moyenne  = parse('kw_moyenne')
     contexte = parse('kw_contexte')
+    exclude  = parse('kw_exclude')
 
     # Détecter les retraits avant sauvegarde
     search_lower = {kw.lower() for kw in search}
@@ -281,7 +283,7 @@ def save_keywords():
     ]
 
     _save(search=search, haute=haute, moyenne=moyenne,
-          contexte=contexte, updated_by=current_user.id)
+          contexte=contexte, exclude=exclude, updated_by=current_user.id)
 
     if removed:
         flash(

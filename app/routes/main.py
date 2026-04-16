@@ -52,6 +52,13 @@ def dashboard():
 
     query = DossierCache.query.filter(DossierCache.is_duplicate == False)
 
+    # Mots-clés d'exclusion (admin)
+    from app.services.keywords import get_exclude_keywords
+    exclude_kws = get_exclude_keywords()
+    if exclude_kws and filtre not in ('watchlist', 'hidden'):
+        for kw in exclude_kws:
+            query = query.filter(DossierCache.objet_marche.notilike(f'%{kw}%'))
+
     # Filtre type
     if filtre == 'hidden':
         # Afficher uniquement les dossiers masqués

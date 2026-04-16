@@ -381,6 +381,16 @@
 
         </div>
 
+        <div class="keyword-section" style="margin-top:24px; border-top:1px solid var(--border); padding-top:20px;">
+          <label class="keyword-label">
+            <i class="fa-solid fa-ban" style="color:var(--accent-red, #ef4444)"></i>
+            Mots-clés d'exclusion
+            <span class="kw-hint">Un dossier dont l'objet contient l'un de ces mots est masqué du dashboard</span>
+          </label>
+          <textarea name="kw_exclude" class="form-control mono kw-textarea"
+                    rows="5" spellcheck="false">{{ kw_exclude }}</textarea>
+        </div>
+
         <div style="margin-top:20px; display:flex; gap:12px; align-items:center;">
           <button type="submit" class="btn btn-primary">
             <i class="fa-solid fa-floppy-disk"></i> Enregistrer les mots-clés
