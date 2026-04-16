@@ -182,12 +182,20 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False
 
     log = AlertLog(user_id=user.id, type_alerte=alert_type, nb_dossiers=len(new_dossiers))
 
+    lang = 'fr' if (getattr(user, 'country', 'FR') or 'FR') == 'FR' else 'en'
+    if lang == 'en':
+        subject = f'[Vigie AO] {len(new_dossiers)} new tender(s)'
+        template = 'email/alert_digest_en.html'
+    else:
+        subject = f'[Vigie AO] {len(new_dossiers)} nouveau(x) appel(s) d\'offres'
+        template = 'email/alert_digest_fr.html'
+
     try:
         msg = Message(
-            subject=f'[BOAMP Cohesity] {len(new_dossiers)} nouveau(x) appel(s) d\'offres',
+            subject=subject,
             recipients=[user.email],
             html=render_template(
-                'email/alert_digest.html',
+                template,
                 user=user,
                 new_dossiers=new_dossiers,
                 watchlist_updates=watchlist_updates,

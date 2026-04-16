@@ -206,10 +206,22 @@
 
                   <form method="post" action="{{ url_for('admin.promote_user', user_id=user.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                    <button type="submit" class="btn btn-xs btn-ghost" title="{{ 'Rétrograder' if user.is_admin else 'Promouvoir admin' }}"
+                    {% if user.role == 'USER' %}
+                    <button type="submit" class="btn btn-xs btn-ghost" title="Promouvoir superviseur"
                             {{ 'disabled' if user.id == current_user.id }}>
-                      <i class="fa-solid {{ 'fa-user-minus' if user.is_admin else 'fa-user-shield' }}"></i>
+                      <i class="fa-solid fa-user-check"></i>
                     </button>
+                    {% elif user.role == 'SUPERVISEUR' %}
+                    <button type="submit" class="btn btn-xs btn-ghost" title="Promouvoir admin"
+                            {{ 'disabled' if user.id == current_user.id }}>
+                      <i class="fa-solid fa-user-shield"></i>
+                    </button>
+                    {% else %}
+                    <button type="submit" class="btn btn-xs btn-ghost" title="Rétrograder utilisateur"
+                            {{ 'disabled' if user.id == current_user.id }}>
+                      <i class="fa-solid fa-user-minus"></i>
+                    </button>
+                    {% endif %}
                   </form>
 
                   <form method="post" action="{{ url_for('admin.reset_password', user_id=user.id) }}"
