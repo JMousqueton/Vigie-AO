@@ -103,7 +103,7 @@
 
     <!-- ─── TIMELINE ──────────────────────────────────────────────────── -->
     <section class="detail-section timeline-section">
-      <h2 class="section-title"><i class="fa-solid fa-timeline"></i> Timeline du dossier</h2>
+      <h2 class="section-title"><i class="fa-solid fa-timeline"></i> {{ _('Timeline du dossier') }}</h2>
 
       <div class="timeline-vertical">
 
@@ -113,7 +113,7 @@
           <div class="tl-v-content">
             <div class="tl-v-header" onclick="togglePanel('panel-initial')">
               <span class="tl-v-title">
-                <i class="fa-solid fa-file-circle-plus"></i> Avis initial
+                <i class="fa-solid fa-file-circle-plus"></i> {{ _('Avis initial') }}
               </span>
               <span class="tl-v-date">{{ dossier.dateparution | format_date }}</span>
               <span class="tl-v-ref mono">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
@@ -123,35 +123,35 @@
               <div class="fields-grid">
                 {% if dossier.objet_marche %}
                 <div class="field-item">
-                  <span class="field-label">Objet</span>
+                  <span class="field-label">{{ _('Objet') }}</span>
                   <span class="field-value">{{ dossier.objet_marche }}</span>
                 </div>
                 {% endif %}
                 {% if dossier.famille_denomination %}
                 <div class="field-item">
-                  <span class="field-label">Famille</span>
+                  <span class="field-label">{{ _('Famille') }}</span>
                   <span class="field-value">{{ dossier.famille_denomination }}</span>
                 </div>
                 {% endif %}
                 {% if dossier.descripteur_libelle %}
                 <div class="field-item">
-                  <span class="field-label">Descripteurs</span>
+                  <span class="field-label">{{ _('Descripteurs') }}</span>
                   <span class="field-value">{{ dossier.descripteur_libelle }}</span>
                 </div>
                 {% endif %}
                 <div class="field-item">
-                  <span class="field-label">Date parution</span>
+                  <span class="field-label">{{ _('Date parution') }}</span>
                   <span class="field-value">{{ dossier.dateparution | format_date }}</span>
                 </div>
                 {% if dossier.datelimitereponse %}
                 <div class="field-item">
-                  <span class="field-label">Limite réponse</span>
+                  <span class="field-label">{{ _('Limite réponse') }}</span>
                   <span class="field-value {{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
                     {{ dossier.datelimitereponse | format_date }}
                     {% if dossier.jours_restants is not none and not dossier.is_expired %}
-                      <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
+                      <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">{{ _('J-') }}{{ dossier.jours_restants }}</span>
                     {% elif dossier.is_expired %}
-                      <span class="badge-expired">EXPIRÉ</span>
+                      <span class="badge-expired">{{ _('EXPIRÉ') }}</span>
                     {% endif %}
                   </span>
                 </div>
@@ -159,7 +159,7 @@
                 {% if dossier.urlgravure %}
                 <div class="field-item">
                   <span class="field-label">
-                    {% if dossier.source == 'TED' %}Lien TED{% else %}Lien BOAMP{% endif %}
+                    {% if dossier.source == 'TED' %}{{ _('Lien TED') }}{% else %}{{ _('Lien avis') }}{% endif %}
                   </span>
                   <span class="field-value">
                     <a href="{{ dossier.urlgravure }}" target="_blank" rel="noopener" class="link-boamp">
@@ -171,7 +171,7 @@
                 {% if dossier.alt_source_url %}
                 <div class="field-item">
                   <span class="field-label">
-                    {% if dossier.source == 'BOAMP' %}Aussi sur TED{% else %}Aussi sur BOAMP{% endif %}
+                    {% if dossier.source == 'BOAMP' %}{{ _('Aussi sur TED') }}{% else %}{{ _('Aussi sur BOAMP') }}{% endif %}
                   </span>
                   <span class="field-value">
                     <a href="{{ dossier.alt_source_url }}" target="_blank" rel="noopener" class="link-boamp">
@@ -179,7 +179,7 @@
                       {% if dossier.source == 'BOAMP' %}
                         <img src="{{ url_for('static', filename='TED.png') }}" alt="TED" style="height:14px;vertical-align:middle;margin-right:4px;">
                       {% endif %}
-                      Voir l'avis
+                      {{ _('Voir l\'avis') }}
                     </a>
                   </span>
                 </div>
@@ -196,30 +196,30 @@
           <div class="tl-v-content">
             <div class="tl-v-header" onclick="togglePanel('panel-rectif-{{ item.index }}')">
               <span class="tl-v-title">
-                <i class="fa-solid fa-file-pen"></i> Rectificatif #{{ item.index }}
+                <i class="fa-solid fa-file-pen"></i> {{ _('Rectificatif') }} #{{ item.index }}
               </span>
               <span class="tl-v-date">{{ item.rectificatif.get('dateparution', '') | format_date }}</span>
               <span class="tl-v-ref mono">{{ item.rectificatif.get('reference_boamp', '') }}</span>
               {% if item.diff %}
-              <span class="diff-badge"><i class="fa-solid fa-code-compare"></i> {{ item.diff | length }} modif.</span>
+              <span class="diff-badge"><i class="fa-solid fa-code-compare"></i> {{ item.diff | length }} {{ _('modif.') }}</span>
               {% endif %}
               <i class="fa-solid fa-chevron-down tl-v-toggle"></i>
             </div>
             <div class="tl-v-panel" id="panel-rectif-{{ item.index }}">
               {% if item.diff %}
               <div class="diff-section">
-                <h4><i class="fa-solid fa-code-compare"></i> Modifications par rapport à l'avis précédent</h4>
+                <h4><i class="fa-solid fa-code-compare"></i> {{ _('Modifications par rapport à l\'avis précédent') }}</h4>
                 <div class="diff-table">
                   {% for champ, vals in item.diff.items() %}
                   <div class="diff-row">
                     <span class="diff-field">{{ champ | replace('_', ' ') | title }}</span>
                     <span class="diff-before">
-                      <span class="diff-label-before">Avant</span>
+                      <span class="diff-label-before">{{ _('Avant') }}</span>
                       {{ vals.avant or '—' }}
                     </span>
                     <span class="diff-arrow"><i class="fa-solid fa-arrow-right"></i></span>
                     <span class="diff-after">
-                      <span class="diff-label-after">Après</span>
+                      <span class="diff-label-after">{{ _('Après') }}</span>
                       {{ vals.apres or '—' }}
                     </span>
                   </div>
@@ -230,7 +230,7 @@
               <div class="fields-grid">
                 {% if item.rectificatif.get('objet_marche') %}
                 <div class="field-item">
-                  <span class="field-label">Objet</span>
+                  <span class="field-label">{{ _('Objet') }}</span>
                   <span class="field-value {{ 'field-changed' if 'objet_marche' in item.diff }}">
                     {{ item.rectificatif.get('objet_marche') }}
                   </span>
@@ -238,7 +238,7 @@
                 {% endif %}
                 {% if item.rectificatif.get('datelimitereponse') %}
                 <div class="field-item">
-                  <span class="field-label">Nouvelle limite</span>
+                  <span class="field-label">{{ _('Nouvelle limite') }}</span>
                   <span class="field-value {{ 'field-changed' if 'datelimitereponse' in item.diff }}">
                     {{ item.rectificatif.get('datelimitereponse') | format_date }}
                   </span>
@@ -246,7 +246,7 @@
                 {% endif %}
                 {% if item.rectificatif.get('lieu_execution') %}
                 <div class="field-item">
-                  <span class="field-label">Lieu d'exécution</span>
+                  <span class="field-label">{{ _('Lieu d\'exécution') }}</span>
                   <span class="field-value {{ 'field-changed' if 'lieu_execution' in item.diff }}">
                     {{ item.rectificatif.get('lieu_execution') }}
                   </span>
@@ -265,12 +265,12 @@
           <div class="tl-v-content">
             <div class="tl-v-header" onclick="togglePanel('panel-attribution')">
               <span class="tl-v-title">
-                <i class="fa-solid fa-trophy"></i> Résultat de marché
+                <i class="fa-solid fa-trophy"></i> {{ _('Résultat de marché') }}
               </span>
               <span class="tl-v-date">{{ attribution.get('dateparution', '') | format_date }}</span>
               <span class="tl-v-ref mono">{{ attribution.get('reference_boamp', '') }}</span>
               {% if lots_titulaires %}
-              <span class="diff-badge"><i class="fa-solid fa-boxes-stacked"></i> {{ lots_titulaires | length }} lot(s)</span>
+              <span class="diff-badge"><i class="fa-solid fa-boxes-stacked"></i> {{ lots_titulaires | length }} {{ _('lot(s)') }}</span>
               {% endif %}
               <i class="fa-solid fa-chevron-down tl-v-toggle"></i>
             </div>
@@ -279,19 +279,19 @@
               <!-- Lots et lauréats -->
               {% if lots_titulaires %}
               <div class="lots-titulaires">
-                <h4><i class="fa-solid fa-trophy"></i> Lauréat(s) par lot</h4>
+                <h4><i class="fa-solid fa-trophy"></i> {{ _('Lauréat(s) par lot') }}</h4>
                 <table class="lots-table">
                   <thead>
                     <tr>
-                      <th>Lot</th>
-                      <th>Lauréat</th>
-                      <th>Montant</th>
+                      <th>{{ _('Lot') }}</th>
+                      <th>{{ _('Lauréat') }}</th>
+                      <th>{{ _('Montant') }}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for lot in lots_titulaires %}
                     <tr>
-                      <td class="lot-num">Lot {{ lot.lot_num }}</td>
+                      <td class="lot-num">{{ _('Lot') }} {{ lot.lot_num }}</td>
                       <td class="lot-titulaire">
                         <i class="fa-solid fa-building"></i>
                         {{ lot.titulaire or '—' }}
@@ -309,49 +309,49 @@
               {% elif attribution.get('acheteur_nom') %}
               <div class="attribution-winner">
                 <i class="fa-solid fa-trophy"></i>
-                <strong>Attribué à :</strong> {{ attribution.get('acheteur_nom') }}
+                <strong>{{ _('Attribué à :') }}</strong> {{ attribution.get('acheteur_nom') }}
               </div>
               {% endif %}
 
               <div class="fields-grid">
                 <div class="field-item">
-                  <span class="field-label">Date attribution</span>
+                  <span class="field-label">{{ _('Date attribution') }}</span>
                   <span class="field-value">{{ attribution.get('dateparution', '') | format_date }}</span>
                 </div>
 
                 {% if contract_periods %}
                 <div class="field-item">
-                  <span class="field-label">Durée du marché</span>
+                  <span class="field-label">{{ _('Durée du marché') }}</span>
                   <span class="field-value">
                     {% for p in contract_periods %}
                     <span class="period-entry">
                       {% if contract_periods | length > 1 %}
-                        <span class="period-lot">{{ p.lot_id or ('Lot ' ~ loop.index) }}</span>
+                        <span class="period-lot">{{ p.lot_id or (_('Lot') ~ ' ' ~ loop.index) }}</span>
                       {% endif %}
                       {% if p.duration_value and p.duration_unit %}
                         <i class="fa-solid fa-clock"></i>
                         {{ p.duration_value }}
-                        {% if p.duration_unit == 'MONTH' %}mois
-                        {% elif p.duration_unit == 'YEAR' %}an{{ 's' if p.duration_value | int > 1 }}
-                        {% elif p.duration_unit == 'DAY' %}jour{{ 's' if p.duration_value | int > 1 }}
+                        {% if p.duration_unit == 'MONTH' %}{{ _('mois') }}
+                        {% elif p.duration_unit == 'YEAR' %}{{ _('an') }}{{ 's' if p.duration_value | int > 1 }}
+                        {% elif p.duration_unit == 'DAY' %}{{ _('jour') }}{{ 's' if p.duration_value | int > 1 }}
                         {% else %}{{ p.duration_unit | lower }}{% endif %}
                         {% if p.start_date %}
-                          <span class="period-dates">(à compter du {{ p.start_date | format_date }})</span>
+                          <span class="period-dates">({{ _('à compter du') }} {{ p.start_date | format_date }})</span>
                         {% endif %}
                         {% if p.end_date %}
                           — <i class="fa-solid fa-calendar-xmark"></i>
                           {{ p.end_date | format_date }}
                           {% if p.end_date_computed %}
-                            <span class="period-dates" title="Date calculée : début + durée">&#x1F4D0;</span>
+                            <span class="period-dates" title="{{ _('Date calculée : début + durée') }}">&#x1F4D0;</span>
                           {% endif %}
                         {% endif %}
                       {% elif p.start_date and p.end_date %}
                         <i class="fa-solid fa-calendar-range"></i>
                         {{ p.start_date | format_date }} → {{ p.end_date | format_date }}
                       {% elif p.start_date %}
-                        <i class="fa-solid fa-calendar-plus"></i> dès {{ p.start_date | format_date }}
+                        <i class="fa-solid fa-calendar-plus"></i> {{ _('dès') }} {{ p.start_date | format_date }}
                       {% elif p.end_date %}
-                        <i class="fa-solid fa-calendar-xmark"></i> jusqu'au {{ p.end_date | format_date }}
+                        <i class="fa-solid fa-calendar-xmark"></i> {{ _("jusqu'au") }} {{ p.end_date | format_date }}
                       {% endif %}
                     </span>
                     {% if not loop.last %}<br>{% endif %}
@@ -361,10 +361,10 @@
                 {% endif %}
                 {% if attribution.get('urlgravure') %}
                 <div class="field-item">
-                  <span class="field-label">Avis BOAMP</span>
+                  <span class="field-label">{{ _('Avis d\'attribution') }}</span>
                   <span class="field-value">
                     <a href="{{ attribution.get('urlgravure') }}" target="_blank" rel="noopener" class="link-boamp">
-                      <i class="fa-solid fa-arrow-up-right-from-square"></i> Voir l'avis d'attribution
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i> {{ _("Voir l'avis d'attribution") }}
                     </a>
                   </span>
                 </div>
@@ -379,7 +379,7 @@
           <div class="tl-v-content">
             <div class="tl-v-header">
               <span class="tl-v-title tl-v-pending-title">
-                <i class="fa-regular fa-circle-dot"></i> Attribution — en attente
+                <i class="fa-regular fa-circle-dot"></i> {{ _('Attribution') }} — {{ _('en attente') }}
               </span>
             </div>
           </div>

@@ -425,3 +425,109 @@ msgstr ""
 
 msgid "Score total"
 msgstr ""
+
+# ─── Detail — timeline ───────────────────────────────────────────────────────
+msgid "Timeline du dossier"
+msgstr ""
+
+msgid "Avis initial"
+msgstr ""
+
+msgid "Objet"
+msgstr ""
+
+msgid "Descripteurs"
+msgstr ""
+
+msgid "Date parution"
+msgstr ""
+
+msgid "Lien avis"
+msgstr ""
+
+msgid "Lien TED"
+msgstr ""
+
+msgid "Aussi sur TED"
+msgstr ""
+
+msgid "Aussi sur BOAMP"
+msgstr ""
+
+msgid "Voir l'avis"
+msgstr ""
+
+msgid "Rectificatif"
+msgstr ""
+
+msgid "modif."
+msgstr ""
+
+msgid "Modifications par rapport à l'avis précédent"
+msgstr ""
+
+msgid "Avant"
+msgstr ""
+
+msgid "Après"
+msgstr ""
+
+msgid "Nouvelle limite"
+msgstr ""
+
+msgid "Lieu d'exécution"
+msgstr ""
+
+msgid "Résultat de marché"
+msgstr ""
+
+msgid "lot(s)"
+msgstr ""
+
+msgid "Lauréat(s) par lot"
+msgstr ""
+
+msgid "Lot"
+msgstr ""
+
+msgid "Lauréat"
+msgstr ""
+
+msgid "Montant"
+msgstr ""
+
+msgid "Attribué à :"
+msgstr ""
+
+msgid "Date attribution"
+msgstr ""
+
+msgid "Durée du marché"
+msgstr ""
+
+msgid "mois"
+msgstr ""
+
+msgid "an"
+msgstr ""
+
+msgid "jour"
+msgstr ""
+
+msgid "à compter du"
+msgstr ""
+
+msgid "Date calculée : début + durée"
+msgstr ""
+
+msgid "dès"
+msgstr ""
+
+msgid "jusqu'au"
+msgstr ""
+
+msgid "Avis d'attribution"
+msgstr ""
+
+msgid "Voir l'avis d'attribution"
+msgstr ""

@@ -428,3 +428,109 @@ msgstr "Excerpt"
 
 msgid "Score total"
 msgstr "Total score"
+
+# ─── Detail — timeline ───────────────────────────────────────────────────────
+msgid "Timeline du dossier"
+msgstr "Tender timeline"
+
+msgid "Avis initial"
+msgstr "Initial notice"
+
+msgid "Objet"
+msgstr "Subject"
+
+msgid "Descripteurs"
+msgstr "Descriptors"
+
+msgid "Date parution"
+msgstr "Publication date"
+
+msgid "Lien avis"
+msgstr "Notice link"
+
+msgid "Lien TED"
+msgstr "TED link"
+
+msgid "Aussi sur TED"
+msgstr "Also on TED"
+
+msgid "Aussi sur BOAMP"
+msgstr "Also on BOAMP"
+
+msgid "Voir l'avis"
+msgstr "View notice"
+
+msgid "Rectificatif"
+msgstr "Amendment"
+
+msgid "modif."
+msgstr "change(s)"
+
+msgid "Modifications par rapport à l'avis précédent"
+msgstr "Changes from previous notice"
+
+msgid "Avant"
+msgstr "Before"
+
+msgid "Après"
+msgstr "After"
+
+msgid "Nouvelle limite"
+msgstr "New deadline"
+
+msgid "Lieu d'exécution"
+msgstr "Place of performance"
+
+msgid "Résultat de marché"
+msgstr "Contract award"
+
+msgid "lot(s)"
+msgstr "lot(s)"
+
+msgid "Lauréat(s) par lot"
+msgstr "Winner(s) per lot"
+
+msgid "Lot"
+msgstr "Lot"
+
+msgid "Lauréat"
+msgstr "Winner"
+
+msgid "Montant"
+msgstr "Amount"
+
+msgid "Attribué à :"
+msgstr "Awarded to:"
+
+msgid "Date attribution"
+msgstr "Award date"
+
+msgid "Durée du marché"
+msgstr "Contract duration"
+
+msgid "mois"
+msgstr "month(s)"
+
+msgid "an"
+msgstr "year"
+
+msgid "jour"
+msgstr "day"
+
+msgid "à compter du"
+msgstr "from"
+
+msgid "Date calculée : début + durée"
+msgstr "Calculated date: start + duration"
+
+msgid "dès"
+msgstr "from"
+
+msgid "jusqu'au"
+msgstr "until"
+
+msgid "Avis d'attribution"
+msgstr "Award notice"
+
+msgid "Voir l'avis d'attribution"
+msgstr "View award notice"
