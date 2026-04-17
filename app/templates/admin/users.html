@@ -277,8 +277,8 @@
             <tr class="{{ 'row-inactive' if not src.enabled }}">
               <td>
                 <span class="badge-source badge-source-{{ src.source | lower }}" style="display:inline-flex; align-items:center; gap:5px;">
-                  <img src="{{ url_for('static', filename=src.source + '.png') }}" alt="{{ src.source }}" class="source-logo">
-                  {% if src.source == 'TED' %}TED v3{% else %}{{ src.source }}{% endif %}
+                  <img src="{{ url_for('static', filename=src.source + '.png') }}" alt="{{ src.source }}" class="source-logo" onerror="this.style.display='none'">
+                  {% if src.source == 'TED' %}TED v3{% elif src.source == 'PLACE_ES' %}PLACE ES{% else %}{{ src.source }}{% endif %}
                 </span>
               </td>
               <td class="text-small mono">{{ src.count }}</td>
@@ -299,7 +299,7 @@
                 <div class="table-actions">
 
                   <!-- Refresh -->
-                  {% set refresh_msg = "Interrogation de l'API TED en cours\u2026" if src.source == 'TED' else "R\u00e9cup\u00e9ration des donn\u00e9es BOAMP\u2026" %}
+                  {% set refresh_msg = "Interrogation de l'API TED en cours\u2026" if src.source == 'TED' else ("R\u00e9cup\u00e9ration des donn\u00e9es PLACE ES\u2026" if src.source == 'PLACE_ES' else "R\u00e9cup\u00e9ration des donn\u00e9es BOAMP\u2026") %}
                   <form method="post" action="{{ url_for('admin.refresh_source', source=src.source) }}"
                         data-source="{{ src.source }}"
                         onsubmit="showLoading('{{ refresh_msg }}')">
@@ -514,12 +514,16 @@
           <span class="db-stat-value">{{ db_ted | default(0) }}</span>
         </div>
         <div class="db-stat-row">
+          <span class="db-stat-label"><i class="fa-solid fa-flag"></i> PLACE ES</span>
+          <span class="db-stat-value">{{ db_place_es | default(0) }}</span>
+        </div>
+        <div class="db-stat-row">
           <span class="db-stat-label"><i class="fa-solid fa-copy"></i> Doublons masqués</span>
           <span class="db-stat-value">{{ db_duplicates | default(0) }}</span>
         </div>
         <div class="db-stat-row total-row">
           <span class="db-stat-label"><i class="fa-solid fa-sigma"></i> Total</span>
-          <span class="db-stat-value">{{ (db_boamp + db_ted) | default(0) }}</span>
+          <span class="db-stat-value">{{ (db_boamp + db_ted + db_place_es) | default(0) }}</span>
         </div>
       </div>
 

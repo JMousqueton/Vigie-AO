@@ -45,10 +45,13 @@ def _source_enabled(source: str) -> bool:
     row = AppConfig.query.filter_by(key=f'source_{source}_enabled').first()
     if row is not None:
         return row.value.lower() == 'true'
-    # Fallback sur la config Flask pour TED
+    # Fallback sur la config Flask pour TED / PLACE_ES
     if source == 'TED':
         from flask import current_app
         return current_app.config.get('TED_ENABLED', False)
+    if source == 'PLACE_ES':
+        from flask import current_app
+        return current_app.config.get('PLACE_ES_ENABLED', False)
     return True  # BOAMP activé par défaut
 
 
@@ -92,7 +95,7 @@ def _admin_context(**extra):
 
     # Stats par source pour le tab Sources
     sources_info = []
-    for src in ['BOAMP', 'TED']:
+    for src in ['BOAMP', 'TED', 'PLACE_ES']:
         last_fetched = db.session.query(db.func.max(DossierCache.fetched_at)).filter(
             DossierCache.source == src
         ).scalar()
@@ -127,6 +130,7 @@ def _admin_context(**extra):
         # Base de données
         db_boamp=DossierCache.query.filter_by(source='BOAMP').count(),
         db_ted=DossierCache.query.filter_by(source='TED').count(),
+        db_place_es=DossierCache.query.filter_by(source='PLACE_ES').count(),
         db_duplicates=DossierCache.query.filter_by(is_duplicate=True).count(),
         db_watchlist=WatchlistItem.query.count(),
         db_reminders=_db_reminders_count(),
@@ -357,13 +361,16 @@ def save_keywords():
 @admin_required
 def manual_refresh():
     try:
-        from app.services.scheduler import refresh_boamp_cache, refresh_ted_cache
+        from app.services.scheduler import refresh_boamp_cache, refresh_ted_cache, refresh_place_es_cache
         app = current_app._get_current_object()
         refresh_boamp_cache(app)
         flash('Cache BOAMP rafraîchi avec succès.', 'success')
         if app.config.get('TED_ENABLED', False):
             refresh_ted_cache(app)
             flash('Cache TED rafraîchi avec succès.', 'success')
+        if app.config.get('PLACE_ES_ENABLED', False):
+            refresh_place_es_cache(app)
+            flash('Cache PLACE_ES rafraîchi avec succès.', 'success')
         current_app.logger.info("Refresh admin par %s", current_user.email)
     except Exception as exc:
         flash(f'Erreur lors du refresh : {exc}', 'danger')
@@ -372,7 +379,7 @@ def manual_refresh():
 
 # ─── Gestion sources ──────────────────────────────────────────────────────────
 
-VALID_SOURCES = {'BOAMP', 'TED'}
+VALID_SOURCES = {'BOAMP', 'TED', 'PLACE_ES'}
 
 
 @admin_bp.route('/sources/refresh/<source>', methods=['POST'])
@@ -388,9 +395,12 @@ def refresh_source(source):
         if source == 'BOAMP':
             from app.services.scheduler import refresh_boamp_cache
             refresh_boamp_cache(app)
-        else:
+        elif source == 'TED':
             from app.services.scheduler import refresh_ted_cache
             refresh_ted_cache(app)
+        else:
+            from app.services.scheduler import refresh_place_es_cache
+            refresh_place_es_cache(app)
         flash(f'Cache {source} rafraîchi avec succès.', 'success')
         current_app.logger.info("Refresh %s par %s", source, current_user.email)
     except Exception as exc:
