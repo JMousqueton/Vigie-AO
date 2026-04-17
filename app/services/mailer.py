@@ -147,12 +147,14 @@ def _get_new_dossiers_for_user(user: User) -> list[DossierCache]:
             )
         )
     elif user_country == 'EU':
-        # Tous les dossiers TED sans restriction de pays
-        base = base.filter(DossierCache.source == 'TED')
-    else:
-        # TED uniquement pour le pays de l'utilisateur
-        base = base.filter(
+        base = base.filter(db.or_(
             DossierCache.source == 'TED',
+            DossierCache.source == 'PLACE_ES',
+        ))
+    else:
+        # TED + sources nationales pour le pays de l'utilisateur
+        base = base.filter(
+            DossierCache.source != 'BOAMP',
             DossierCache.country == user_country,
         )
 

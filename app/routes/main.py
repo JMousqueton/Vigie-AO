@@ -68,10 +68,11 @@ def dashboard():
             )
         )
     elif active_country == 'EU':
-        query = query.filter(DossierCache.source == 'TED')
+        query = query.filter(DossierCache.source.in_(['TED', 'PLACE_ES']))
     else:
+        # Inclure TED + toute source nationale (PLACE_ES, etc.) pour ce pays
         query = query.filter(
-            DossierCache.source == 'TED',
+            DossierCache.source != 'BOAMP',
             DossierCache.country == active_country,
         )
 
@@ -143,7 +144,7 @@ def dashboard():
         query = query.filter(DossierCache.dateparution >= cutoff)
 
     # Filtre source
-    valid_sources = {'BOAMP', 'TED'}
+    valid_sources = {'BOAMP', 'TED', 'PLACE_ES'}
     sources = [s for s in sources if s in valid_sources]
     if sources:
         query = query.filter(DossierCache.source.in_(sources))
@@ -216,10 +217,10 @@ def dashboard():
             )
         )
     elif active_country == 'EU':
-        stats_base = stats_base.filter(DossierCache.source == 'TED')
+        stats_base = stats_base.filter(DossierCache.source.in_(['TED', 'PLACE_ES']))
     else:
         stats_base = stats_base.filter(
-            DossierCache.source == 'TED',
+            DossierCache.source != 'BOAMP',
             DossierCache.country == active_country,
         )
 
@@ -267,7 +268,11 @@ def dashboard():
         attribue=attribue,
         periode=periode,
         sources=sources,
-        all_sources=['BOAMP', 'TED'] if active_country == 'FR' else ['TED'],
+        all_sources=(
+            ['BOAMP', 'TED'] if active_country == 'FR'
+            else ['TED', 'PLACE_ES'] if active_country == 'ES'
+            else ['TED']
+        ),
         total=total,
         nb_rectifs=nb_rectifs,
         nb_attributions=nb_attributions,
@@ -391,6 +396,12 @@ def detail(idweb):
     if dossier.source == 'TED':
         from app.services.ted_api import explain_ted_score
         trigger_details = explain_ted_score({
+            'objet_marche':        dossier.objet_marche or '',
+            'descripteur_libelle': dossier.descripteur_libelle or '',
+        })
+    elif dossier.source == 'PLACE_ES':
+        from app.services.place_es_api import explain_place_es_score
+        trigger_details = explain_place_es_score({
             'objet_marche':        dossier.objet_marche or '',
             'descripteur_libelle': dossier.descripteur_libelle or '',
         })

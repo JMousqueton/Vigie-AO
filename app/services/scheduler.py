@@ -280,6 +280,114 @@ def refresh_ted_cache(app=None):
         deduplicate_boamp_ted(ctx_app)
 
 
+# ─── Job : refresh cache PLACE_ES ────────────────────────────────────────────
+
+def refresh_place_es_cache(app=None):
+    """Récupère les données PLACE_ES (Espagne) et met à jour le cache SQLite."""
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+
+    with ctx_app.app_context():
+        from app.services.place_es_api import (
+            fetch_place_es_records, compute_place_es_score, _save_fetch_date,
+        )
+        from app.models import DossierCache
+        from app import db
+
+        logger.info("Début refresh PLACE_ES cache...")
+        try:
+            records = fetch_place_es_records()
+            if not records:
+                logger.info("PLACE_ES : aucun avis récupéré.")
+                return
+
+            def parse_date(d):
+                if not d:
+                    return None
+                try:
+                    return datetime.strptime(str(d)[:10], '%Y-%m-%d').date()
+                except ValueError:
+                    return None
+
+            updated = created = 0
+
+            for rec in records:
+                idweb = rec['idweb']
+                is_attribution = rec.get('_is_attribution', False)
+                score, mots_cles = compute_place_es_score(rec)
+
+                if score == 0 and not DossierCache.query.filter_by(idweb=idweb).first():
+                    continue
+
+                attribution_json = None
+                if is_attribution:
+                    attribution_json = json.dumps({
+                        'dateparution':    rec.get('dateparution', ''),
+                        'urlgravure':      rec.get('urlgravure', ''),
+                        'reference_boamp': rec.get('reference_boamp', ''),
+                    }, ensure_ascii=False)
+
+                existing = DossierCache.query.filter_by(idweb=idweb).first()
+                if existing:
+                    existing.acheteur_nom           = rec.get('acheteur_nom')
+                    existing.objet_marche           = rec.get('objet_marche')
+                    existing.nature                 = rec.get('nature')
+                    existing.type_marche            = rec.get('type_marche')
+                    existing.famille_denomination   = rec.get('famille_denomination')
+                    existing.descripteur_libelle    = rec.get('descripteur_libelle')
+                    existing.lieu_execution         = rec.get('lieu_execution')
+                    existing.dateparution           = parse_date(rec.get('dateparution'))
+                    existing.datelimitereponse      = parse_date(rec.get('datelimitereponse'))
+                    existing.urlgravure             = rec.get('urlgravure')
+                    existing.reference_boamp_initial = rec.get('reference_boamp')
+                    existing.score_pertinence       = score
+                    existing.mots_cles_matches      = json.dumps(mots_cles, ensure_ascii=False)
+                    existing.has_attribution        = is_attribution
+                    if is_attribution:
+                        existing.attribution_json   = attribution_json
+                    existing.date_derniere_activite = parse_date(rec.get('dateparution'))
+                    existing.fetched_at             = datetime.utcnow()
+                    existing.source                 = 'PLACE_ES'
+                    existing.country                = 'ES'
+                    updated += 1
+                else:
+                    db.session.add(DossierCache(
+                        idweb=idweb,
+                        acheteur_nom=rec.get('acheteur_nom'),
+                        objet_marche=rec.get('objet_marche'),
+                        nature=rec.get('nature'),
+                        type_marche=rec.get('type_marche'),
+                        famille_denomination=rec.get('famille_denomination'),
+                        descripteur_libelle=rec.get('descripteur_libelle'),
+                        lieu_execution=rec.get('lieu_execution'),
+                        dateparution=parse_date(rec.get('dateparution')),
+                        datelimitereponse=parse_date(rec.get('datelimitereponse')),
+                        urlgravure=rec.get('urlgravure'),
+                        reference_boamp_initial=rec.get('reference_boamp'),
+                        rectificatifs_json='[]',
+                        attribution_json=attribution_json,
+                        score_pertinence=score,
+                        mots_cles_matches=json.dumps(mots_cles, ensure_ascii=False),
+                        has_rectificatif=False,
+                        has_attribution=is_attribution,
+                        date_derniere_activite=parse_date(rec.get('dateparution')),
+                        fetched_at=datetime.utcnow(),
+                        is_new=True,
+                        source='PLACE_ES',
+                        country='ES',
+                    ))
+                    created += 1
+
+            db.session.commit()
+            _save_fetch_date()
+            logger.info("Refresh PLACE_ES terminé : %d créés, %d mis à jour", created, updated)
+
+        except Exception as exc:
+            db.session.rollback()
+            logger.error("Erreur refresh PLACE_ES : %s", exc, exc_info=True)
+
+
 # ─── Déduplication BOAMP ↔ TED ───────────────────────────────────────────────
 
 def _normalize(s: str) -> str:
@@ -428,6 +536,13 @@ def init_scheduler(app):
         'interval',
         hours=interval_hours,
         id='ted_refresh',
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        lambda: refresh_place_es_cache(app),
+        'interval',
+        hours=interval_hours,
+        id='place_es_refresh',
         replace_existing=True,
     )
     _scheduler.add_job(

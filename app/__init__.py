@@ -267,5 +267,6 @@ def _setup_logging(app: Flask):
     app.logger.setLevel(logging.INFO)
 
     # Propager aux services
-    for name in ('app.services.boamp_api', 'app.services.scheduler', 'app.services.mailer'):
+    for name in ('app.services.boamp_api', 'app.services.scheduler',
+                 'app.services.mailer', 'app.services.place_es_api'):
         logging.getLogger(name).addHandler(file_handler)

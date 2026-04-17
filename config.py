@@ -53,6 +53,9 @@ class Config:
     TED_API_KEY = os.environ.get('TED_API_KEY', '')
     TED_ENABLED = os.environ.get('TED_ENABLED', 'False').lower() == 'true'
 
+    # PLACE_ES (Plataforma de Contratación del Sector Público — Espagne)
+    PLACE_ES_ENABLED = os.environ.get('PLACE_ES_ENABLED', 'False').lower() == 'true'
+
     # Flask-Limiter
     RATELIMIT_STORAGE_URI = 'memory://'
     RATELIMIT_DEFAULT = '200 per day;50 per hour'
