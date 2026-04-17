@@ -39,6 +39,9 @@ def refresh_boamp_cache(app=None):
             # Marquer tous les dossiers existants comme non-nouveaux
             DossierCache.query.update({'is_new': False})
 
+            # Identifiants BOAMP attendus après agrégation (rectificatifs groupés sous l'initial)
+            live_idwebs_boamp = {d.idweb for d in dossiers if d.idweb}
+
             updated = 0
             created = 0
 
@@ -137,6 +140,24 @@ def refresh_boamp_cache(app=None):
                     created += 1
 
             db.session.commit()
+
+            # Supprimer les entrées BOAMP orphelines : anciens rectificatifs stockés
+            # sous leur propre idweb qui sont maintenant regroupés sous l'initial.
+            # On ne touche qu'aux lignes BOAMP absentes de l'agrégation courante.
+            if live_idwebs_boamp:
+                orphans = DossierCache.query.filter(
+                    DossierCache.source == 'BOAMP',
+                    DossierCache.idweb.notin_(live_idwebs_boamp),
+                ).all()
+                if orphans:
+                    for o in orphans:
+                        db.session.delete(o)
+                    db.session.commit()
+                    logger.info(
+                        "BOAMP : %d entrée(s) orpheline(s) supprimée(s) (rectificatifs isolés).",
+                        len(orphans),
+                    )
+
             logger.info(
                 "Refresh BOAMP terminé : %d créés, %d mis à jour",
                 created, updated,

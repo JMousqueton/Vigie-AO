@@ -303,6 +303,17 @@ def aggregate_into_dossiers(all_records: list[dict]) -> list[DossierMarche]:
         etat   = (record.get('etat')   or '').upper()
         nature = (record.get('nature') or '').upper()
 
+        if etat == ETAT_RECTIFICATIF:
+            # Les rectificatifs BOAMP ont leur propre idweb mais référencent l'avis
+            # initial via reference_boamp (= gestion.REFERENCE.IDWEB dans l'API).
+            # On les groupe sous l'idweb de l'avis initial pour reconstruire le
+            # dossier complet, sinon ils apparaissent comme des dossiers isolés.
+            parent_idweb = (record.get('reference_boamp') or '').strip() or idweb
+            if parent_idweb not in dossiers:
+                dossiers[parent_idweb] = DossierMarche(idweb=parent_idweb)
+            dossiers[parent_idweb].rectificatifs.append(record)
+            continue
+
         if idweb not in dossiers:
             dossiers[idweb] = DossierMarche(idweb=idweb)
 
@@ -312,9 +323,6 @@ def aggregate_into_dossiers(all_records: list[dict]) -> list[DossierMarche]:
         elif etat == ETAT_INITIAL:
             # Appel d'offres initial
             dossiers[idweb].avis_initial = record
-        elif etat == ETAT_RECTIFICATIF:
-            # Amendement avant attribution (modif délai, objet…)
-            dossiers[idweb].rectificatifs.append(record)
         elif etat == ETAT_MODIFICATION:
             # Avenant post-attribution : on écrase uniquement si pas encore d'attribution
             if dossiers[idweb].attribution is None:

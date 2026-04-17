@@ -348,7 +348,15 @@ def hide_toggle(idweb):
 @main_bp.route('/dossier/<idweb>')
 @login_required
 def detail(idweb):
-    dossier = DossierCache.query.filter_by(idweb=idweb).first_or_404()
+    dossier = DossierCache.query.filter_by(idweb=idweb).first()
+    if dossier is None:
+        # L'idweb peut être celui d'un ancien rectificatif maintenant regroupé sous
+        # l'avis initial. On cherche un dossier dont reference_boamp_initial == idweb.
+        dossier = DossierCache.query.filter_by(reference_boamp_initial=idweb).first()
+        if dossier:
+            return redirect(url_for('main.detail', idweb=dossier.idweb))
+        from flask import abort
+        abort(404)
 
     # Calcul des diffs entre avis initial et rectificatifs
     from app.services.boamp_api import diff_rectificatif
