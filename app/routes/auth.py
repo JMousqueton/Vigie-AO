@@ -84,7 +84,7 @@ COUNTRY_CHOICES = [
 class ProfileForm(FlaskForm):
     prenom = StringField(_l('Prénom'), validators=[DataRequired(), Length(2, 50)])
     nom = StringField(_l('Nom'), validators=[DataRequired(), Length(2, 50)])
-    country = SelectField(_l('Pays'), choices=COUNTRY_CHOICES, default='FR')
+    country = SelectField(_l('Pays'), choices=[c for c in COUNTRY_CHOICES if c[0] != 'EU'], default='FR')
     alert_enabled = BooleanField(_l('Recevoir les alertes email'))
     alert_frequency = SelectField(
         _l('Fréquence'),
@@ -147,7 +147,7 @@ def register():
         return redirect(url_for('main.dashboard'))
 
     form = RegisterForm()
-    form.country.choices = COUNTRY_CHOICES
+    form.country.choices = [c for c in COUNTRY_CHOICES if c[0] != 'EU']
     if form.validate_on_submit():
         auto_activate = current_app.config.get('AUTO_ACTIVATE', True)
         user = User(
