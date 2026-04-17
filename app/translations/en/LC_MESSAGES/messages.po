@@ -358,3 +358,73 @@ msgstr "Page"
 
 msgid "dossier"
 msgstr "tender"
+
+# ─── Detail — watchlist ───────────────────────────────────────────────────────
+msgid "Note personnelle"
+msgstr "Personal note"
+
+msgid "Opportunité intéressante pour…"
+msgstr "Interesting opportunity for…"
+
+msgid "Mettre à jour"
+msgstr "Update"
+
+msgid "Ajouter à ma watchlist"
+msgstr "Add to my watchlist"
+
+msgid "Ajouté le"
+msgstr "Added on"
+
+# ─── Detail — pense-bête ──────────────────────────────────────────────────────
+msgid "Pense-bête"
+msgstr "Reminder"
+
+msgid "Fin de marché"
+msgstr "Contract end date"
+
+msgid "Note (facultatif)"
+msgstr "Note (optional)"
+
+msgid "Ex : renouvellement prévu…"
+msgstr "e.g. renewal expected…"
+
+msgid "Ajouter aux pense-bêtes"
+msgstr "Add to reminders"
+
+msgid "Supprimer le pense-bête"
+msgstr "Delete reminder"
+
+# ─── Detail — informations clés ───────────────────────────────────────────────
+msgid "Informations clés"
+msgstr "Key information"
+
+msgid "Référence"
+msgstr "Reference"
+
+msgid "Famille"
+msgstr "Category"
+
+msgid "Publication"
+msgstr "Published"
+
+msgid "Limite réponse"
+msgstr "Deadline"
+
+msgid "Dernière mise à jour"
+msgstr "Last updated"
+
+# ─── Detail — pourquoi ce dossier ────────────────────────────────────────────
+msgid "Pourquoi ce dossier ?"
+msgstr "Why this notice?"
+
+msgid "Critère"
+msgstr "Criterion"
+
+msgid "Champ"
+msgstr "Field"
+
+msgid "Extrait"
+msgstr "Excerpt"
+
+msgid "Score total"
+msgstr "Total score"

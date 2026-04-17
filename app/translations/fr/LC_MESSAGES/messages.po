@@ -355,3 +355,73 @@ msgstr ""
 
 msgid "dossier"
 msgstr ""
+
+# ─── Detail — watchlist ───────────────────────────────────────────────────────
+msgid "Note personnelle"
+msgstr ""
+
+msgid "Opportunité intéressante pour…"
+msgstr ""
+
+msgid "Mettre à jour"
+msgstr ""
+
+msgid "Ajouter à ma watchlist"
+msgstr ""
+
+msgid "Ajouté le"
+msgstr ""
+
+# ─── Detail — pense-bête ──────────────────────────────────────────────────────
+msgid "Pense-bête"
+msgstr ""
+
+msgid "Fin de marché"
+msgstr ""
+
+msgid "Note (facultatif)"
+msgstr ""
+
+msgid "Ex : renouvellement prévu…"
+msgstr ""
+
+msgid "Ajouter aux pense-bêtes"
+msgstr ""
+
+msgid "Supprimer le pense-bête"
+msgstr ""
+
+# ─── Detail — informations clés ───────────────────────────────────────────────
+msgid "Informations clés"
+msgstr ""
+
+msgid "Référence"
+msgstr ""
+
+msgid "Famille"
+msgstr ""
+
+msgid "Publication"
+msgstr ""
+
+msgid "Limite réponse"
+msgstr ""
+
+msgid "Dernière mise à jour"
+msgstr ""
+
+# ─── Detail — pourquoi ce dossier ────────────────────────────────────────────
+msgid "Pourquoi ce dossier ?"
+msgstr ""
+
+msgid "Critère"
+msgstr ""
+
+msgid "Champ"
+msgstr ""
+
+msgid "Extrait"
+msgstr ""
+
+msgid "Score total"
+msgstr ""

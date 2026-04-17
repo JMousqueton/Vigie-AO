@@ -402,12 +402,13 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <input type="hidden" name="next" value="{{ request.url }}" />
             <div class="form-group">
-              <label>Note personnelle</label>
-              <textarea name="note" class="form-control" rows="3" placeholder="Opportunité intéressante pour…">{{ wl_item.note if wl_item else '' }}</textarea>
+              <label>{{ _('Note personnelle') }}</label>
+              <textarea name="note" class="form-control" rows="3"
+                placeholder="{{ _('Opportunité intéressante pour…') }}">{{ wl_item.note if wl_item else '' }}</textarea>
             </div>
             <button type="submit" class="btn btn-primary btn-full">
               <i class="fa-solid fa-star"></i>
-              {{ 'Mettre à jour' if wl_item else 'Ajouter à ma watchlist' }}
+              {{ _('Mettre à jour') if wl_item else _('Ajouter à ma watchlist') }}
             </button>
           </form>
           {% if wl_item %}
@@ -415,10 +416,10 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <input type="hidden" name="next" value="{{ url_for('main.dashboard') }}" />
             <button type="submit" class="btn btn-outline-danger btn-full">
-              <i class="fa-solid fa-trash"></i> Retirer de la watchlist
+              <i class="fa-solid fa-trash"></i> {{ _('Retirer de la watchlist') }}
             </button>
           </form>
-          <p class="wl-added-at">Ajouté le {{ wl_item.added_at.strftime('%d/%m/%Y') }}</p>
+          <p class="wl-added-at">{{ _('Ajouté le') }} {{ wl_item.added_at.strftime('%d/%m/%Y') }}</p>
           {% endif %}
         </div>
       </div>
@@ -427,25 +428,26 @@
       {% if dossier.has_attribution %}
       <div class="card sidebar-card">
         <div class="card-header">
-          <i class="fa-solid fa-thumbtack"></i> <h3>Pense-bête</h3>
+          <i class="fa-solid fa-thumbtack"></i>
+          <h3>{{ _('Pense-bête') }}</h3>
         </div>
         <div class="card-body">
           <form method="post" action="{{ url_for('reminders.add', idweb=dossier.idweb) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <div class="form-group">
-              <label>Fin de marché</label>
+              <label>{{ _('Fin de marché') }}</label>
               <input type="date" name="end_date" class="form-control"
                      value="{{ reminder_item.end_date.isoformat() if reminder_item and reminder_item.end_date
                               else (contract_periods[0].end_date if contract_periods and contract_periods[0].end_date else '') }}" />
             </div>
             <div class="form-group">
-              <label>Note (facultatif)</label>
+              <label>{{ _('Note (facultatif)') }}</label>
               <textarea name="note" class="form-control" rows="2"
-                        placeholder="Ex : renouvellement prévu…">{{ reminder_item.note if reminder_item else '' }}</textarea>
+                        placeholder="{{ _('Ex : renouvellement prévu…') }}">{{ reminder_item.note if reminder_item else '' }}</textarea>
             </div>
             <button type="submit" class="btn btn-primary btn-full">
               <i class="fa-solid fa-thumbtack"></i>
-              {{ 'Mettre à jour' if reminder_item else 'Ajouter aux pense-bêtes' }}
+              {{ _('Mettre à jour') if reminder_item else _('Ajouter aux pense-bêtes') }}
             </button>
           </form>
           {% if reminder_item %}
@@ -453,7 +455,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <input type="hidden" name="next" value="{{ request.url }}" />
             <button type="submit" class="btn btn-outline-danger btn-full">
-              <i class="fa-solid fa-trash"></i> Supprimer le pense-bête
+              <i class="fa-solid fa-trash"></i> {{ _('Supprimer le pense-bête') }}
             </button>
           </form>
           {% endif %}
@@ -463,21 +465,21 @@
 
       <!-- Infos clés -->
       <div class="card sidebar-card">
-        <div class="card-header"><i class="fa-solid fa-circle-info"></i> <h3>Informations clés</h3></div>
+        <div class="card-header"><i class="fa-solid fa-circle-info"></i> <h3>{{ _('Informations clés') }}</h3></div>
         <div class="card-body">
           <dl class="info-list">
             <dt>Source</dt>
             <dd>
               <span class="badge-source badge-source-{{ dossier.source | lower }}">
                 <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo" onerror="this.style.display='none'">
-                {% if dossier.source == 'TED' %}TED v3{% else %}{{ dossier.source }}{% endif %}
+                {% if dossier.source == 'TED' %}TED v3{% elif dossier.source == 'PLACE_ES' %}PLACE ES{% else %}{{ dossier.source }}{% endif %}
               </span>
             </dd>
 
-            <dt>Référence</dt>
+            <dt>{{ _('Référence') }}</dt>
             <dd class="mono">{{ dossier.reference_boamp_initial or dossier.idweb }}</dd>
 
-            <dt>{% if dossier.source == 'TED' %}ID TED{% else %}ID BOAMP{% endif %}</dt>
+            <dt>{% if dossier.source == 'TED' %}ID TED{% elif dossier.source == 'PLACE_ES' %}ID PLACE{% else %}ID BOAMP{% endif %}</dt>
             <dd class="mono">{{ dossier.idweb }}</dd>
 
             {% if dossier.type_marche %}
@@ -486,21 +488,21 @@
             {% endif %}
 
             {% if dossier.famille_denomination %}
-            <dt>Famille</dt>
+            <dt>{{ _('Famille') }}</dt>
             <dd>{{ dossier.famille_denomination }}</dd>
             {% endif %}
 
-            <dt>Publication</dt>
+            <dt>{{ _('Publication') }}</dt>
             <dd>{{ dossier.dateparution | format_date }}</dd>
 
             {% if dossier.datelimitereponse %}
-            <dt>Limite réponse</dt>
+            <dt>{{ _('Limite réponse') }}</dt>
             <dd class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
               {{ dossier.datelimitereponse | format_date }}
               {% if dossier.is_expired %}
-                <span class="badge-expired">EXPIRÉ</span>
+                <span class="badge-expired">{{ _('EXPIRÉ') }}</span>
               {% elif dossier.jours_restants is not none %}
-                <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
+                <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">{{ _('J-') }}{{ dossier.jours_restants }}</span>
               {% endif %}
             </dd>
             {% endif %}
@@ -514,7 +516,7 @@
             </dd>
             {% endif %}
 
-            <dt>Mis à jour</dt>
+            <dt>{{ _('Dernière mise à jour') }}</dt>
             <dd>{{ dossier.fetched_at.strftime('%d/%m/%Y %H:%M') if dossier.fetched_at else '—' }}</dd>
           </dl>
         </div>
@@ -525,15 +527,15 @@
       <div class="card sidebar-card">
         <div class="card-header">
           <i class="fa-solid fa-crosshairs"></i>
-          <h3>Pourquoi ce dossier ?</h3>
+          <h3>{{ _('Pourquoi ce dossier ?') }}</h3>
         </div>
         <div class="card-body p-0">
           <table class="trigger-table">
             <thead>
               <tr>
-                <th>Critère</th>
-                <th>Champ</th>
-                <th>Extrait</th>
+                <th>{{ _('Critère') }}</th>
+                <th>{{ _('Champ') }}</th>
+                <th>{{ _('Extrait') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -572,7 +574,7 @@
             </tbody>
           </table>
           <p class="trigger-score-line">
-            Score total : <strong>{{ dossier.score_pertinence }}/100</strong>
+            {{ _('Score total') }} : <strong>{{ dossier.score_pertinence }}/100</strong>
           </p>
         </div>
       </div>
