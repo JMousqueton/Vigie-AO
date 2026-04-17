@@ -1,49 +1,49 @@
 """
 Client PLACE_ES — Plataforma de Contratación del Sector Público (Espagne).
 
-Récupère les appels d'offres espagnols pertinents via les flux ATOM officiels.
+Sources de données (sans authentification) :
+  1. Flux ATOM temps réel  : https://contrataciondelsectorpublico.gob.es/sindicacion/
+                              sindicacion_1044/PlataformasAgregadasSinMenores.atom
+     Pagination via <link rel="next"> (timestamp-based, même domaine requis)
 
-Documentation  : https://contrataciondelestado.es
-Flux ATOM      : https://contrataciondelestado.es/sindicacion/sindicacion_{code}.atom
-  Code 1044    → Licitaciones publicadas (appels d'offres)
-  Code 1043    → Adjudicaciones provisionales (attributions)
-  Code 1042    → Adjudicaciones definitivas
-  Code 1048    → Anulaciones
-
-Pagination     : paramètre GET  pagina=N  (1-based)
-Auth           : aucune — flux publics
-Source         : 'PLACE_ES'
-Country        : 'ES'
+  2. Archives ZIP mensuelles (backfill) :
+     https://contrataciondelsectorpublico.gob.es/sindicacion/sindicacion_1044/
+     PlataformasAgregadasSinMenores_YYYYMM.zip
+     → chaque ZIP contient des fichiers .atom au même format
 
 Format des entrées ATOM :
   <entry>
-    <id>         urn:uuid:…  ou URL avec idExpediente
-    <title>      titre de l'avis
-    <link href>  URL fiche sur PLACE
-    <published>  date ISO 8601
-    <summary>    HTML résumé (objet, organe, CPV, délai…)
-    <content>    XML CODICE (optionnel — pas toujours présent)
+    <id>        URL se terminant par l'identifiant numérique PLACE
+    <link href> URL de la fiche sur la plateforme régionale
+    <title>     Titre du marché
+    <summary>   Résumé texte
+    <updated>   Horodatage de dernière modification (ISO 8601)
+    <cac-place-ext:ContractFolderStatus>
+      <cbc:ContractFolderID>           numéro d'expédient
+      <cac-place-ext:LocatedContractingParty/cac:Party/cac:PartyName/cbc:Name>
+      <cac:ProcurementProject>
+        <cbc:Name>                     objet du marché
+        <cbc:TypeCode>                 1=Obras 2=Servicios 3=Suministros
+        <cac:RequiredCommodityClassification/cbc:ItemClassificationCode>  CPV
+        <cac:RealizedLocation/cbc:CountrySubentityCode>  NUTS
+      </cac:ProcurementProject>
+      <cac:TenderingProcess/cac:TenderSubmissionDeadlinePeriod/cbc:EndDate>
+      <cac-place-ext:ValidNoticeInfo/cac-place-ext:AdditionalPublicationStatus/
+        cac-place-ext:AdditionalPublicationDocumentReference/cbc:IssueDate>
+    </cac-place-ext:ContractFolderStatus>
   </entry>
-
-Format CODICE (subset utilisé) :
-  cac:ContractingParty/cac:Party/cac:PartyName/cbc:Name  → acheteur
-  cac:ProcurementProject/cbc:Name                        → objet
-  cac:ProcurementProject/cbc:TypeCode                    → type marché
-  cac:ProcurementProject/.../cbc:ItemClassificationCode  → CPV
-  cac:TenderingProcess/.../cbc:EndDate                   → date limite
-  cbc:IssueDate                                          → date parution
-  cac:ProcurementProjectLot/.../cac:RealizedLocation/
-    cac:Address/cac:Country/cbc:IdentificationCode       → pays
 """
 
+import io
 import logging
 import os
 import re
 import time
 import warnings
+import zipfile
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 import requests
 import urllib3
@@ -56,16 +56,24 @@ if not _SSL_VERIFY:
 
 # ─── Constantes ───────────────────────────────────────────────────────────────
 
-BASE_URL   = 'https://contrataciondelestado.es'
-SOURCE     = 'PLACE_ES'
-COUNTRY    = 'ES'
+# Domaine public (sans certificat requis)
+BASE_DOMAIN = 'contrataciondelsectorpublico.gob.es'
+BASE_URL    = f'https://{BASE_DOMAIN}'
 
-# Flux ATOM par type d'avis
-FEED_LICITACIONES   = f'{BASE_URL}/sindicacion/sindicacion_1044.atom'
-FEED_ADJUDICACIONES = f'{BASE_URL}/sindicacion/sindicacion_1043.atom'
+# Domaine alternatif utilisé dans les liens <next> du feed — réécrit à la volée
+_LEGACY_DOMAIN = 'contrataciondelestado.es'
 
-# Nombre de pages max par fetch (≈ 100 avis/page)
-MAX_PAGES = 10
+FEED_BASE   = f'{BASE_URL}/sindicacion/sindicacion_1044'
+FEED_URL    = f'{FEED_BASE}/PlataformasAgregadasSinMenores.atom'
+
+SOURCE  = 'PLACE_ES'
+COUNTRY = 'ES'
+
+# Nombre de pages max par fetch (25 avis/page)
+MAX_PAGES = 20
+
+# Préfixe idweb pour éviter les collisions avec BOAMP / TED
+IDWEB_PREFIX = 'PLACE_ES-'
 
 # Codes CPV Cohesity (identiques à ted_api.py)
 CPV_COHESITY: set[str] = {
@@ -92,19 +100,20 @@ CPV_LABELS: dict[str, str] = {
     '72611000': 'Services de support technique',
 }
 
-# Namespaces XML
-NS_ATOM = 'http://www.w3.org/2005/Atom'
-NS_CAC  = 'urn:dgpe:names:draft:codice:schema:xsd:CommonAggregateComponents-2'
-NS_CBC  = 'urn:dgpe:names:draft:codice:schema:xsd:CommonBasicComponents-2'
-NS_MAP  = {'atom': NS_ATOM, 'cac': NS_CAC, 'cbc': NS_CBC}
+# Namespaces XML du flux PLACE
+NS_ATOM    = 'http://www.w3.org/2005/Atom'
+NS_CAC     = 'urn:dgpe:names:draft:codice:schema:xsd:CommonAggregateComponents-2'
+NS_CBC     = 'urn:dgpe:names:draft:codice:schema:xsd:CommonBasicComponents-2'
+NS_CAC_EXT = 'urn:dgpe:names:draft:codice-place-ext:schema:xsd:CommonAggregateComponents-2'
+NS_CBC_EXT = 'urn:dgpe:names:draft:codice-place-ext:schema:xsd:CommonBasicComponents-2'
 
-# Préfixe idweb pour éviter les collisions avec BOAMP / TED
-IDWEB_PREFIX = 'PLACE_ES-'
-
-# Regex pour extraire des infos du résumé HTML (fallback)
-_RE_CPV      = re.compile(r'\b(\d{8})\b')
-_RE_DATE_ES  = re.compile(r'(\d{2})/(\d{2})/(\d{4})')
+# Regex dates
 _RE_DATE_ISO = re.compile(r'(\d{4})-(\d{2})-(\d{2})')
+_RE_DATE_ES  = re.compile(r'(\d{2})/(\d{2})/(\d{4})')
+_RE_CPV      = re.compile(r'\b(\d{8})\b')
+
+# Types de marché
+TYPE_LABELS = {'1': 'Travaux', '2': 'Services', '3': 'Fournitures', '4': 'Concession'}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -113,14 +122,12 @@ def _tag(ns_uri: str, local: str) -> str:
     return f'{{{ns_uri}}}{local}'
 
 
-def _find_text(element, path: str, ns: dict = NS_MAP) -> str:
-    """Retourne le texte d'un sous-élément ou '' si absent."""
-    el = element.find(path, ns)
-    return (el.text or '').strip() if el is not None else ''
+def _find_text(el, tag: str) -> str:
+    found = el.find(tag)
+    return (found.text or '').strip() if found is not None else ''
 
 
 def _fmt_date(raw: str) -> str:
-    """Normalise une date vers YYYY-MM-DD depuis les formats ES et ISO."""
     if not raw:
         return ''
     raw = raw.strip()
@@ -133,26 +140,17 @@ def _fmt_date(raw: str) -> str:
     return raw[:10]
 
 
-def _extract_id_from_url(url: str) -> str:
-    """
-    Extrait l'identifiant unique depuis une URL PLACE.
-    Essaie idExpediente, idEvl, puis le path final.
-    Ex. https://contrataciondelestado.es/wps/poc?uri=deeplink:licitacion&idEvl=ABC123
-    → 'ABC123'
-    """
-    try:
-        qs = parse_qs(urlparse(url).query)
-        for key in ('idEvl', 'idExpediente', 'idPerfil'):
-            if qs.get(key):
-                return qs[key][0]
-    except Exception:
-        pass
-    return url.split('/')[-1].split('?')[0]
-
-
 def _cpv_base(code: str) -> str:
-    """Retire le chiffre de contrôle CPV : 48710000-2 → 48710000."""
     return code.split('-')[0].strip()
+
+
+def _rewrite_url(url: str) -> str:
+    """Réécrit les liens du domaine legacy (cert requis) vers le domaine public."""
+    if _LEGACY_DOMAIN in url:
+        return url.replace(f'https://{_LEGACY_DOMAIN}', BASE_URL).replace(
+            f'http://{_LEGACY_DOMAIN}', BASE_URL
+        )
+    return url
 
 
 # ─── Activation / config ──────────────────────────────────────────────────────
@@ -171,6 +169,7 @@ def _get_last_fetch_date() -> date:
         from app.models import AppConfig
         row = AppConfig.query.filter_by(key='place_es_last_fetch_date').first()
         if row and row.value:
+            # Recul d'un jour pour éviter les trous
             return datetime.strptime(row.value, '%Y-%m-%d').date() - timedelta(days=1)
     except Exception:
         pass
@@ -193,261 +192,242 @@ def _save_fetch_date() -> None:
         logger.warning("Impossible de sauvegarder place_es_last_fetch_date : %s", exc)
 
 
-# ─── Parsing CODICE XML ───────────────────────────────────────────────────────
+# ─── Parsing d'une entrée ATOM ────────────────────────────────────────────────
 
-def _parse_codice(xml_text: str) -> dict:
+def _parse_entry(entry) -> dict | None:
     """
-    Parse le XML CODICE d'une entrée PLACE et retourne un dict normalisé.
-    Retourne {} si le XML est invalide ou vide.
+    Parse un élément <entry> du flux PLACE et retourne un record normalisé.
+    Retourne None si l'entrée ne peut pas être analysée.
     """
-    if not xml_text or not xml_text.strip().startswith('<'):
-        return {}
-    try:
-        # Certains flux ne déclarent pas les namespaces au niveau racine
-        # → enrober dans un élément racine neutre si nécessaire
-        root = ET.fromstring(xml_text)
-    except ET.ParseError:
-        try:
-            wrapped = f'<root xmlns:cac="{NS_CAC}" xmlns:cbc="{NS_CBC}">{xml_text}</root>'
-            root = ET.fromstring(wrapped)
-        except ET.ParseError:
-            return {}
+    # ── Identifiant ATOM ─────────────────────────────────────────────────────
+    atom_id = _find_text(entry, _tag(NS_ATOM, 'id'))
+    # L'ID ressemble à : https://.../sindicacion/PlataformasAgregadasSinMenores/18612570
+    raw_id = atom_id.rstrip('/').rsplit('/', 1)[-1] if atom_id else ''
+    if not raw_id:
+        return None
+    idweb = f'{IDWEB_PREFIX}{raw_id}'
 
-    def find(path):
-        return _find_text(root, path, NS_MAP)
+    # ── Lien et titre ATOM ───────────────────────────────────────────────────
+    link_el = entry.find(_tag(NS_ATOM, 'link'))
+    link_href = link_el.get('href', '') if link_el is not None else ''
+
+    title = _find_text(entry, _tag(NS_ATOM, 'title'))
+    summary = _find_text(entry, _tag(NS_ATOM, 'summary'))
+    updated_raw = _find_text(entry, _tag(NS_ATOM, 'updated'))
+    updated_date = _fmt_date(updated_raw)
+
+    # ── ContractFolderStatus (namespace cac-place-ext) ────────────────────────
+    cfs = entry.find(_tag(NS_CAC_EXT, 'ContractFolderStatus'))
+    if cfs is None:
+        # Fallback : résumé texte uniquement
+        return _record_from_summary(idweb, raw_id, link_href, title, summary, updated_date)
 
     # Acheteur
-    acheteur = (
-        find('cac:ContractingParty/cac:Party/cac:PartyName/cbc:Name')
-        or find('cac:ContractingPartyType/cac:Party/cac:PartyName/cbc:Name')
-        or find('.//cbc:Name')
+    acheteur = _find_text(cfs,
+        f'{_tag(NS_CAC_EXT,"LocatedContractingParty")}'
+        f'/{_tag(NS_CAC,"Party")}'
+        f'/{_tag(NS_CAC,"PartyName")}'
+        f'/{_tag(NS_CBC,"Name")}',
     )
 
-    # Objet du marché
-    objet = (
-        find('cac:ProcurementProject/cbc:Name')
-        or find('.//cbc:Description')
-    )
+    # Objet — préférer le nom du ProcurementProject au titre ATOM
+    pp = cfs.find(_tag(NS_CAC, 'ProcurementProject'))
+    objet = ''
+    cpv_codes: list[str] = []
+    type_marche = ''
+    lieu = ''
+    datelimite = ''
+    dateparution = ''
 
-    # Type de marché (1=Obras, 2=Servicios, 3=Suministros…)
-    type_code = find('cac:ProcurementProject/cbc:TypeCode')
-    type_labels = {'1': 'Travaux', '2': 'Services', '3': 'Fournitures', '4': 'Concession'}
-    type_marche = type_labels.get(type_code, type_code)
+    if pp is not None:
+        objet = _find_text(pp, _tag(NS_CBC, 'Name')) or title
+        type_code = _find_text(pp, _tag(NS_CBC, 'TypeCode'))
+        type_marche = TYPE_LABELS.get(type_code, type_code)
 
-    # CPV
-    cpv_codes = []
-    for el in root.findall('.//cbc:ItemClassificationCode', NS_MAP):
-        code = _cpv_base((el.text or '').strip())
-        if code and len(code) == 8 and code.isdigit():
-            cpv_codes.append(code)
-    cpv_str = ', '.join(dict.fromkeys(cpv_codes))
+        # CPV
+        for cpv_el in pp.findall(
+            f'{_tag(NS_CAC,"RequiredCommodityClassification")}/{_tag(NS_CBC,"ItemClassificationCode")}'
+        ):
+            code = _cpv_base((cpv_el.text or '').strip())
+            if code and len(code) == 8 and code.isdigit():
+                cpv_codes.append(code)
 
-    # Date parution
-    dateparution = (
-        find('cbc:IssueDate')
-        or find('cbc:IssueTime')
-    )
+        # Localisation (code NUTS → texte)
+        nuts_el = pp.find(
+            f'{_tag(NS_CAC,"RealizedLocation")}/{_tag(NS_CBC,"CountrySubentityCode")}'
+        )
+        if nuts_el is not None:
+            lieu = (nuts_el.text or '').strip()
 
-    # Date limite réponse
-    datelimite = (
-        find('cac:TenderingProcess/cac:TenderSubmissionDeadlinePeriod/cbc:EndDate')
-        or find('.//cac:TenderSubmissionDeadlinePeriod/cbc:EndDate')
-        or find('.//cbc:EndDate')
-    )
+    # Date limite (TenderingProcess)
+    tp = cfs.find(_tag(NS_CAC, 'TenderingProcess'))
+    if tp is not None:
+        datelimite = _find_text(tp,
+            f'{_tag(NS_CAC,"TenderSubmissionDeadlinePeriod")}/{_tag(NS_CBC,"EndDate")}'
+        )
 
-    # Localisation
-    lieu = (
-        find('.//cac:RealizedLocation/cac:Address/cbc:CityName')
-        or find('.//cac:DeliveryAddress/cbc:CityName')
-    )
-    region = find('.//cac:RealizedLocation/cac:Address/cac:AddressLine/cbc:Line')
+    # Date de parution (ValidNoticeInfo → IssueDate)
+    vni = cfs.find(_tag(NS_CAC_EXT, 'ValidNoticeInfo'))
+    if vni is not None:
+        aps = vni.find(_tag(NS_CAC_EXT, 'AdditionalPublicationStatus'))
+        if aps is not None:
+            apdr = aps.find(_tag(NS_CAC_EXT, 'AdditionalPublicationDocumentReference'))
+            if apdr is not None:
+                dateparution = _find_text(apdr, _tag(NS_CBC, 'IssueDate'))
+
+    if not dateparution:
+        dateparution = updated_date or date.today().isoformat()
+
+    if not objet:
+        objet = title
+
+    cpv_codes = list(dict.fromkeys(cpv_codes))  # dédupliquer en gardant l'ordre
+    cpv_str = ', '.join(cpv_codes)
 
     return {
-        'acheteur_nom':        acheteur,
-        'objet_marche':        objet,
-        'type_marche':         type_marche,
-        'descripteur_libelle': cpv_str,
+        'idweb':                idweb,
+        'country':              COUNTRY,
+        'reference_boamp':      raw_id,
+        'etat':                 'INITIAL',
+        'nature':               'APPEL_OFFRE',
+        'type_marche':          type_marche,
+        'descripteur_libelle':  cpv_str,
         'famille_denomination': cpv_str,
-        'dateparution':        _fmt_date(dateparution),
-        'datelimitereponse':   _fmt_date(datelimite),
-        'lieu_execution':      lieu or region,
-        'cpv_codes':           cpv_codes,
+        'acheteur_nom':         acheteur,
+        'acheteur_siret':       '',
+        'objet_marche':         objet,
+        'code_departement':     '',
+        'lieu_execution':       lieu,
+        'dateparution':         _fmt_date(dateparution),
+        'datelimitereponse':    _fmt_date(datelimite),
+        'urlgravure':           link_href,
+        'donnees':              None,
+        'contact_email':        '',
+        '_cpv_codes':           cpv_codes,
+        '_is_attribution':      False,
     }
 
 
-# ─── Parsing résumé HTML (fallback) ──────────────────────────────────────────
+def _record_from_summary(
+    idweb: str, raw_id: str, link_href: str,
+    title: str, summary: str, updated_date: str,
+) -> dict:
+    """Construit un record minimal depuis le résumé texte (fallback sans CODICE)."""
+    cpv_codes = list(dict.fromkeys(_RE_CPV.findall(summary or '')))
 
-def _parse_summary(summary: str) -> dict:
-    """
-    Extrait les champs clés depuis le résumé HTML d'une entrée ATOM PLACE.
-    Utilisé quand le contenu CODICE XML n'est pas disponible.
-    """
-    if not summary:
-        return {}
-
-    # Nettoyer les balises HTML
-    clean = re.sub(r'<[^>]+>', ' ', summary)
-    clean = re.sub(r'\s+', ' ', clean).strip()
-
-    # Acheteur : "Órgano de contratación: XXX"
+    # Acheteur depuis "Órgano de contratación: XXX;"
     acheteur = ''
-    m = re.search(r'[Óo]rgano de contrataci[oó]n[:\s]+([^.;\n<]+)', clean)
+    m = re.search(r'[Óo]rgano de contrataci[oó]n:\s*([^;]+)', summary or '')
     if m:
         acheteur = m.group(1).strip()
 
-    # Objet : "Objeto del contrato: XXX"
-    objet = ''
-    m = re.search(r'Objeto del contrato[:\s]+([^.;\n<]+)', clean)
-    if m:
-        objet = m.group(1).strip()
-
-    # Date limite
-    datelimite = ''
-    m = re.search(
-        r'[Ff]echa l[íi]mite[^:]*:\s*(\d{2}/\d{2}/\d{4}|\d{4}-\d{2}-\d{2})', clean
-    )
-    if m:
-        datelimite = _fmt_date(m.group(1))
-
-    # CPV
-    cpv_codes = list(dict.fromkeys(_RE_CPV.findall(clean)))
-
-    # Type
-    type_marche = ''
-    m = re.search(r'[Tt]ipo de contrato[:\s]+([^.;\n<]+)', clean)
-    if m:
-        type_marche = m.group(1).strip()
-
     return {
-        'acheteur_nom':        acheteur,
-        'objet_marche':        objet,
-        'type_marche':         type_marche,
-        'descripteur_libelle': ', '.join(cpv_codes),
+        'idweb':                idweb,
+        'country':              COUNTRY,
+        'reference_boamp':      raw_id,
+        'etat':                 'INITIAL',
+        'nature':               'APPEL_OFFRE',
+        'type_marche':          '',
+        'descripteur_libelle':  ', '.join(cpv_codes),
         'famille_denomination': ', '.join(cpv_codes),
-        'datelimitereponse':   datelimite,
-        'lieu_execution':      '',
-        'cpv_codes':           cpv_codes,
+        'acheteur_nom':         acheteur,
+        'acheteur_siret':       '',
+        'objet_marche':         title,
+        'code_departement':     '',
+        'lieu_execution':       '',
+        'dateparution':         updated_date or date.today().isoformat(),
+        'datelimitereponse':    '',
+        'urlgravure':           link_href,
+        'donnees':              None,
+        'contact_email':        '',
+        '_cpv_codes':           cpv_codes,
+        '_is_attribution':      False,
     }
 
 
-# ─── Parsing ATOM ─────────────────────────────────────────────────────────────
+# ─── Parsing d'un flux ATOM complet ──────────────────────────────────────────
 
-def _parse_atom_feed(xml_bytes: bytes, is_attribution: bool = False) -> list[dict]:
+def _parse_atom_feed(xml_bytes: bytes) -> tuple[list[dict], str]:
     """
-    Parse un flux ATOM PLACE et retourne une liste de records normalisés.
-    Chaque record est au format homogène attendu par le scheduler.
+    Parse un flux ATOM PLACE et retourne (records, next_url).
+    next_url est '' s'il n'y a pas de page suivante.
     """
     try:
         root = ET.fromstring(xml_bytes)
     except ET.ParseError as exc:
         logger.error("PLACE_ES : erreur parse ATOM XML : %s", exc)
-        return []
+        preview = xml_bytes[:400].decode('utf-8', errors='replace').replace('\n', ' ')
+        logger.error("PLACE_ES : début contenu reçu : %s", preview)
+        return [], ''
 
     records: list[dict] = []
-    entries = root.findall(_tag(NS_ATOM, 'entry'))
+    for entry in root.findall(_tag(NS_ATOM, 'entry')):
+        rec = _parse_entry(entry)
+        if rec:
+            records.append(rec)
 
-    for entry in entries:
-        # ── Identifiant ──────────────────────────────────────────────────────
-        entry_id  = _find_text(entry, 'atom:id', NS_MAP)
-        link_el   = entry.find(_tag(NS_ATOM, 'link'))
-        link_href = link_el.get('href', '') if link_el is not None else ''
+    # Lien vers la page suivante (réécriture du domaine legacy si nécessaire)
+    next_url = ''
+    for link in root.findall(_tag(NS_ATOM, 'link')):
+        if link.get('rel') == 'next':
+            next_url = _rewrite_url(link.get('href', ''))
+            break
 
-        raw_id = _extract_id_from_url(link_href) if link_href else entry_id
-        # Fallback : utiliser les derniers caractères de l'ID ATOM
-        if not raw_id or raw_id.startswith('urn:'):
-            raw_id = entry_id.split(':')[-1] if ':' in entry_id else entry_id
-        idweb = f'{IDWEB_PREFIX}{raw_id}'
-
-        # ── Dates ATOM ───────────────────────────────────────────────────────
-        published = _fmt_date(_find_text(entry, 'atom:published', NS_MAP))
-        updated   = _fmt_date(_find_text(entry, 'atom:updated', NS_MAP))
-        dateparution = published or updated or date.today().isoformat()
-
-        # ── Titre ATOM ───────────────────────────────────────────────────────
-        title_raw  = _find_text(entry, 'atom:title', NS_MAP)
-        # Supprimer éventuellement le préfixe "Licitación: " ou "Adjudicación: "
-        title = re.sub(r'^(Licitaci[oó]n|Adjudicaci[oó]n)[:\s]+', '', title_raw).strip()
-
-        # ── Contenu XML CODICE ────────────────────────────────────────────────
-        content_el = entry.find(_tag(NS_ATOM, 'content'))
-        content_text = ''
-        if content_el is not None:
-            # Le contenu peut être du XML embarqué dans CDATA ou directement
-            content_text = (content_el.text or '').strip()
-            # Si c'est du XML encodé en attribut type="text/xml"
-            if not content_text:
-                # Essayer de sérialiser les enfants XML
-                children = list(content_el)
-                if children:
-                    content_text = ET.tostring(children[0], encoding='unicode')
-
-        codice = _parse_codice(content_text) if content_text else {}
-
-        # ── Résumé HTML (fallback) ────────────────────────────────────────────
-        summary_el = entry.find(_tag(NS_ATOM, 'summary'))
-        summary_text = ''
-        if summary_el is not None:
-            summary_text = summary_el.text or ET.tostring(summary_el, encoding='unicode', method='text')
-
-        fallback = _parse_summary(summary_text) if not codice else {}
-        data = codice or fallback
-
-        # ── Assemblage final ──────────────────────────────────────────────────
-        objet = data.get('objet_marche') or title
-        acheteur = data.get('acheteur_nom', '')
-        cpv_codes: list[str] = data.get('cpv_codes', [])
-        cpv_str = data.get('descripteur_libelle', '')
-        datelimite = data.get('datelimitereponse', '')
-        datep = _fmt_date(data.get('dateparution', '')) or dateparution
-        lieu = data.get('lieu_execution', '')
-        type_marche = data.get('type_marche', '')
-
-        nature = 'ATTRIBUTION' if is_attribution else 'APPEL_OFFRE'
-
-        records.append({
-            'idweb':                idweb,
-            'country':              COUNTRY,
-            'reference_boamp':      raw_id,
-            'etat':                 'INITIAL',
-            'nature':               nature,
-            'type_marche':          type_marche,
-            'descripteur_libelle':  cpv_str,
-            'famille_denomination': cpv_str,
-            'acheteur_nom':         acheteur,
-            'acheteur_siret':       '',
-            'objet_marche':         objet,
-            'code_departement':     '',
-            'lieu_execution':       lieu,
-            'dateparution':         datep,
-            'datelimitereponse':    datelimite,
-            'urlgravure':           link_href,
-            'donnees':              None,
-            'contact_email':        '',
-            '_cpv_codes':           cpv_codes,
-            '_is_attribution':      is_attribution,
-        })
-
-    return records
+    return records, next_url
 
 
-# ─── Requête HTTP ─────────────────────────────────────────────────────────────
+# ─── Requêtes HTTP ────────────────────────────────────────────────────────────
 
-def _fetch_feed_page(url: str, page: int = 1) -> bytes:
-    """Télécharge une page d'un flux ATOM PLACE. Retourne les bytes bruts."""
-    params = {'pagina': page} if page > 1 else {}
+def _fetch_url(url: str) -> bytes:
+    """Télécharge une URL. Retourne b'' en cas d'erreur ou de réponse HTML."""
     try:
         resp = requests.get(
             url,
-            params=params,
             timeout=30,
             verify=_SSL_VERIFY,
-            headers={'Accept': 'application/atom+xml, application/xml, text/xml, */*'},
+            headers={
+                'Accept': 'application/atom+xml, application/xml, text/xml, */*',
+                'User-Agent': 'Mozilla/5.0 (compatible; VigieAO/1.0)',
+            },
         )
         resp.raise_for_status()
+        ct = resp.headers.get('Content-Type', '')
+        if 'html' in ct.lower():
+            logger.warning(
+                "PLACE_ES : réponse HTML reçue (Content-Type: %s) — URL indisponible : %s",
+                ct, url,
+            )
+            return b''
         return resp.content
     except requests.RequestException as exc:
-        logger.error("PLACE_ES : erreur HTTP [%s page=%d] : %s", url, page, exc)
+        logger.error("PLACE_ES : erreur HTTP [%s] : %s", url, exc)
         return b''
+
+
+def _fetch_zip(yyyymm: str) -> list[dict]:
+    """
+    Télécharge l'archive ZIP mensuelle et retourne tous les records qu'elle contient.
+    yyyymm : ex. '202604'
+    """
+    url = f'{FEED_BASE}/PlataformasAgregadasSinMenores_{yyyymm}.zip'
+    logger.info("PLACE_ES : téléchargement archive ZIP %s…", yyyymm)
+    raw = _fetch_url(url)
+    if not raw:
+        return []
+
+    records: list[dict] = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            atom_files = [n for n in zf.namelist() if n.endswith('.atom')]
+            logger.info("PLACE_ES ZIP %s : %d fichiers .atom", yyyymm, len(atom_files))
+            for fname in atom_files:
+                data = zf.read(fname)
+                page_records, _ = _parse_atom_feed(data)
+                records.extend(page_records)
+    except zipfile.BadZipFile as exc:
+        logger.error("PLACE_ES : ZIP invalide pour %s : %s", yyyymm, exc)
+
+    return records
 
 
 # ─── Scoring ──────────────────────────────────────────────────────────────────
@@ -472,7 +452,6 @@ def compute_place_es_score(record: dict) -> tuple[int, list[str]]:
     title = (record.get('objet_marche') or '').lower()
     cpv_codes: list[str] = record.get('_cpv_codes', [])
     if not cpv_codes:
-        # Reconstruire depuis descripteur_libelle
         cpv_raw = record.get('descripteur_libelle') or ''
         cpv_codes = [_cpv_base(c) for c in cpv_raw.split(',') if c.strip()]
 
@@ -560,65 +539,90 @@ def explain_place_es_score(record: dict) -> list[dict]:
 
 def fetch_place_es_records() -> list[dict]:
     """
-    Récupère tous les avis PLACE_ES pertinents (licitaciones + adjudicaciones).
+    Récupère les avis PLACE_ES pertinents.
+
+    Stratégie :
+      - Si la date du dernier fetch remonte à plus de 2 jours → télécharge les
+        archives ZIP mensuelles (backfill).
+      - Sinon → utilise le flux ATOM paginé (incrémental).
+
+    Filtre par mots-clés et CPV Cohesity, déduplique par idweb.
     Retourne une liste de records normalisés prêts pour le scheduler.
-    Filtre par mots-clés et CPV Cohesity pour limiter le bruit.
     """
     if not _is_enabled():
         logger.info("PLACE_ES désactivé (PLACE_ES_ENABLED=False)")
         return []
 
     since = _get_last_fetch_date()
-    logger.info("PLACE_ES : fetch depuis %s", since.isoformat())
+    days_since = (date.today() - since).days
+    logger.info("PLACE_ES : fetch depuis %s (%d jours)", since.isoformat(), days_since)
 
     all_records: list[dict] = []
 
-    for feed_url, is_attribution in [
-        (FEED_LICITACIONES,   False),
-        (FEED_ADJUDICACIONES, True),
-    ]:
-        label = 'adjudicaciones' if is_attribution else 'licitaciones'
-        logger.info("PLACE_ES : récupération %s…", label)
+    if days_since > 2:
+        # ── Backfill via archives ZIP ─────────────────────────────────────────
+        logger.info("PLACE_ES : mode backfill — téléchargement des archives ZIP")
+        months_needed = min((days_since // 28) + 1, 3)  # max 3 mois
+        today = date.today()
+        for delta in range(months_needed):
+            year = today.year
+            month = today.month - delta
+            if month <= 0:
+                month += 12
+                year -= 1
+            yyyymm = f'{year}{month:02d}'
+            zip_records = _fetch_zip(yyyymm)
+            all_records.extend(zip_records)
+            if delta < months_needed - 1:
+                time.sleep(1)
+    else:
+        # ── Incrémental via flux ATOM paginé ─────────────────────────────────
+        next_url = FEED_URL
+        page = 0
 
-        for page in range(1, MAX_PAGES + 1):
-            raw = _fetch_feed_page(feed_url, page)
+        while next_url and page < MAX_PAGES:
+            page += 1
+            raw = _fetch_url(next_url)
             if not raw:
                 break
 
-            records = _parse_atom_feed(raw, is_attribution=is_attribution)
-            if not records:
-                logger.info("PLACE_ES [%s] page %d : aucune entrée", label, page)
+            page_records, next_url = _parse_atom_feed(raw)
+            if not page_records:
+                logger.info("PLACE_ES ATOM page %d : aucune entrée", page)
                 break
 
-            # Filtrer par date depuis le dernier fetch
-            new_this_page: list[dict] = []
+            # Arrêter si on atteint des entrées antérieures à since
             stop = False
-            for rec in records:
+            new_this_page: list[dict] = []
+            for rec in page_records:
                 rec_date_str = rec.get('dateparution', '')
                 if rec_date_str:
                     try:
                         rec_date = datetime.strptime(rec_date_str[:10], '%Y-%m-%d').date()
                         if rec_date < since:
-                            stop = True  # Les flux sont triés par date desc → on peut s'arrêter
+                            stop = True
                             break
                     except ValueError:
                         pass
                 new_this_page.append(rec)
 
             all_records.extend(new_this_page)
-            logger.info("PLACE_ES [%s] page %d : +%d (total %d)",
-                        label, page, len(new_this_page), len(all_records))
+            logger.info("PLACE_ES ATOM page %d : +%d (total %d)",
+                        page, len(new_this_page), len(all_records))
 
-            if stop or len(records) < 10:
+            if stop:
                 break
-
-            time.sleep(0.5)  # courtoisie serveur
+            if next_url:
+                time.sleep(0.5)  # courtoisie serveur
 
     # Dédupliquer par idweb
-    seen: set[str] = set()
-    unique = [r for r in all_records if r['idweb'] not in seen and not seen.add(r['idweb'])]  # type: ignore[func-returns-value]
+    seen_ids: set[str] = set()
+    unique = [
+        r for r in all_records
+        if r['idweb'] not in seen_ids and not seen_ids.add(r['idweb'])  # type: ignore[func-returns-value]
+    ]
 
-    # Filtrer : ne garder que les avis avec un score > 0
+    # Filtrer par pertinence
     try:
         from app.services.keywords import get_search_keywords
         search_kws = [kw.lower() for kw in get_search_keywords()]
@@ -628,13 +632,15 @@ def fetch_place_es_records() -> list[dict]:
 
     def _is_relevant(rec: dict) -> bool:
         title = (rec.get('objet_marche') or '').lower()
-        cpv_codes = rec.get('_cpv_codes', [])
         if any(kw in title for kw in search_kws):
             return True
-        if any(cpv in CPV_COHESITY for cpv in cpv_codes):
+        if any(cpv in CPV_COHESITY for cpv in rec.get('_cpv_codes', [])):
             return True
         return False
 
     relevant = [r for r in unique if _is_relevant(r)]
-    logger.info("PLACE_ES : %d avis uniques pertinents (sur %d récupérés)", len(relevant), len(unique))
+    logger.info(
+        "PLACE_ES : %d avis pertinents (sur %d uniques / %d bruts)",
+        len(relevant), len(unique), len(all_records),
+    )
     return relevant

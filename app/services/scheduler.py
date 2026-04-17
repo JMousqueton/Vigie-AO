@@ -184,6 +184,9 @@ def refresh_ted_cache(app=None):
             u.country for u in User.query.filter_by(is_active=True).all()
             if u.country
         } or {'FR'}
+        # Si PLACE_ES est activé, inclure ES dans les pays TED même sans utilisateur ES
+        if ctx_app.config.get('PLACE_ES_ENABLED', False):
+            active_countries.add('ES')
 
         logger.info("Refresh TED pour les pays : %s", sorted(active_countries))
 
