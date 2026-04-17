@@ -309,6 +309,17 @@
                     </button>
                   </form>
 
+                  {% if src.source == 'PLACE_ES' %}
+                  <!-- Force full refresh (backfill ZIP) -->
+                  <form method="post" action="{{ url_for('admin.force_refresh_source', source=src.source) }}"
+                        onsubmit="return confirm('Réinitialiser la date et lancer un backfill complet PLACE ES ?') && (showLoading('Backfill PLACE ES en cours…'), true)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-xs btn-warning" title="Force refresh complet (backfill ZIP)">
+                      <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+
                   <!-- Enable / Disable -->
                   <form method="post" action="{{ url_for('admin.toggle_source', source=src.source) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

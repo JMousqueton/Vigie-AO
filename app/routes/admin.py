@@ -409,6 +409,41 @@ def refresh_source(source):
     return redirect(url_for('admin.index', tab='sources'))
 
 
+@admin_bp.route('/sources/force-refresh/<source>', methods=['POST'])
+@login_required
+@admin_required
+def force_refresh_source(source):
+    """Réinitialise la date de fetch puis lance un refresh complet (mode backfill ZIP)."""
+    if source not in VALID_SOURCES:
+        flash('Source inconnue.', 'danger')
+        return redirect(url_for('admin.index', tab='sources'))
+
+    if source == 'PLACE_ES':
+        row = AppConfig.query.filter_by(key='place_es_last_fetch_date').first()
+        if row:
+            db.session.delete(row)
+            db.session.commit()
+        current_app.logger.info("Reset place_es_last_fetch_date par %s", current_user.email)
+
+    try:
+        app = current_app._get_current_object()
+        if source == 'BOAMP':
+            from app.services.scheduler import refresh_boamp_cache
+            refresh_boamp_cache(app)
+        elif source == 'TED':
+            from app.services.scheduler import refresh_ted_cache
+            refresh_ted_cache(app)
+        else:
+            from app.services.scheduler import refresh_place_es_cache
+            refresh_place_es_cache(app)
+        flash(f'Refresh complet {source} lancé (backfill).', 'success')
+        current_app.logger.info("Force refresh %s par %s", source, current_user.email)
+    except Exception as exc:
+        flash(f'Erreur force refresh {source} : {exc}', 'danger')
+
+    return redirect(url_for('admin.index', tab='sources'))
+
+
 @admin_bp.route('/sources/toggle/<source>', methods=['POST'])
 @login_required
 @admin_required
@@ -450,6 +485,13 @@ def delete_source(source):
 
     count = DossierCache.query.filter_by(source=source).count()
     DossierCache.query.filter_by(source=source).delete()
+
+    # Réinitialiser la date de dernier fetch pour forcer un backfill complet au prochain refresh
+    if source == 'PLACE_ES':
+        row = AppConfig.query.filter_by(key='place_es_last_fetch_date').first()
+        if row:
+            db.session.delete(row)
+
     db.session.commit()
 
     flash(f'{count} dossier(s) {source} supprimés du cache.', 'warning')
