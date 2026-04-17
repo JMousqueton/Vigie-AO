@@ -45,7 +45,7 @@
     </div>
 
     <span class="badge-source badge-source-{{ dossier.source | lower }}">
-      <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo"> {{ dossier.source }}
+      <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo" onerror="this.style.display='none'"> {{ dossier.source }}
     </span>
     {% if dossier.alt_source_url %}
     <a href="{{ dossier.alt_source_url }}" target="_blank" rel="noopener"
@@ -469,7 +469,7 @@
             <dt>Source</dt>
             <dd>
               <span class="badge-source badge-source-{{ dossier.source | lower }}">
-                <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo">
+                <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo" onerror="this.style.display='none'">
                 {% if dossier.source == 'TED' %}TED v3{% else %}{{ dossier.source }}{% endif %}
               </span>
             </dd>

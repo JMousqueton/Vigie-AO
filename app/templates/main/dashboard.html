@@ -171,7 +171,7 @@
           <input type="checkbox" name="sources" value="{{ src }}"
                  {{ 'checked' if not sources or src in sources else '' }}
                  onchange="this.closest('form').submit()">
-          <img src="{{ url_for('static', filename=src + '.png') }}" alt="{{ src }}" class="source-logo"> {{ src }}
+          <img src="{{ url_for('static', filename=src + '.png') }}" alt="{{ src }}" class="source-logo" onerror="this.style.display='none'"> {{ src }}
         </label>
         {% endfor %}
       </div>
@@ -250,7 +250,7 @@
 
         <!-- Source -->
         <span class="badge-source badge-source-{{ dossier.source | lower }}">
-          <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo"> {{ dossier.source }}
+          <img src="{{ url_for('static', filename=dossier.source + '.png') }}" alt="{{ dossier.source }}" class="source-logo" onerror="this.style.display='none'"> {{ dossier.source }}
         </span>
         {% if dossier.alt_source_url %}
         <a href="{{ dossier.alt_source_url }}" target="_blank" rel="noopener"

@@ -597,7 +597,8 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 /* Badge source */
 .badge-source { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; font-family: var(--font-mono); letter-spacing: 0.05em; border: 1px solid; }
 .badge-source-boamp { background: rgba(14,165,233,0.12); color: #7dd3fc; border-color: rgba(14,165,233,0.3); }
-.badge-source-ted   { background: rgba(168,85,247,0.12); color: #d8b4fe; border-color: rgba(168,85,247,0.3); }
+.badge-source-ted      { background: rgba(168,85,247,0.12); color: #d8b4fe; border-color: rgba(168,85,247,0.3); }
+.badge-source-place_es { background: rgba(234,179,8,0.12);  color: #fde047; border-color: rgba(234,179,8,0.3); }
 .source-logo { height: 12px; width: auto; vertical-align: middle; object-fit: contain; }
 
 .badge-admin   { background: rgba(168,85,247,0.2);     color: #d8b4fe;  border: 1px solid rgba(168,85,247,0.3); font-size: 10px; padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); font-weight: 700; }
