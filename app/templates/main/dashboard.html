@@ -377,7 +377,8 @@
         <div class="card-actions">
           {% if dossier.urlgravure %}
           <a href="{{ dossier.urlgravure }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i> BOAMP
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            {% if dossier.country == 'FR' %}Avis{% else %}Notif.{% endif %}
           </a>
           {% endif %}
           <a href="{{ url_for('main.detail', idweb=dossier.idweb) }}" class="btn btn-sm btn-primary">
