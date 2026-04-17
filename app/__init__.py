@@ -73,7 +73,7 @@ def create_app(config_name: str | None = None) -> Flask:
         'script-src': ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com'],
         'style-src': ["'self'", "'unsafe-inline'", 'fonts.googleapis.com', 'cdnjs.cloudflare.com'],
         'font-src': ["'self'", 'fonts.gstatic.com', 'cdnjs.cloudflare.com'],
-        'img-src': ["'self'", 'data:'],
+        'img-src': ["'self'", 'data:', 'flagcdn.com'],
         'connect-src': ["'self'"],
     }
     talisman.init_app(

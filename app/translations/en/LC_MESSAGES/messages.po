@@ -169,6 +169,9 @@ msgstr "Weekly (Monday morning)"
 msgid "Europe (tous)"
 msgstr "Europe (all)"
 
+msgid "🇪🇺 Europe (tous)"
+msgstr "Europe (all)"
+
 # ─── Dashboard — stat bar ─────────────────────────────────────────────────────
 msgid "Dossiers"
 msgstr "Tenders"

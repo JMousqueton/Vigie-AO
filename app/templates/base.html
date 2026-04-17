@@ -23,6 +23,7 @@
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
+
   <!-- CSRF token pour les requêtes AJAX -->
   <meta name="csrf-token" content="{{ csrf_token() }}" />
 
@@ -75,12 +76,11 @@
       {% endif %}
       {% if current_user.is_supervisor %}
       {% set sup_country = session.get('supervisor_country', current_user.country or 'FR') %}
-      {% set country_flags = {'FR':'🇫🇷','BE':'🇧🇪','CH':'🇨🇭','LU':'🇱🇺','DE':'🇩🇪','ES':'🇪🇸','IT':'🇮🇹','NL':'🇳🇱','PT':'🇵🇹','AT':'🇦🇹','PL':'🇵🇱','SE':'🇸🇪','DK':'🇩🇰','FI':'🇫🇮','NO':'🇳🇴','GB':'🇬🇧','IE':'🇮🇪','EU':'🇪🇺'} %}
       {% set country_names = {'FR':'France','BE':'Belgique','CH':'Suisse','LU':'Luxembourg','DE':'Allemagne','ES':'Espagne','IT':'Italie','NL':'Pays-Bas','PT':'Portugal','AT':'Autriche','PL':'Pologne','SE':'Suède','DK':'Danemark','FI':'Finlande','NO':'Norvège','GB':'Royaume-Uni','IE':'Irlande','EU':'Europe (tous)'} %}
       <div class="country-picker" id="countryPicker">
         <button class="nav-link country-picker-btn" id="countryPickerBtn" type="button"
                 onclick="toggleCountryPicker()" aria-haspopup="true">
-          <span>{{ country_flags.get(sup_country, '🌍') }}</span>
+          <img src="https://flagcdn.com/w20/{{ sup_country | lower }}.png" alt="{{ sup_country }}" class="country-flag">
           <span class="country-picker-label">{{ country_names.get(sup_country, sup_country) }}</span>
           <i class="fa-solid fa-chevron-down" style="font-size:10px;opacity:.6;"></i>
         </button>
@@ -88,7 +88,7 @@
           {% for code, name in [('FR','France'),('BE','Belgique'),('CH','Suisse'),('LU','Luxembourg'),('DE','Allemagne'),('ES','Espagne'),('IT','Italie'),('NL','Pays-Bas'),('PT','Portugal'),('AT','Autriche'),('PL','Pologne'),('SE','Suède'),('DK','Danemark'),('FI','Finlande'),('NO','Norvège'),('GB','Royaume-Uni'),('IE','Irlande'),('EU','Europe (tous)')] %}
           <a href="{{ url_for('main.set_supervisor_country', country=code) }}"
              class="country-option {% if sup_country == code %}active{% endif %}">
-            {{ country_flags.get(code, '') }} {{ name }}
+            <img src="https://flagcdn.com/w20/{{ code | lower }}.png" alt="{{ code }}" class="country-flag"> {{ name }}
           </a>
           {% endfor %}
         </div>
@@ -381,10 +381,12 @@ document.addEventListener('keydown', e => {
 }
 .country-picker-dropdown.open { display: block; }
 .country-option {
-  display: block; padding: 8px 12px; border-radius: 6px; font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 6px; font-size: 13px;
   color: var(--text, #e2e8f0); text-decoration: none; white-space: nowrap;
   transition: background .12s;
 }
+.country-flag { width: 20px; height: auto; border-radius: 2px; flex-shrink: 0; }
 .country-option:hover { background: var(--bg-hover, #334155); }
 .country-option.active { background: rgba(79,142,247,.15); color: #4f8ef7; font-weight: 600; }
 </style>
