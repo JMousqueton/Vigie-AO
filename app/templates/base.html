@@ -74,7 +74,7 @@
         <i class="fa-solid fa-tags"></i> {{ _('Mots-clés') }}
       </button>
       {% endif %}
-      {% if current_user.is_supervisor %}
+      {% if current_user.is_supervisor or current_user.is_admin %}
       {% set sup_country = session.get('supervisor_country', current_user.country or 'FR') %}
       {% set country_names = {'FR':'France','BE':'Belgique','CH':'Suisse','LU':'Luxembourg','DE':'Allemagne','ES':'Espagne','IT':'Italie','NL':'Pays-Bas','PT':'Portugal','AT':'Autriche','PL':'Pologne','SE':'Suède','DK':'Danemark','FI':'Finlande','NO':'Norvège','GB':'Royaume-Uni','IE':'Irlande','EU':'Europe (tous)'} %}
       <div class="country-picker" id="countryPicker">

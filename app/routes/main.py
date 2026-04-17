@@ -52,9 +52,9 @@ def dashboard():
 
     query = DossierCache.query.filter(DossierCache.is_duplicate == False)
 
-    # Filtre pays — superviseur via session, tous les autres via leur profil
+    # Filtre pays — superviseur/admin via session, tous les autres via leur profil
     supervisor_country = None
-    if current_user.is_supervisor:
+    if current_user.is_supervisor or current_user.is_admin:
         active_country = session.get('supervisor_country', current_user.country or 'FR')
         supervisor_country = active_country
     else:
@@ -285,7 +285,7 @@ def dashboard():
 @login_required
 def set_supervisor_country():
     """Permet à un superviseur de changer le pays affiché dans le dashboard."""
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_admin:
         return redirect(url_for('main.dashboard'))
     from app.routes.auth import COUNTRY_CHOICES
     valid = {c[0] for c in COUNTRY_CHOICES}
