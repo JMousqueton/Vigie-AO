@@ -222,6 +222,10 @@ def _parse_entry(entry) -> dict | None:
         # Fallback : résumé texte uniquement
         return _record_from_summary(idweb, raw_id, link_href, title, summary, updated_date)
 
+    # ── Statut du dossier (PUB=avis, ADJ/RES=attribution) ────────────────────
+    status_code = _find_text(cfs, _tag(NS_CBC, 'ContractFolderStatusCode'))
+    is_attribution = status_code in ('ADJ', 'RES', 'ADJUDICADA')
+
     # Acheteur
     acheteur = _find_text(cfs,
         f'{_tag(NS_CAC_EXT,"LocatedContractingParty")}'
@@ -281,30 +285,100 @@ def _parse_entry(entry) -> dict | None:
     if not objet:
         objet = title
 
-    cpv_codes = list(dict.fromkeys(cpv_codes))  # dédupliquer en gardant l'ordre
+    cpv_codes = list(dict.fromkeys(cpv_codes))
     cpv_str = ', '.join(cpv_codes)
 
+    # ── Lots / résultats d'attribution ────────────────────────────────────────
+    _UNIT_MAP = {'MON': 'MONTH', 'ANN': 'YEAR', 'DAY': 'DAY'}
+    attribution_lots: list[dict] = []
+    attribution_periods: list[dict] = []
+
+    for lot_el in cfs.findall(_tag(NS_CAC, 'ProcurementProjectLot')):
+        lot_num = _find_text(lot_el, _tag(NS_CBC, 'ID'))
+
+        # TenderResult → winner + amount + award date
+        tr = lot_el.find(_tag(NS_CAC, 'TenderResult'))
+        titulaire = ''
+        montant = None
+        award_date = ''
+        if tr is not None:
+            wp = tr.find(_tag(NS_CAC, 'WinningParty'))
+            if wp is not None:
+                titulaire = _find_text(
+                    wp,
+                    f'{_tag(NS_CAC,"PartyName")}/{_tag(NS_CBC,"Name")}',
+                )
+            award_date = _find_text(tr, _tag(NS_CBC, 'AwardDate'))
+            atp = tr.find(_tag(NS_CAC, 'AwardedTenderedProject'))
+            if atp is not None:
+                lmt = atp.find(_tag(NS_CAC, 'LegalMonetaryTotal'))
+                if lmt is not None:
+                    amt_el = lmt.find(_tag(NS_CBC, 'TaxExclusiveAmount'))
+                    if amt_el is None:
+                        amt_el = lmt.find(_tag(NS_CBC, 'PayableAmount'))
+                    if amt_el is not None and (amt_el.text or '').strip():
+                        try:
+                            montant = float(amt_el.text.strip())
+                        except ValueError:
+                            pass
+
+        if titulaire or montant is not None:
+            attribution_lots.append({
+                'lot_num':   lot_num,
+                'titulaire': titulaire,
+                'montant':   montant,
+                'award_date': _fmt_date(award_date),
+            })
+
+        # PlannedPeriod → duration / dates
+        pp_lot = lot_el.find(_tag(NS_CAC, 'ProcurementProject'))
+        if pp_lot is not None:
+            period = pp_lot.find(_tag(NS_CAC, 'PlannedPeriod'))
+            if period is not None:
+                dm_el = period.find(_tag(NS_CBC, 'DurationMeasure'))
+                duration_value = duration_unit = None
+                if dm_el is not None:
+                    duration_value = (dm_el.text or '').strip() or None
+                    duration_unit  = _UNIT_MAP.get(dm_el.get('unitCode', ''), dm_el.get('unitCode'))
+                start = _fmt_date(_find_text(period, _tag(NS_CBC, 'StartDate')))
+                end   = _fmt_date(_find_text(period, _tag(NS_CBC, 'EndDate')))
+                if duration_value or start or end:
+                    attribution_periods.append({
+                        'lot_id':           lot_num or None,
+                        'duration_value':   duration_value,
+                        'duration_unit':    duration_unit,
+                        'start_date':       start or None,
+                        'end_date':         end or None,
+                        'end_date_computed': False,
+                    })
+
+    # ContractFolderID est utilisé comme clé de liaison avec l'avis initial
+    contract_folder_id = _find_text(cfs, _tag(NS_CBC, 'ContractFolderID'))
+
     return {
-        'idweb':                idweb,
-        'country':              COUNTRY,
-        'reference_boamp':      raw_id,
-        'etat':                 'INITIAL',
-        'nature':               'APPEL_OFFRE',
-        'type_marche':          type_marche,
-        'descripteur_libelle':  cpv_str,
-        'famille_denomination': cpv_str,
-        'acheteur_nom':         acheteur,
-        'acheteur_siret':       '',
-        'objet_marche':         objet,
-        'code_departement':     '',
-        'lieu_execution':       lieu,
-        'dateparution':         _fmt_date(dateparution),
-        'datelimitereponse':    _fmt_date(datelimite),
-        'urlgravure':           link_href,
-        'donnees':              None,
-        'contact_email':        '',
-        '_cpv_codes':           cpv_codes,
-        '_is_attribution':      False,
+        'idweb':                 idweb,
+        'country':               COUNTRY,
+        'reference_boamp':       contract_folder_id or raw_id,
+        'etat':                  'ATTRIBUTION' if is_attribution else 'INITIAL',
+        'nature':                'ATTRIBUTION' if is_attribution else 'APPEL_OFFRE',
+        'type_marche':           type_marche,
+        'descripteur_libelle':   cpv_str,
+        'famille_denomination':  cpv_str,
+        'acheteur_nom':          acheteur,
+        'acheteur_siret':        '',
+        'objet_marche':          objet,
+        'code_departement':      '',
+        'lieu_execution':        lieu,
+        'dateparution':          _fmt_date(dateparution),
+        'datelimitereponse':     _fmt_date(datelimite),
+        'urlgravure':            link_href,
+        'donnees':               None,
+        'contact_email':         '',
+        '_cpv_codes':            cpv_codes,
+        '_is_attribution':       is_attribution,
+        '_attribution_lots':     attribution_lots,
+        '_attribution_periods':  attribution_periods,
+        '_raw_id':               raw_id,
     }
 
 

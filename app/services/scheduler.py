@@ -320,39 +320,64 @@ def refresh_place_es_cache(app=None):
                 is_attribution = rec.get('_is_attribution', False)
                 score, mots_cles = compute_place_es_score(rec)
 
-                if score == 0 and not DossierCache.query.filter_by(idweb=idweb).first():
-                    continue
-
-                attribution_json = None
+                # ── Attribution : relier au dossier initial via ContractFolderID ──
                 if is_attribution:
                     attribution_json = json.dumps({
                         'dateparution':    rec.get('dateparution', ''),
                         'urlgravure':      rec.get('urlgravure', ''),
                         'reference_boamp': rec.get('reference_boamp', ''),
+                        'acheteur_nom':    rec.get('acheteur_nom', ''),
+                        'donnees': {
+                            'PLACE_ES': {
+                                'lots':    rec.get('_attribution_lots', []),
+                                'periods': rec.get('_attribution_periods', []),
+                            }
+                        },
                     }, ensure_ascii=False)
+
+                    # Chercher l'avis initial (PUB) avec le même ContractFolderID
+                    contract_folder_id = rec.get('reference_boamp', '')
+                    pub_entry = None
+                    if contract_folder_id:
+                        pub_entry = (
+                            DossierCache.query
+                            .filter_by(source='PLACE_ES')
+                            .filter(DossierCache.reference_boamp_initial == contract_folder_id)
+                            .filter(DossierCache.has_attribution == False)
+                            .first()
+                        )
+                    if pub_entry:
+                        pub_entry.has_attribution        = True
+                        pub_entry.attribution_json       = attribution_json
+                        pub_entry.date_derniere_activite = parse_date(rec.get('dateparution'))
+                        pub_entry.fetched_at             = datetime.utcnow()
+                        updated += 1
+                    # ADJ entries are not stored as separate rows — they only update the PUB row
+                    continue
+
+                # ── Avis initial (PUB) ────────────────────────────────────────────
+                if score == 0 and not DossierCache.query.filter_by(idweb=idweb).first():
+                    continue
 
                 existing = DossierCache.query.filter_by(idweb=idweb).first()
                 if existing:
-                    existing.acheteur_nom           = rec.get('acheteur_nom')
-                    existing.objet_marche           = rec.get('objet_marche')
-                    existing.nature                 = rec.get('nature')
-                    existing.type_marche            = rec.get('type_marche')
-                    existing.famille_denomination   = rec.get('famille_denomination')
-                    existing.descripteur_libelle    = rec.get('descripteur_libelle')
-                    existing.lieu_execution         = rec.get('lieu_execution')
-                    existing.dateparution           = parse_date(rec.get('dateparution'))
-                    existing.datelimitereponse      = parse_date(rec.get('datelimitereponse'))
-                    existing.urlgravure             = rec.get('urlgravure')
+                    existing.acheteur_nom            = rec.get('acheteur_nom')
+                    existing.objet_marche            = rec.get('objet_marche')
+                    existing.nature                  = rec.get('nature')
+                    existing.type_marche             = rec.get('type_marche')
+                    existing.famille_denomination    = rec.get('famille_denomination')
+                    existing.descripteur_libelle     = rec.get('descripteur_libelle')
+                    existing.lieu_execution          = rec.get('lieu_execution')
+                    existing.dateparution            = parse_date(rec.get('dateparution'))
+                    existing.datelimitereponse       = parse_date(rec.get('datelimitereponse'))
+                    existing.urlgravure              = rec.get('urlgravure')
                     existing.reference_boamp_initial = rec.get('reference_boamp')
-                    existing.score_pertinence       = score
-                    existing.mots_cles_matches      = json.dumps(mots_cles, ensure_ascii=False)
-                    existing.has_attribution        = is_attribution
-                    if is_attribution:
-                        existing.attribution_json   = attribution_json
-                    existing.date_derniere_activite = parse_date(rec.get('dateparution'))
-                    existing.fetched_at             = datetime.utcnow()
-                    existing.source                 = 'PLACE_ES'
-                    existing.country                = 'ES'
+                    existing.score_pertinence        = score
+                    existing.mots_cles_matches       = json.dumps(mots_cles, ensure_ascii=False)
+                    existing.date_derniere_activite  = parse_date(rec.get('dateparution'))
+                    existing.fetched_at              = datetime.utcnow()
+                    existing.source                  = 'PLACE_ES'
+                    existing.country                 = 'ES'
                     updated += 1
                 else:
                     db.session.add(DossierCache(
@@ -369,11 +394,11 @@ def refresh_place_es_cache(app=None):
                         urlgravure=rec.get('urlgravure'),
                         reference_boamp_initial=rec.get('reference_boamp'),
                         rectificatifs_json='[]',
-                        attribution_json=attribution_json,
+                        attribution_json=None,
                         score_pertinence=score,
                         mots_cles_matches=json.dumps(mots_cles, ensure_ascii=False),
                         has_rectificatif=False,
-                        has_attribution=is_attribution,
+                        has_attribution=False,
                         date_derniere_activite=parse_date(rec.get('dateparution')),
                         fetched_at=datetime.utcnow(),
                         is_new=True,

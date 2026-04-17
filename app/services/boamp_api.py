@@ -403,6 +403,21 @@ def extract_lots_titulaires(attribution: dict) -> list[dict]:
             except Exception:
                 return []
 
+        # ── Format PLACE_ES ──────────────────────────────────────────────────
+        if isinstance(donnees, dict) and 'PLACE_ES' in donnees:
+            lots = donnees['PLACE_ES'].get('lots', [])
+            result = []
+            for i, lot in enumerate(lots):
+                if lot.get('titulaire') or lot.get('montant') is not None:
+                    lot_num = lot.get('lot_num') or str(i + 1)
+                    result.append({
+                        'lot_num':   lot_num,
+                        'lot_id':    lot_num,
+                        'titulaire': lot.get('titulaire', ''),
+                        'montant':   str(lot['montant']) if lot.get('montant') is not None else '',
+                    })
+            return result
+
         try:
             notice = donnees['EFORMS']['ContractAwardNotice']
         except (KeyError, TypeError):
@@ -538,6 +553,10 @@ def extract_contract_period(attribution: dict) -> list[dict]:
             donnees = json.loads(donnees)
         except Exception:
             return []
+
+    # ── Format PLACE_ES ──────────────────────────────────────────────────────
+    if isinstance(donnees, dict) and 'PLACE_ES' in donnees:
+        return donnees['PLACE_ES'].get('periods', [])
 
     try:
         notice = donnees['EFORMS']['ContractAwardNotice']

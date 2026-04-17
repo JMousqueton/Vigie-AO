@@ -77,6 +77,8 @@
            class="filter-tab filter-tab-warning {{ 'active' if filtre == 'rectificatifs' }}">
           <i class="fa-solid fa-file-pen"></i> {{ _('Rectificatifs') }}
         </a>
+        {% endif %}
+        {% if active_country in ('FR', 'ES') %}
         <a href="{{ url_for('main.dashboard', filtre='attributions', q=search, dept=dept, tri=tri) }}"
            class="filter-tab filter-tab-success {{ 'active' if filtre == 'attributions' }}">
           <i class="fa-solid fa-trophy"></i> {{ _('Attributions') }}
@@ -136,7 +138,7 @@
           {{ _('Expirés') }} : <strong>{{ _('avec') if expire == 'avec' else _('sans') }}</strong>
         </button>
 
-        {% if active_country == 'FR' %}
+        {% if active_country in ('FR', 'ES') %}
         <input type="hidden" name="attribue" id="attribueInput" value="{{ attribue }}" />
         <button type="button"
                 class="btn btn-sm {{ 'btn-ghost attribue-btn-off' if attribue == 'sans' else 'btn-ghost attribue-btn-on' }}"
