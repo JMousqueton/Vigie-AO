@@ -128,7 +128,16 @@ def _join(value, sep=', ') -> str:
 
 
 def _extract_reference(record: dict) -> str:
-    """Extrait la référence BOAMP depuis le JSON gestion ou retourne idweb."""
+    """
+    Extrait la référence BOAMP (idweb de l'avis initial) depuis le JSON du record.
+
+    Priorités :
+      1. gestion.REFERENCE.IDWEB  — présent sur les avis INITIAL
+      2. donnees.RECTIF.ANNONCE_ANTERIEUR.REFERENCE.IDWEB  — présent sur les RECTIFICATIF
+      3. Fallback : idweb du record lui-même
+    """
+    own_idweb = record.get('idweb', '')
+
     gestion = record.get('gestion')
     if gestion:
         if isinstance(gestion, str):
@@ -141,9 +150,34 @@ def _extract_reference(record: dict) -> str:
                 gestion.get('REFERENCE', {}).get('IDWEB')
                 or gestion.get('reference', {}).get('idweb')
             )
-            if idweb_ref:
+            # Ne garder que si c'est une vraie référence externe (pas une auto-référence)
+            if idweb_ref and str(idweb_ref) != own_idweb:
                 return str(idweb_ref)
-    return record.get('idweb', '')
+
+    # Pour les RECTIFICATIF : la référence de l'avis antérieur est dans donnees
+    etat = (record.get('etat') or '').upper()
+    if etat == ETAT_RECTIFICATIF:
+        donnees = record.get('donnees')
+        if donnees:
+            if isinstance(donnees, str):
+                try:
+                    donnees = json.loads(donnees)
+                except Exception:
+                    donnees = {}
+            if isinstance(donnees, dict):
+                try:
+                    parent_idweb = (
+                        donnees.get('RECTIF', {})
+                               .get('ANNONCE_ANTERIEUR', {})
+                               .get('REFERENCE', {})
+                               .get('IDWEB', '')
+                    )
+                    if parent_idweb:
+                        return str(parent_idweb)
+                except Exception:
+                    pass
+
+    return own_idweb
 
 
 def normalize_record(record: dict) -> dict:
