@@ -426,6 +426,19 @@ msgstr ""
 msgid "Score total"
 msgstr ""
 
+# ─── Detail — topbar & header ────────────────────────────────────────────────
+msgid "Retour"
+msgstr ""
+
+msgid "Partager"
+msgstr ""
+
+msgid "Aussi publié sur TED"
+msgstr ""
+
+msgid "Pertinence Cohesity :"
+msgstr ""
+
 # ─── Detail — timeline ───────────────────────────────────────────────────────
 msgid "Timeline du dossier"
 msgstr ""

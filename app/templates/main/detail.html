@@ -7,15 +7,15 @@
   <!-- ─── BACK + ACTIONS ────────────────────────────────────────────────── -->
   <div class="detail-topbar">
     <a href="{{ url_for('main.dashboard') }}" class="btn btn-ghost btn-sm">
-      <i class="fa-solid fa-arrow-left"></i> Retour
+      <i class="fa-solid fa-arrow-left"></i> {{ _('Retour') }}
     </a>
     <div class="detail-actions">
       <span class="mono ref-big">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
-      <button class="btn btn-sm btn-ghost" onclick="copyRef('{{ dossier.reference_boamp_initial or dossier.idweb }}', this)" title="Copier la référence">
+      <button class="btn btn-sm btn-ghost" onclick="copyRef('{{ dossier.reference_boamp_initial or dossier.idweb }}', this)" title="{{ _('Copier la référence') }}">
         <i class="fa-regular fa-copy"></i>
       </button>
-      <button class="btn btn-sm btn-ghost" onclick="shareDossier('{{ dossier.idweb }}', this)" title="Partager ce dossier">
-        <i class="fa-solid fa-share-nodes"></i> Partager
+      <button class="btn btn-sm btn-ghost" onclick="shareDossier('{{ dossier.idweb }}', this)" title="{{ _('Partager ce dossier') }}">
+        <i class="fa-solid fa-share-nodes"></i> {{ _('Partager') }}
       </button>
       {% if dossier.urlgravure %}
       <a href="{{ dossier.urlgravure }}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">
@@ -29,18 +29,18 @@
   <header class="detail-header">
     <div class="detail-badges">
       {% if dossier.has_attribution %}
-        <span class="badge-nature badge-attrib"><i class="fa-solid fa-trophy"></i> ATTRIBUÉ</span>
+        <span class="badge-nature badge-attrib"><i class="fa-solid fa-trophy"></i> {{ _('ATTRIBUÉ') }}</span>
       {% elif dossier.nature %}
         <span class="badge-nature"><i class="fa-solid fa-file-contract"></i> {{ dossier.nature | replace('_', ' ') }}</span>
       {% endif %}
       {% if dossier.has_rectificatif %}
-        <span class="badge-rectif"><i class="fa-solid fa-triangle-exclamation"></i> RECTIFIÉ</span>
+        <span class="badge-rectif"><i class="fa-solid fa-triangle-exclamation"></i> {{ _('RECTIFIÉ') }}</span>
       {% endif %}
       {% if dossier.is_urgent %}
-        <span class="badge-urgent blink"><i class="fa-solid fa-clock"></i> URGENT</span>
+        <span class="badge-urgent blink"><i class="fa-solid fa-clock"></i> {{ _('URGENT') }}</span>
       {% endif %}
       {% if dossier.is_expired %}
-        <span class="badge-expired-tag"><i class="fa-solid fa-ban"></i> EXPIRÉ</span>
+        <span class="badge-expired-tag"><i class="fa-solid fa-ban"></i> {{ _('EXPIRÉ') }}</span>
       {% endif %}
     </div>
 
@@ -49,12 +49,12 @@
     </span>
     {% if dossier.alt_source_url %}
     <a href="{{ dossier.alt_source_url }}" target="_blank" rel="noopener"
-       class="badge-source badge-source-ted" title="Aussi publié sur TED">
+       class="badge-source badge-source-ted" title="{{ _('Aussi publié sur TED') }}">
       <img src="{{ url_for('static', filename='TED.png') }}" alt="TED" class="source-logo"> TED
     </a>
     {% endif %}
 
-    <h1 class="detail-title">{{ dossier.objet_marche or 'Objet non renseigné' }}</h1>
+    <h1 class="detail-title">{{ dossier.objet_marche or _('Objet non renseigné') }}</h1>
 
     <div class="detail-meta-row">
       <span><i class="fa-solid fa-building-columns"></i> <strong>{{ dossier.acheteur_nom or '—' }}</strong></span>
@@ -74,7 +74,7 @@
     <!-- Score -->
     <div class="detail-score">
       {% set stars = dossier.score_pertinence | score_stars %}
-      <span class="score-label">Pertinence Cohesity :</span>
+      <span class="score-label">{{ _('Pertinence Cohesity :') }}</span>
       <div class="score-stars">
         {% for i in range(5) %}
         <i class="fa-solid fa-star {{ 'star-on' if i < stars else 'star-off' }}"></i>
