@@ -127,11 +127,13 @@ def _get_new_dossiers_for_user(user: User) -> list[DossierCache]:
     - Autre → TED uniquement pour ce pays
     """
     from app import db
-    cutoff = user.alert_last_sent or (datetime.utcnow() - timedelta(days=7))
+    from datetime import date
+    cutoff_dt = user.alert_last_sent or (datetime.utcnow() - timedelta(days=7))
+    cutoff_date = cutoff_dt.date() if hasattr(cutoff_dt, 'date') else cutoff_dt
     user_country = getattr(user, 'country', 'FR') or 'FR'
 
     base = DossierCache.query.filter(
-        DossierCache.fetched_at >= cutoff,
+        DossierCache.date_derniere_activite >= cutoff_date,
         DossierCache.score_pertinence > 0,
         DossierCache.is_duplicate == False,  # noqa: E712
     )
