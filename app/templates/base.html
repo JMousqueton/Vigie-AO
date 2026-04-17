@@ -76,7 +76,7 @@
       {% endif %}
       {% if current_user.is_supervisor or current_user.is_admin %}
       {% set sup_country = session.get('supervisor_country', current_user.country or 'FR') %}
-      {% set country_names = {'FR':'France','BE':'Belgique','CH':'Suisse','LU':'Luxembourg','DE':'Allemagne','ES':'Espagne','IT':'Italie','NL':'Pays-Bas','PT':'Portugal','AT':'Autriche','PL':'Pologne','SE':'Suède','DK':'Danemark','FI':'Finlande','NO':'Norvège','GB':'Royaume-Uni','IE':'Irlande','EU':'Europe (tous)'} %}
+      {% set country_names = {'FR':'France','BE':'België / Belgique','CH':'Schweiz / Suisse','LU':'Lëtzebuerg','DE':'Deutschland','ES':'España','IT':'Italia','NL':'Nederland','PT':'Portugal','AT':'Österreich','PL':'Polska','SE':'Sverige','DK':'Danmark','FI':'Suomi','NO':'Norge','GB':'United Kingdom','IE':'Éire / Ireland','EU':'🇪🇺 Europe (tous)'} %}
       <div class="country-picker" id="countryPicker">
         <button class="nav-link country-picker-btn" id="countryPickerBtn" type="button"
                 onclick="toggleCountryPicker()" aria-haspopup="true">
@@ -85,7 +85,7 @@
           <i class="fa-solid fa-chevron-down" style="font-size:10px;opacity:.6;"></i>
         </button>
         <div class="country-picker-dropdown" id="countryPickerDropdown">
-          {% for code, name in [('FR','France'),('BE','Belgique'),('CH','Suisse'),('LU','Luxembourg'),('DE','Allemagne'),('ES','Espagne'),('IT','Italie'),('NL','Pays-Bas'),('PT','Portugal'),('AT','Autriche'),('PL','Pologne'),('SE','Suède'),('DK','Danemark'),('FI','Finlande'),('NO','Norvège'),('GB','Royaume-Uni'),('IE','Irlande'),('EU','Europe (tous)')] %}
+          {% for code, name in [('FR','France'),('BE','België / Belgique'),('CH','Schweiz / Suisse'),('LU','Lëtzebuerg'),('DE','Deutschland'),('ES','España'),('IT','Italia'),('NL','Nederland'),('PT','Portugal'),('AT','Österreich'),('PL','Polska'),('SE','Sverige'),('DK','Danmark'),('FI','Suomi'),('NO','Norge'),('GB','United Kingdom'),('IE','Éire / Ireland'),('EU','🇪🇺 Europe (tous)')] %}
           <a href="{{ url_for('main.set_supervisor_country', country=code) }}"
              class="country-option {% if sup_country == code %}active{% endif %}">
             <img src="https://flagcdn.com/w20/{{ code | lower }}.png" alt="{{ code }}" class="country-flag"> {{ name }}

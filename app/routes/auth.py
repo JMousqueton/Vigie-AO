@@ -36,6 +36,7 @@ class RegisterForm(FlaskForm):
     prenom = StringField('Prénom', validators=[DataRequired(), Length(2, 50)])
     nom = StringField('Nom', validators=[DataRequired(), Length(2, 50)])
     email = StringField('Email professionnel', validators=[DataRequired(), Email()])
+    country = SelectField('Pays', choices=[], default='FR')  # choices set at runtime
     password = PasswordField('Mot de passe', validators=[DataRequired(), Length(8, 128)])
     password2 = PasswordField(
         'Confirmer le mot de passe',
@@ -146,12 +147,14 @@ def register():
         return redirect(url_for('main.dashboard'))
 
     form = RegisterForm()
+    form.country.choices = COUNTRY_CHOICES
     if form.validate_on_submit():
         auto_activate = current_app.config.get('AUTO_ACTIVATE', True)
         user = User(
             prenom=form.prenom.data.strip(),
             nom=form.nom.data.strip().upper(),
             email=form.email.data.lower().strip(),
+            country=form.country.data or 'FR',
             password_hash=bcrypt.generate_password_hash(form.password.data).decode('utf-8'),
             role='USER',
             is_active=auto_activate,
