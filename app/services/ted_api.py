@@ -229,24 +229,44 @@ def _save_fetch_date() -> None:
         logger.warning("Impossible de sauvegarder ted_last_fetch_date : %s", exc)
 
 
+def _sanitize_kw(kw: str) -> str:
+    """Nettoie un mot-clé pour l'API TED : retire les guillemets, limite à 40 chars."""
+    return kw.replace('"', '').replace("'", '').strip()[:40]
+
+
 def _build_ted_query(country_iso2: str = 'FR') -> str:
     """
     Construit la requête TED combinant :
-    - mots-clés dans le titre (depuis AppConfig)
-    - OU codes CPV pertinents
+    - mots-clés de SCORING dans le titre (haute + moyenne uniquement, max 10)
+    - OU codes CPV pertinents (CPV_SEARCH, max 8)
     - filtrée sur le pays demandé et les XX derniers jours
 
+    On utilise les scoring keywords (pas tous les search keywords) car la liste
+    de recherche peut être très longue et dépasser les limites de l'API TED.
     country_iso2 : code ISO2 ('FR', 'ES', 'DE'…) ou 'EU' pour tous les pays UE.
     """
     try:
-        from app.services.keywords import get_search_keywords
-        kws = get_search_keywords()
+        from app.services.keywords import get_scoring_keywords
+        scoring = get_scoring_keywords()
+        # Haute + moyenne uniquement (termes les plus discriminants), max 10 au total
+        kws_raw = scoring.get('haute', []) + scoring.get('moyenne', [])
     except Exception:
-        kws = ['sauvegarde', 'backup', 'stockage', 'cybersécurité', 'ransomware', 'Cohesity']
+        kws_raw = ['sauvegarde', 'backup', 'ransomware', 'stockage', 'NAS', 'Cohesity']
 
     since = (date.today() - timedelta(days=15)).strftime('%Y%m%d')
 
-    kw_parts = [f'TI ~ "{kw}"' for kw in kws if kw.strip()]
+    # Sanitize + déduplique + limite à 10 mots-clés
+    seen: set[str] = set()
+    kws_clean: list[str] = []
+    for kw in kws_raw:
+        s = _sanitize_kw(kw)
+        if s and s.lower() not in seen:
+            seen.add(s.lower())
+            kws_clean.append(s)
+        if len(kws_clean) >= 10:
+            break
+
+    kw_parts = [f'TI ~ "{kw}"' for kw in kws_clean]
     kw_clause = ' OR '.join(kw_parts) if kw_parts else ''
     cpv_clause = ' OR '.join(f'PC = {cpv}' for cpv in CPV_SEARCH)
 
@@ -554,7 +574,13 @@ def _search_ted(query: str, page: int = 1, limit: int = 100) -> list[dict]:
             timeout=30,
             verify=_SSL_VERIFY,
         )
-        resp.raise_for_status()
+        if not resp.ok:
+            try:
+                body = resp.json()
+            except Exception:
+                body = resp.text[:500]
+            logger.error("Erreur API TED : %s %s — réponse : %s", resp.status_code, resp.reason, body)
+            return []
         notices = resp.json().get('notices', [])
         return [_normalize_ted_record(n) for n in notices]
     except requests.RequestException as exc:
@@ -573,7 +599,7 @@ def fetch_ted_records(country_iso2: str = 'FR') -> list[dict]:
         return []
 
     query = _build_ted_query(country_iso2)
-    logger.info("TED [%s] query : %s", country_iso2, query[:120])
+    logger.info("TED [%s] query (%d chars) : %s", country_iso2, len(query), query)
 
     all_records: list[dict] = []
     page = 1
