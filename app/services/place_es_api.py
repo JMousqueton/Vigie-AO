@@ -224,7 +224,10 @@ def _parse_entry(entry) -> dict | None:
 
     # ── Statut du dossier (PUB=avis, ADJ/RES=attribution) ────────────────────
     status_code = _find_text(cfs, _tag(NS_CBC, 'ContractFolderStatusCode'))
-    is_attribution = status_code in ('ADJ', 'RES', 'ADJUDICADA')
+    is_attribution = status_code in (
+        'ADJ', 'RES', 'ADJUDICADA', 'ADJ_DEF', 'ADJ_PROV',
+        'ADJUDICADO', 'RESUELTA', 'FORMALIZADA',
+    )
 
     # Acheteur
     acheteur = _find_text(cfs,
@@ -712,9 +715,13 @@ def fetch_place_es_records() -> list[dict]:
             return True
         return False
 
-    relevant = [r for r in unique if _is_relevant(r)]
+    # Les attributions (ADJ) ne sont pas filtrées par pertinence : elles seront
+    # rattachées à un avis initial déjà présent en base par le scheduler.
+    # Si aucun avis initial correspondant n'existe, le scheduler les ignorera.
+    relevant = [r for r in unique if r.get('_is_attribution') or _is_relevant(r)]
+    nb_attrib = sum(1 for r in relevant if r.get('_is_attribution'))
     logger.info(
-        "PLACE_ES : %d avis pertinents (sur %d uniques / %d bruts)",
-        len(relevant), len(unique), len(all_records),
+        "PLACE_ES : %d avis pertinents dont %d attributions (sur %d uniques / %d bruts)",
+        len(relevant), nb_attrib, len(unique), len(all_records),
     )
     return relevant
