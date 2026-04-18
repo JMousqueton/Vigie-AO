@@ -507,12 +507,15 @@ def link_boamp_attributions(app=None):
             if not appel:
                 continue
 
-            attribution_json = json.dumps({
-                'dateparution': attr.dateparution.isoformat() if attr.dateparution else '',
-                'urlgravure':   attr.urlgravure or '',
-                'reference_boamp': attr.idweb,
-                'donnees': json.loads(attr.attribution_json) if attr.attribution_json else None,
-            }, ensure_ascii=False)
+            # Réutiliser directement le raw record du DossierCache ATTRIBUTION,
+            # en mettant à jour les quelques champs qui peuvent différer.
+            # Cela préserve la structure attendue par extract_lots_titulaires
+            # (attribution['donnees'] = chaîne JSON EForms, pas un dict imbriqué).
+            raw_record = json.loads(attr.attribution_json) if attr.attribution_json else {}
+            raw_record['dateparution'] = attr.dateparution.isoformat() if attr.dateparution else raw_record.get('dateparution', '')
+            raw_record['urlgravure'] = attr.urlgravure or raw_record.get('urlgravure', '')
+            raw_record['reference_boamp'] = attr.idweb
+            attribution_json = json.dumps(raw_record, ensure_ascii=False)
 
             appel.has_attribution = True
             appel.attribution_json = attribution_json
