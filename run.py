@@ -354,6 +354,15 @@ def refresh_ted_cmd(countries, dry_run):
             click.echo(f"\nTotal — {total_created} created, {total_updated} updated across {len(requested)} countries.")
 
 
+@app.cli.command('dedup')
+def dedup_cmd():
+    """Deduplicate BOAMP/TED entries (mark TED duplicates, link alt URLs)."""
+    with app.app_context():
+        from app.services.scheduler import deduplicate_boamp_ted
+        deduplicate_boamp_ted()
+    click.echo('Deduplication done.')
+
+
 @app.cli.command('set-country')
 @click.argument('country')
 @click.option('--users', 'user_emails', default=None,
