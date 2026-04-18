@@ -105,12 +105,18 @@ def dashboard():
             DossierCache.country == active_country,
         )
 
-    # Mots-clés d'exclusion (admin)
+    # Mots-clés d'exclusion : global ∪ spécifiques au pays actif
     from app.services.keywords import get_exclude_keywords
-    exclude_kws = get_exclude_keywords()
+    exclude_kws = get_exclude_keywords(country=active_country)
     if exclude_kws and filtre not in ('watchlist', 'hidden'):
         for kw in exclude_kws:
-            query = query.filter(DossierCache.objet_marche.notilike(f'%{kw}%'))
+            query = query.filter(
+                DossierCache.objet_marche.notilike(f'%{kw}%'),
+                or_(
+                    DossierCache.descripteur_libelle.is_(None),
+                    DossierCache.descripteur_libelle.notilike(f'%{kw}%'),
+                ),
+            )
 
     # Filtre type
     if filtre == 'hidden':

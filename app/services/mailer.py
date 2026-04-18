@@ -160,6 +160,19 @@ def _get_new_dossiers_for_user(user: User) -> list[DossierCache]:
             DossierCache.country == user_country,
         )
 
+    # Mots-clés d'exclusion : global ∪ spécifiques au pays de l'utilisateur
+    from app.services.keywords import get_exclude_keywords
+    exclude_kws = get_exclude_keywords(country=user_country)
+    if exclude_kws:
+        for kw in exclude_kws:
+            base = base.filter(
+                DossierCache.objet_marche.notilike(f'%{kw}%'),
+                db.or_(
+                    DossierCache.descripteur_libelle.is_(None),
+                    DossierCache.descripteur_libelle.notilike(f'%{kw}%'),
+                ),
+            )
+
     return base.order_by(DossierCache.score_pertinence.desc()).limit(50).all()
 
 
