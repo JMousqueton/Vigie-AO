@@ -66,8 +66,6 @@ TED_SEARCH_URL = 'https://api.ted.europa.eu/v3/notices/search'
 CPV_COHESITY_WEIGHTED: dict[str, tuple[str, str, int]] = {
     # ── Haute (cœur de métier Cohesity) ─────────────────────────────────────
     '48710000': ('Logiciels de sauvegarde / récupération',   'haute',    20),
-    '48711000': ('Logiciels de sauvegarde de fichiers',      'haute',    20),
-    '48732000': ('Logiciels de chiffrement / sécurité data', 'haute',    20),
     # ── Moyenne (infrastructure proche) ─────────────────────────────────────
     '48820000': ('Serveurs',                                 'moyenne',  15),
     '30233000': ('Mémoires et lecteurs de supports',         'moyenne',  15),
@@ -89,11 +87,10 @@ CPV_COHESITY_WEIGHTED: dict[str, tuple[str, str, int]] = {
 CPV_COHESITY: list[str] = list(CPV_COHESITY_WEIGHTED.keys())
 CPV_LABELS: dict[str, str] = {k: v[0] for k, v in CPV_COHESITY_WEIGHTED.items()}
 
-# Sous-ensemble utilisé dans la requête TED (max ~8 codes pour rester sous la limite API)
-# On garde les codes haute + les plus discriminants de moyenne uniquement
+# Sous-ensemble utilisé dans la requête TED (codes validés par l'API TED v3)
+# Limité aux codes réellement acceptés par le champ PC de l'API expert search
 CPV_SEARCH: list[str] = [
     '48710000',  # Logiciels de sauvegarde / récupération
-    '48711000',  # Logiciels de sauvegarde de fichiers
     '48820000',  # Serveurs
     '30233000',  # Mémoires et supports de stockage
     '48800000',  # Systèmes d'information et serveurs
