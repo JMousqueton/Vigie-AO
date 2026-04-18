@@ -26,6 +26,33 @@ def _get_watchlist_ids(user_id: int) -> set[str]:
     return {item.idweb for item in items}
 
 
+def _count_hidden_for_country(hidden_ids: set, active_country: str) -> int:
+    """Count hidden dossiers that belong to the active country view."""
+    if not hidden_ids:
+        return 0
+    from app.models import DossierCache
+    from app import db
+    q = DossierCache.query.filter(
+        DossierCache.idweb.in_(hidden_ids),
+        DossierCache.is_duplicate == False,
+    )
+    if active_country == 'FR':
+        q = q.filter(
+            or_(
+                DossierCache.source == 'BOAMP',
+                db.and_(DossierCache.source == 'TED', DossierCache.country == 'FR'),
+            )
+        )
+    elif active_country == 'EU':
+        q = q.filter(DossierCache.source.in_(['TED', 'PLACE_ES']))
+    else:
+        q = q.filter(
+            DossierCache.source != 'BOAMP',
+            DossierCache.country == active_country,
+        )
+    return q.count()
+
+
 @main_bp.route('/')
 @login_required
 def index():
@@ -259,7 +286,7 @@ def dashboard():
         watchlist_ids=watchlist_ids,
         seen_ids=seen_ids,
         hidden_ids=hidden_ids,
-        nb_hidden=len(hidden_ids),
+        nb_hidden=_count_hidden_for_country(hidden_ids, active_country),
         filtre=filtre,
         search=search,
         dept=dept,

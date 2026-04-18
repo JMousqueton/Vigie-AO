@@ -480,27 +480,34 @@ def deduplicate_boamp_ted(app=None):
             DossierCache.datelimitereponse.isnot(None),
         ).all()
 
-        boamp_index: dict[tuple, DossierCache] = {}
+        # Index par (date_limite, acheteur_norm) → liste de (objet_norm, record)
+        boamp_index: dict[tuple, list[tuple[str, DossierCache]]] = {}
         for b in boamp_records:
-            key = (
-                b.datelimitereponse,
-                _normalize(b.objet_marche),
-                _normalize(b.acheteur_nom),
-            )
-            if key[1] and key[2]:  # ignorer les champs vides
-                boamp_index[key] = b
+            date_acheteur = (b.datelimitereponse, _normalize(b.acheteur_nom))
+            objet_norm = _normalize(b.objet_marche)
+            if not objet_norm or not date_acheteur[1]:
+                continue
+            boamp_index.setdefault(date_acheteur, []).append((objet_norm, b))
 
         marked = 0
         for ted in ted_records:
-            key = (
-                ted.datelimitereponse,
-                _normalize(ted.objet_marche),
-                _normalize(ted.acheteur_nom),
-            )
-            if not key[1] or not key[2]:
+            ted_objet = _normalize(ted.objet_marche)
+            ted_acheteur = _normalize(ted.acheteur_nom)
+            if not ted_objet or not ted_acheteur:
                 continue
 
-            boamp = boamp_index.get(key)
+            date_acheteur = (ted.datelimitereponse, ted_acheteur)
+            candidates = boamp_index.get(date_acheteur, [])
+
+            boamp = None
+            for boamp_objet, b in candidates:
+                # Correspondance exacte ou inclusion (BOAMP titre ⊂ TED description)
+                if (boamp_objet == ted_objet
+                        or boamp_objet in ted_objet
+                        or ted_objet in boamp_objet):
+                    boamp = b
+                    break
+
             if boamp:
                 # Marquer le TED comme doublon
                 if not ted.is_duplicate:
