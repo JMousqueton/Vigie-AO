@@ -208,6 +208,232 @@ def send_digest_cmd(alert_type, user_email, dry_run):
         click.echo(f"Terminé — {ok} OK, {ko} erreur(s).")
 
 
+@app.cli.command('refresh-ted')
+@click.argument('countries')
+@click.option('--dry-run', is_flag=True, default=False,
+              help='Fetch and score records but do not write to the database.')
+def refresh_ted_cmd(countries, dry_run):
+    """Refresh TED data for the given countries, regardless of registered users.
+
+    COUNTRIES is a comma-separated list of ISO 2-letter codes.
+
+    Examples:
+
+    \b
+      flask refresh-ted FR,BE,DE
+      flask refresh-ted ES --dry-run
+    """
+    valid_codes = {
+        'FR','BE','CH','LU','DE','ES','IT','NL','PT','AT',
+        'PL','SE','DK','FI','NO','GB','IE',
+    }
+    requested = [c.strip().upper() for c in countries.split(',') if c.strip()]
+    invalid = [c for c in requested if c not in valid_codes]
+    if invalid:
+        click.echo(
+            f"Unknown country code(s): {', '.join(invalid)}. "
+            f"Valid codes: {', '.join(sorted(valid_codes))}",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    with app.app_context():
+        from app.services.ted_api import fetch_ted_records, compute_ted_score
+        from app.models import DossierCache
+        from app import db
+        from datetime import datetime as _dt
+
+        def parse_date(d):
+            if not d:
+                return None
+            try:
+                return _dt.strptime(str(d)[:10], '%Y-%m-%d').date()
+            except ValueError:
+                return None
+
+        total_created = total_updated = 0
+
+        for country in sorted(requested):
+            click.echo(f"\n[TED] Fetching {country}…")
+            try:
+                records = fetch_ted_records(country)
+            except Exception as exc:
+                click.echo(f"  [ERROR] fetch failed: {exc}", err=True)
+                continue
+
+            if not records:
+                click.echo(f"  No records returned for {country}.")
+                continue
+
+            click.echo(f"  {len(records)} record(s) retrieved.")
+            if dry_run:
+                scored = sum(1 for r in records if compute_ted_score(r)[0] > 0)
+                click.echo(f"  [DRY-RUN] {scored} would be written (score > 0).")
+                continue
+
+            created = updated = 0
+            for rec in records:
+                score, mots_cles = compute_ted_score(rec)
+                idweb = rec['idweb']
+                rec_country = rec.get('country', country)
+                is_attribution = rec.get('_ted_is_attribution', False)
+
+                existing = DossierCache.query.filter_by(idweb=idweb).first()
+                if score == 0 and not existing:
+                    continue
+
+                attribution_json = None
+                if is_attribution:
+                    import json
+                    attribution_json = json.dumps({
+                        'dateparution':    rec.get('dateparution', ''),
+                        'urlgravure':      rec.get('urlgravure', ''),
+                        'reference_boamp': rec.get('reference_boamp', ''),
+                        'montant':         rec.get('montant', ''),
+                    }, ensure_ascii=False)
+
+                if existing:
+                    existing.acheteur_nom            = rec.get('acheteur_nom')
+                    existing.objet_marche            = rec.get('objet_marche')
+                    existing.nature                  = rec.get('nature')
+                    existing.type_marche             = rec.get('type_marche')
+                    existing.famille_denomination    = rec.get('famille_denomination')
+                    existing.descripteur_libelle     = rec.get('descripteur_libelle')
+                    existing.code_departement        = rec.get('code_departement')
+                    existing.lieu_execution          = rec.get('lieu_execution')
+                    existing.dateparution            = parse_date(rec.get('dateparution'))
+                    existing.datelimitereponse       = parse_date(rec.get('datelimitereponse'))
+                    existing.urlgravure              = rec.get('urlgravure')
+                    existing.reference_boamp_initial = rec.get('reference_boamp')
+                    existing.score_pertinence        = score
+                    existing.mots_cles_matches       = __import__('json').dumps(mots_cles, ensure_ascii=False)
+                    existing.has_attribution         = is_attribution
+                    if is_attribution:
+                        existing.attribution_json    = attribution_json
+                    existing.date_derniere_activite  = parse_date(rec.get('dateparution'))
+                    existing.fetched_at              = _dt.utcnow()
+                    existing.source                  = 'TED'
+                    existing.country                 = rec_country
+                    updated += 1
+                else:
+                    import json
+                    db.session.add(DossierCache(
+                        idweb=idweb,
+                        acheteur_nom=rec.get('acheteur_nom'),
+                        objet_marche=rec.get('objet_marche'),
+                        nature=rec.get('nature'),
+                        type_marche=rec.get('type_marche'),
+                        famille_denomination=rec.get('famille_denomination'),
+                        descripteur_libelle=rec.get('descripteur_libelle'),
+                        code_departement=rec.get('code_departement'),
+                        lieu_execution=rec.get('lieu_execution'),
+                        dateparution=parse_date(rec.get('dateparution')),
+                        datelimitereponse=parse_date(rec.get('datelimitereponse')),
+                        urlgravure=rec.get('urlgravure'),
+                        reference_boamp_initial=rec.get('reference_boamp'),
+                        rectificatifs_json='[]',
+                        attribution_json=attribution_json,
+                        score_pertinence=score,
+                        mots_cles_matches=json.dumps(mots_cles, ensure_ascii=False),
+                        has_rectificatif=False,
+                        has_attribution=is_attribution,
+                        date_derniere_activite=parse_date(rec.get('dateparution')),
+                        fetched_at=_dt.utcnow(),
+                        is_new=True,
+                        source='TED',
+                        country=rec_country,
+                    ))
+                    created += 1
+
+            db.session.commit()
+            click.echo(f"  Done — {created} created, {updated} updated.")
+            total_created += created
+            total_updated += updated
+
+        if not dry_run and len(requested) > 1:
+            click.echo(f"\nTotal — {total_created} created, {total_updated} updated across {len(requested)} countries.")
+
+
+@app.cli.command('set-country')
+@click.argument('country')
+@click.option('--users', 'user_emails', default=None,
+              help='Comma-separated list of emails to update (default: all users without a country).')
+@click.option('--all', 'update_all', is_flag=True, default=False,
+              help='Apply to ALL active users, even those who already have a country set.')
+@click.option('--dry-run', is_flag=True, default=False,
+              help='Show what would be changed without saving.')
+def set_country_cmd(country, user_emails, update_all, dry_run):
+    """Set the country code for users.
+
+    COUNTRY must be a valid ISO 2-letter code (e.g. FR, BE, DE, ES, GB).
+
+    Examples:
+
+    \b
+      # Set FR for all users that have no country yet
+      flask set-country FR
+
+    \b
+      # Set BE for specific users
+      flask set-country BE --users alice@domain.com,bob@domain.com
+
+    \b
+      # Override country for ALL active users
+      flask set-country DE --all
+
+    \b
+      # Preview without saving
+      flask set-country IT --all --dry-run
+    """
+    country = country.upper()
+    valid_codes = {
+        'FR','BE','CH','LU','DE','ES','IT','NL','PT','AT',
+        'PL','SE','DK','FI','NO','GB','IE',
+    }
+    if country not in valid_codes:
+        click.echo(
+            f"Unknown country code '{country}'. Valid codes: {', '.join(sorted(valid_codes))}",
+            err=True,
+        )
+        raise SystemExit(1)
+
+    with app.app_context():
+        from app.models import User
+
+        if user_emails:
+            emails = [e.strip().lower() for e in user_emails.split(',') if e.strip()]
+            users = User.query.filter(User.email.in_(emails)).all()
+            not_found = set(emails) - {u.email.lower() for u in users}
+            if not_found:
+                click.echo(f"Warning: email(s) not found: {', '.join(sorted(not_found))}", err=True)
+        elif update_all:
+            users = User.query.filter_by(is_active=True).all()
+        else:
+            # Default: only users who have no country set
+            users = User.query.filter(
+                (User.country == None) | (User.country == '')
+            ).all()
+
+        if not users:
+            click.echo("No matching users found.")
+            return
+
+        if dry_run:
+            click.echo(f"[DRY-RUN] Would set country={country} for {len(users)} user(s):")
+            for u in users:
+                click.echo(f"  {u.email}  ({u.country or '—'} → {country})")
+            return
+
+        for u in users:
+            old = u.country or '—'
+            u.country = country
+            click.echo(f"  {u.email}  {old} → {country}")
+
+        from app import db
+        db.session.commit()
+        click.echo(f"\nDone — {len(users)} user(s) updated to {country}.")
+
+
 if __name__ == '__main__':
     app.run(
         host='0.0.0.0',

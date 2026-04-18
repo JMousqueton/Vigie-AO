@@ -143,6 +143,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th>Pays</th>
               <th>Utilisateur</th>
               <th>Email</th>
               <th>Rôle</th>
@@ -156,13 +157,17 @@
           <tbody>
             {% for user in users %}
             <tr class="{{ 'row-inactive' if not user.is_active }}">
-              <td>
-                <span class="user-avatar-sm">{{ user.prenom[0] }}{{ user.nom[0] }}</span>
+              <td style="text-align:center;">
                 {% if user.country %}
                 <img src="https://flagcdn.com/w20/{{ user.country | lower }}.png"
-                     alt="{{ user.country }}" class="flag-img" title="{{ user.country }}"
-                     style="width:18px;height:auto;border-radius:2px;vertical-align:middle;margin-right:4px;">
+                     alt="{{ user.country }}" title="{{ user.country }}"
+                     style="width:20px;height:auto;border-radius:2px;vertical-align:middle;">
+                {% else %}
+                <span class="text-muted">—</span>
                 {% endif %}
+              </td>
+              <td>
+                <span class="user-avatar-sm">{{ user.prenom[0] }}{{ user.nom[0] }}</span>
                 {{ user.full_name }}
               </td>
               <td class="mono text-small">{{ user.email }}</td>
