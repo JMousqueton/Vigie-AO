@@ -144,6 +144,20 @@ def _cpv_base(code: str) -> str:
     return code.split('-')[0].strip()
 
 
+def _find_status_code(cfs) -> str:
+    """Cherche ContractFolderStatusCode en essayant plusieurs namespaces."""
+    for ns in (NS_CBC, NS_CBC_EXT):
+        val = _find_text(cfs, _tag(ns, 'ContractFolderStatusCode'))
+        if val:
+            return val
+    # Fallback : recherche par nom local uniquement (ignore le namespace)
+    for child in cfs:
+        local = child.tag.rsplit('}', 1)[-1] if '}' in child.tag else child.tag
+        if local == 'ContractFolderStatusCode':
+            return (child.text or '').strip()
+    return ''
+
+
 def _rewrite_url(url: str) -> str:
     """Réécrit les liens du domaine legacy (cert requis) vers le domaine public."""
     if _LEGACY_DOMAIN in url:
@@ -164,7 +178,7 @@ def _is_enabled() -> bool:
 
 
 def _get_last_fetch_date() -> date:
-    """Date du dernier refresh PLACE_ES réussi (depuis AppConfig). Fallback : -30 j."""
+    """Date du dernier refresh PLACE_ES réussi (depuis AppConfig). Fallback : -12 mois."""
     try:
         from app.models import AppConfig
         row = AppConfig.query.filter_by(key='place_es_last_fetch_date').first()
@@ -173,7 +187,7 @@ def _get_last_fetch_date() -> date:
             return datetime.strptime(row.value, '%Y-%m-%d').date() - timedelta(days=1)
     except Exception:
         pass
-    return date.today() - timedelta(days=30)
+    return date.today() - timedelta(days=365)
 
 
 def _save_fetch_date() -> None:
@@ -223,7 +237,7 @@ def _parse_entry(entry) -> dict | None:
         return _record_from_summary(idweb, raw_id, link_href, title, summary, updated_date)
 
     # ── Statut du dossier (PUB=avis, ADJ/RES=attribution) ────────────────────
-    status_code = _find_text(cfs, _tag(NS_CBC, 'ContractFolderStatusCode'))
+    status_code = _find_status_code(cfs)
     is_attribution = status_code in (
         'ADJ', 'RES', 'ADJUDICADA', 'ADJ_DEF', 'ADJ_PROV',
         'ADJUDICADO', 'RESUELTA', 'FORMALIZADA',
@@ -639,7 +653,7 @@ def fetch_place_es_records() -> list[dict]:
     if days_since > 2:
         # ── Backfill via archives ZIP ─────────────────────────────────────────
         logger.info("PLACE_ES : mode backfill — téléchargement des archives ZIP")
-        months_needed = min((days_since // 28) + 1, 3)  # max 3 mois
+        months_needed = min((days_since // 28) + 1, 13)  # max 13 mois
         today = date.today()
         for delta in range(months_needed):
             year = today.year

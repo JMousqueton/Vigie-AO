@@ -315,47 +315,17 @@ def refresh_place_es_cache(app=None):
 
             updated = created = 0
 
-            for rec in records:
+            # Séparer avis initiaux (PUB) et attributions (ADJ) pour deux passes distinctes.
+            # Les PUB sont traités et flushés en base avant les ADJ, de sorte que la
+            # recherche par ContractFolderID trouve bien les lignes existantes ou nouvelles.
+            pub_records = [r for r in records if not r.get('_is_attribution')]
+            adj_records = [r for r in records if r.get('_is_attribution')]
+
+            # ── Passe 1 : avis initiaux (PUB) ────────────────────────────────────
+            for rec in pub_records:
                 idweb = rec['idweb']
-                is_attribution = rec.get('_is_attribution', False)
                 score, mots_cles = compute_place_es_score(rec)
 
-                # ── Attribution : relier au dossier initial via ContractFolderID ──
-                if is_attribution:
-                    attribution_json = json.dumps({
-                        'dateparution':    rec.get('dateparution', ''),
-                        'urlgravure':      rec.get('urlgravure', ''),
-                        'reference_boamp': rec.get('reference_boamp', ''),
-                        'acheteur_nom':    rec.get('acheteur_nom', ''),
-                        'donnees': {
-                            'PLACE_ES': {
-                                'lots':    rec.get('_attribution_lots', []),
-                                'periods': rec.get('_attribution_periods', []),
-                            }
-                        },
-                    }, ensure_ascii=False)
-
-                    # Chercher l'avis initial (PUB) avec le même ContractFolderID
-                    contract_folder_id = rec.get('reference_boamp', '')
-                    pub_entry = None
-                    if contract_folder_id:
-                        pub_entry = (
-                            DossierCache.query
-                            .filter_by(source='PLACE_ES')
-                            .filter(DossierCache.reference_boamp_initial == contract_folder_id)
-                            .filter(DossierCache.has_attribution == False)
-                            .first()
-                        )
-                    if pub_entry:
-                        pub_entry.has_attribution        = True
-                        pub_entry.attribution_json       = attribution_json
-                        pub_entry.date_derniere_activite = parse_date(rec.get('dateparution'))
-                        pub_entry.fetched_at             = datetime.utcnow()
-                        updated += 1
-                    # ADJ entries are not stored as separate rows — they only update the PUB row
-                    continue
-
-                # ── Avis initial (PUB) ────────────────────────────────────────────
                 if score == 0 and not DossierCache.query.filter_by(idweb=idweb).first():
                     continue
 
@@ -406,6 +376,47 @@ def refresh_place_es_cache(app=None):
                         country='ES',
                     ))
                     created += 1
+
+            # Flush les PUB en base (sans commit) pour que les queries ADJ les trouvent
+            db.session.flush()
+
+            # ── Passe 2 : attributions (ADJ) ─────────────────────────────────────
+            adj_matched = 0
+            for rec in adj_records:
+                contract_folder_id = rec.get('reference_boamp', '')
+                if not contract_folder_id:
+                    continue
+
+                attribution_json = json.dumps({
+                    'dateparution':    rec.get('dateparution', ''),
+                    'urlgravure':      rec.get('urlgravure', ''),
+                    'reference_boamp': contract_folder_id,
+                    'acheteur_nom':    rec.get('acheteur_nom', ''),
+                    'donnees': {
+                        'PLACE_ES': {
+                            'lots':    rec.get('_attribution_lots', []),
+                            'periods': rec.get('_attribution_periods', []),
+                        }
+                    },
+                }, ensure_ascii=False)
+
+                pub_entry = (
+                    DossierCache.query
+                    .filter_by(source='PLACE_ES')
+                    .filter(DossierCache.reference_boamp_initial == contract_folder_id)
+                    .filter(DossierCache.has_attribution == False)
+                    .first()
+                )
+                if pub_entry:
+                    pub_entry.has_attribution        = True
+                    pub_entry.attribution_json       = attribution_json
+                    pub_entry.date_derniere_activite = parse_date(rec.get('dateparution'))
+                    pub_entry.fetched_at             = datetime.utcnow()
+                    adj_matched += 1
+                    updated += 1
+
+            logger.info("PLACE_ES attributions : %d ADJ traités, %d reliés à un PUB",
+                        len(adj_records), adj_matched)
 
             db.session.commit()
             _save_fetch_date()
