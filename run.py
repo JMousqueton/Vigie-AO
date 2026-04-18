@@ -356,11 +356,12 @@ def refresh_ted_cmd(countries, dry_run):
 
 @app.cli.command('dedup')
 def dedup_cmd():
-    """Deduplicate BOAMP/TED entries (mark TED duplicates, link alt URLs)."""
+    """Link BOAMP attribution notices to their initial tender, then deduplicate BOAMP/TED."""
     with app.app_context():
-        from app.services.scheduler import deduplicate_boamp_ted
+        from app.services.scheduler import link_boamp_attributions, deduplicate_boamp_ted
+        link_boamp_attributions()
         deduplicate_boamp_ted()
-    click.echo('Deduplication done.')
+    click.echo('Done.')
 
 
 @app.cli.command('set-country')

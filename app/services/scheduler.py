@@ -141,6 +141,7 @@ def refresh_boamp_cache(app=None):
                 "Refresh BOAMP terminé : %d créés, %d mis à jour",
                 created, updated,
             )
+            link_boamp_attributions(ctx_app)
             deduplicate_boamp_ted(ctx_app)
         except Exception as exc:
             db.session.rollback()
@@ -291,6 +292,7 @@ def refresh_ted_cache(app=None):
                 db.session.rollback()
                 logger.error("Erreur refresh TED [%s] : %s", country, exc, exc_info=True)
 
+        link_boamp_attributions(ctx_app)
         deduplicate_boamp_ted(ctx_app)
 
 
@@ -435,6 +437,96 @@ def refresh_place_es_cache(app=None):
         except Exception as exc:
             db.session.rollback()
             logger.error("Erreur refresh PLACE_ES : %s", exc, exc_info=True)
+
+
+# ─── Liaison BOAMP ATTRIBUTION → APPEL_OFFRE ─────────────────────────────────
+
+def link_boamp_attributions(app=None):
+    """
+    Relie les avis d'attribution BOAMP autonomes à leur appel d'offres initial.
+
+    Un avis BOAMP nature=ATTRIBUTION sans référence externe (reference_boamp_initial
+    pointe sur lui-même) est recherché parmi les avis APPEL_OFFRE en base via
+    acheteur_nom + objet_marche (exact ou inclusion).
+
+    Action :
+      - L'avis APPEL_OFFRE reçoit has_attribution=True et attribution_json
+      - L'avis ATTRIBUTION autonome est marqué is_duplicate=True (masqué)
+    """
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+
+    with ctx_app.app_context():
+        from app.models import DossierCache
+        from app import db
+        import json
+
+        # Avis d'attribution autonomes (reference pointe sur eux-mêmes)
+        attributions = DossierCache.query.filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.nature == 'ATTRIBUTION',
+            DossierCache.is_duplicate == False,
+            DossierCache.reference_boamp_initial == DossierCache.idweb,
+        ).all()
+
+        if not attributions:
+            return
+
+        # Index des appels d'offres BOAMP par (acheteur_norm, objet_norm)
+        appels = DossierCache.query.filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.nature == 'APPEL_OFFRE',
+            DossierCache.is_duplicate == False,
+        ).all()
+
+        appel_index: dict[str, list[tuple[str, DossierCache]]] = {}
+        for a in appels:
+            acheteur_norm = _normalize(a.acheteur_nom)
+            objet_norm = _normalize(a.objet_marche)
+            if acheteur_norm and objet_norm:
+                appel_index.setdefault(acheteur_norm, []).append((objet_norm, a))
+
+        linked = 0
+        for attr in attributions:
+            attr_acheteur = _normalize(attr.acheteur_nom)
+            attr_objet = _normalize(attr.objet_marche)
+            if not attr_acheteur or not attr_objet:
+                continue
+
+            candidates = appel_index.get(attr_acheteur, [])
+            appel = None
+            for appel_objet, a in candidates:
+                if (appel_objet == attr_objet
+                        or appel_objet in attr_objet
+                        or attr_objet in appel_objet):
+                    appel = a
+                    break
+
+            if not appel:
+                continue
+
+            attribution_json = json.dumps({
+                'dateparution': attr.dateparution.isoformat() if attr.dateparution else '',
+                'urlgravure':   attr.urlgravure or '',
+                'reference_boamp': attr.idweb,
+                'donnees': json.loads(attr.attribution_json) if attr.attribution_json else None,
+            }, ensure_ascii=False)
+
+            appel.has_attribution = True
+            appel.attribution_json = attribution_json
+            if attr.dateparution and (
+                appel.date_derniere_activite is None
+                or attr.dateparution > appel.date_derniere_activite
+            ):
+                appel.date_derniere_activite = attr.dateparution
+
+            attr.is_duplicate = True
+            linked += 1
+
+        if linked:
+            db.session.commit()
+            logger.info("Liaison BOAMP attributions : %d avis reliés à leur appel d'offres.", linked)
 
 
 # ─── Déduplication BOAMP ↔ TED ───────────────────────────────────────────────
