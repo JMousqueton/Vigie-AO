@@ -465,57 +465,76 @@ def deduplicate_boamp_ted(app=None):
         from app.models import DossierCache
         from app import db
 
-        # Récupérer les avis TED avec une date limite définie
-        ted_records = DossierCache.query.filter(
+        def _match_and_mark(ted_list, boamp_index, require_date):
+            """Match TED records against BOAMP index and mark duplicates."""
+            matched = 0
+            for ted in ted_list:
+                ted_objet = _normalize(ted.objet_marche)
+                ted_acheteur = _normalize(ted.acheteur_nom)
+                if not ted_objet or not ted_acheteur:
+                    continue
+
+                if require_date:
+                    key = (ted.datelimitereponse, ted_acheteur)
+                else:
+                    key = (None, ted_acheteur)
+
+                candidates = boamp_index.get(key, [])
+                boamp = None
+                for boamp_objet, b in candidates:
+                    if (boamp_objet == ted_objet
+                            or boamp_objet in ted_objet
+                            or ted_objet in boamp_objet):
+                        boamp = b
+                        break
+
+                if boamp:
+                    if not ted.is_duplicate:
+                        ted.is_duplicate = True
+                    if ted.urlgravure and boamp.alt_source_url != ted.urlgravure:
+                        boamp.alt_source_url = ted.urlgravure
+                    matched += 1
+            return matched
+
+        # ── Passe 1 : avec date limite ────────────────────────────────────────
+        ted_with_date = DossierCache.query.filter(
             DossierCache.source == 'TED',
             DossierCache.datelimitereponse.isnot(None),
         ).all()
 
-        if not ted_records:
-            return
-
-        # Construire un index des avis BOAMP par (date_limite, objet_norm, acheteur_norm)
-        boamp_records = DossierCache.query.filter(
+        boamp_with_date = DossierCache.query.filter(
             DossierCache.source == 'BOAMP',
             DossierCache.datelimitereponse.isnot(None),
         ).all()
 
-        # Index par (date_limite, acheteur_norm) → liste de (objet_norm, record)
-        boamp_index: dict[tuple, list[tuple[str, DossierCache]]] = {}
-        for b in boamp_records:
-            date_acheteur = (b.datelimitereponse, _normalize(b.acheteur_nom))
+        boamp_index_date: dict[tuple, list[tuple[str, DossierCache]]] = {}
+        for b in boamp_with_date:
+            key = (b.datelimitereponse, _normalize(b.acheteur_nom))
             objet_norm = _normalize(b.objet_marche)
-            if not objet_norm or not date_acheteur[1]:
-                continue
-            boamp_index.setdefault(date_acheteur, []).append((objet_norm, b))
+            if objet_norm and key[1]:
+                boamp_index_date.setdefault(key, []).append((objet_norm, b))
+
+        # ── Passe 2 : sans date limite (correspondance exacte objet + acheteur) ─
+        ted_no_date = DossierCache.query.filter(
+            DossierCache.source == 'TED',
+            DossierCache.datelimitereponse.is_(None),
+        ).all()
+
+        boamp_no_date = DossierCache.query.filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.datelimitereponse.is_(None),
+        ).all()
+
+        boamp_index_no_date: dict[tuple, list[tuple[str, DossierCache]]] = {}
+        for b in boamp_no_date:
+            key = (None, _normalize(b.acheteur_nom))
+            objet_norm = _normalize(b.objet_marche)
+            if objet_norm and key[1]:
+                boamp_index_no_date.setdefault(key, []).append((objet_norm, b))
 
         marked = 0
-        for ted in ted_records:
-            ted_objet = _normalize(ted.objet_marche)
-            ted_acheteur = _normalize(ted.acheteur_nom)
-            if not ted_objet or not ted_acheteur:
-                continue
-
-            date_acheteur = (ted.datelimitereponse, ted_acheteur)
-            candidates = boamp_index.get(date_acheteur, [])
-
-            boamp = None
-            for boamp_objet, b in candidates:
-                # Correspondance exacte ou inclusion (BOAMP titre ⊂ TED description)
-                if (boamp_objet == ted_objet
-                        or boamp_objet in ted_objet
-                        or ted_objet in boamp_objet):
-                    boamp = b
-                    break
-
-            if boamp:
-                # Marquer le TED comme doublon
-                if not ted.is_duplicate:
-                    ted.is_duplicate = True
-                # Mémoriser l'URL TED sur la fiche BOAMP
-                if ted.urlgravure and boamp.alt_source_url != ted.urlgravure:
-                    boamp.alt_source_url = ted.urlgravure
-                marked += 1
+        marked += _match_and_mark(ted_with_date, boamp_index_date, require_date=True)
+        marked += _match_and_mark(ted_no_date, boamp_index_no_date, require_date=False)
 
         if marked:
             db.session.commit()
