@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="light">
+<html lang="fr" data-theme="light" id="shared-page">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -33,10 +33,20 @@
         <span class="logo-sub">Appels d'Offres Publics</span>
       </div>
     </div>
-    <div class="header-actions">
+    <div class="header-actions" style="display:flex; align-items:center; gap:12px;">
       <span class="shared-badge">
-        <i class="fa-solid fa-share-nodes"></i> Dossier partagé
+        <i class="fa-solid fa-share-nodes"></i> <span data-i18n="shared_badge">Dossier partagé</span>
       </span>
+      <div class="lang-switcher" style="display:flex; gap:6px; align-items:center;">
+        <button onclick="setLang('fr')" id="lang-fr" title="Français"
+                style="background:none; border:2px solid transparent; border-radius:4px; padding:2px 4px; cursor:pointer; line-height:1; opacity:0.5;">
+          <img src="https://flagcdn.com/w20/fr.png" width="20" height="14" alt="FR" style="display:block;">
+        </button>
+        <button onclick="setLang('en')" id="lang-en" title="English"
+                style="background:none; border:2px solid transparent; border-radius:4px; padding:2px 4px; cursor:pointer; line-height:1; opacity:0.5;">
+          <img src="https://flagcdn.com/w20/gb.png" width="20" height="14" alt="EN" style="display:block;">
+        </button>
+      </div>
     </div>
   </div>
 </header>
@@ -49,14 +59,14 @@
   <header class="detail-header">
     <div class="detail-badges">
       {% if dossier.has_attribution %}
-        <span class="badge-nature badge-attrib"><i class="fa-solid fa-trophy"></i> ATTRIBUÉ</span>
+        <span class="badge-nature badge-attrib"><i class="fa-solid fa-trophy"></i> <span data-i18n="awarded">ATTRIBUÉ</span></span>
       {% elif dossier.nature %}
         <span class="badge-nature"><i class="fa-solid fa-file-contract"></i> {{ dossier.nature | replace('_', ' ') }}</span>
       {% else %}
-        <span class="badge-nature"><i class="fa-solid fa-file"></i> AVIS</span>
+        <span class="badge-nature"><i class="fa-solid fa-file"></i> <span data-i18n="notice">AVIS</span></span>
       {% endif %}
       {% if dossier.has_rectificatif %}
-        <span class="badge-rectif"><i class="fa-solid fa-triangle-exclamation"></i> RECTIFIÉ</span>
+        <span class="badge-rectif"><i class="fa-solid fa-triangle-exclamation"></i> <span data-i18n="amended">RECTIFIÉ</span></span>
       {% endif %}
     </div>
 
@@ -85,10 +95,10 @@
       <!-- Attribution / lots -->
       {% if dossier.has_attribution and lots_titulaires %}
       <div class="lots-titulaires" style="margin-bottom:24px;">
-        <h4><i class="fa-solid fa-trophy"></i> Lauréat(s) par lot</h4>
+        <h4><i class="fa-solid fa-trophy"></i> <span data-i18n="winners_by_lot">Lauréat(s) par lot</span></h4>
         <table class="lots-table">
           <thead>
-            <tr><th>Lot</th><th>Lauréat</th><th>Montant</th></tr>
+            <tr><th data-i18n="lot">Lot</th><th data-i18n="winner">Lauréat</th><th data-i18n="amount">Montant</th></tr>
           </thead>
           <tbody>
             {% for lot in lots_titulaires %}
@@ -108,19 +118,19 @@
       <!-- Dates & infos clés -->
       <div class="fields-grid">
         <div class="field-item">
-          <span class="field-label">Référence BOAMP</span>
+          <span class="field-label" data-i18n="ref_boamp">Référence BOAMP</span>
           <span class="field-value mono">{{ dossier.reference_boamp_initial or dossier.idweb }}</span>
         </div>
         <div class="field-item">
-          <span class="field-label">Date de parution</span>
+          <span class="field-label" data-i18n="pub_date">Date de parution</span>
           <span class="field-value">{{ dossier.dateparution | format_date }}</span>
         </div>
         {% if dossier.datelimitereponse and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
         <div class="field-item">
-          <span class="field-label">Date limite de réponse</span>
+          <span class="field-label" data-i18n="deadline">Date limite de réponse</span>
           <span class="field-value {{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
             {{ dossier.datelimitereponse | format_date }}
-            {% if dossier.is_expired %}<span class="badge-expired">EXPIRÉ</span>
+            {% if dossier.is_expired %}<span class="badge-expired" data-i18n="expired">EXPIRÉ</span>
             {% elif dossier.jours_restants is not none %}<span class="badge-days {{ 'urgent' if dossier.is_urgent }}">J-{{ dossier.jours_restants }}</span>
             {% endif %}
           </span>
@@ -128,13 +138,13 @@
         {% endif %}
         {% if dossier.descripteur_libelle %}
         <div class="field-item">
-          <span class="field-label">Descripteurs</span>
+          <span class="field-label" data-i18n="descriptors">Descripteurs</span>
           <span class="field-value">{{ dossier.descripteur_libelle }}</span>
         </div>
         {% endif %}
         {% if dossier.has_attribution and attribution %}
         <div class="field-item">
-          <span class="field-label">Date d'attribution</span>
+          <span class="field-label" data-i18n="award_date">Date d'attribution</span>
           <span class="field-value">{{ attribution.get('dateparution', '') | format_date }}</span>
         </div>
         {% endif %}
@@ -144,7 +154,7 @@
       {% if dossier.urlgravure %}
       <div style="margin-top:20px;">
         <a href="{{ dossier.urlgravure }}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">
-          <i class="fa-solid fa-arrow-up-right-from-square"></i> Voir l'avis officiel sur BOAMP
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> <span data-i18n="view_official">Voir l'avis officiel sur BOAMP</span>
         </a>
       </div>
       {% endif %}
@@ -153,10 +163,10 @@
       {% set rectifs = dossier.rectificatifs %}
       {% if rectifs %}
       <div style="margin-top:24px;">
-        <h3 class="section-title"><i class="fa-solid fa-file-pen"></i> Rectificatifs ({{ rectifs | length }})</h3>
+        <h3 class="section-title"><i class="fa-solid fa-file-pen"></i> <span data-i18n="amendments">Rectificatifs</span> ({{ rectifs | length }})</h3>
         {% for r in rectifs %}
         <div class="tl-item tl-rectif" style="padding:10px 14px; margin-bottom:8px; background:var(--bg-surface); border-radius:var(--radius-sm); border-left:3px solid var(--accent-orange);">
-          <strong>Rectificatif #{{ loop.index }}</strong>
+          <strong><span data-i18n="amendment">Rectificatif</span> #{{ loop.index }}</strong>
           <span style="color:var(--text-muted); margin-left:12px; font-size:13px;">{{ r.get('dateparution','') | format_date }}</span>
           {% if r.get('objet_marche') and r.get('objet_marche') != dossier.objet_marche %}
           <p style="margin:6px 0 0; color:var(--text-secondary); font-size:13px;">{{ r.get('objet_marche') }}</p>
@@ -171,15 +181,15 @@
     <!-- Sidebar -->
     <aside class="detail-sidebar">
       <div class="card sidebar-card">
-        <div class="card-header"><i class="fa-solid fa-share-nodes"></i> <h3>Lien partagé</h3></div>
+        <div class="card-header"><i class="fa-solid fa-share-nodes"></i> <h3 data-i18n="shared_link">Lien partagé</h3></div>
         <div class="card-body">
-          <p style="color:var(--text-muted); font-size:13px; margin:0 0 12px;">
+          <p style="color:var(--text-muted); font-size:13px; margin:0 0 12px;" data-i18n="shared_desc">
             Ce lien vous a été partagé pour consulter ce dossier BOAMP.
           </p>
           <button class="btn btn-ghost btn-sm btn-full" onclick="navigator.clipboard.writeText(window.location.href).then(()=>showCopied(this))">
-            <i class="fa-regular fa-copy"></i> Copier ce lien
+            <i class="fa-regular fa-copy"></i> <span data-i18n="copy_link">Copier ce lien</span>
           </button>
-          <p style="color:var(--text-muted); font-size:11px; margin:10px 0 0; text-align:center;">
+          <p style="color:var(--text-muted); font-size:11px; margin:10px 0 0; text-align:center;" data-i18n="link_validity">
             Lien valable 90 jours
           </p>
         </div>
@@ -207,10 +217,85 @@
 <script>
 function showCopied(btn) {
   const orig = btn.innerHTML;
-  btn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
+  const msg = (localStorage.getItem('shared_lang') === 'en') ? '<i class="fa-solid fa-check"></i> Copied!' : '<i class="fa-solid fa-check"></i> Copié !';
+  btn.innerHTML = msg;
   btn.style.color = 'var(--accent-green)';
   setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; }, 2000);
 }
+
+const TRANSLATIONS = {
+  fr: {
+    shared_badge:  'Dossier partagé',
+    awarded:       'ATTRIBUÉ',
+    notice:        'AVIS',
+    amended:       'RECTIFIÉ',
+    winners_by_lot:'Lauréat(s) par lot',
+    lot:           'Lot',
+    winner:        'Lauréat',
+    amount:        'Montant',
+    ref_boamp:     'Référence BOAMP',
+    pub_date:      'Date de parution',
+    deadline:      'Date limite de réponse',
+    expired:       'EXPIRÉ',
+    descriptors:   'Descripteurs',
+    award_date:    "Date d'attribution",
+    view_official: "Voir l'avis officiel sur BOAMP",
+    amendments:    'Rectificatifs',
+    amendment:     'Rectificatif',
+    shared_link:   'Lien partagé',
+    shared_desc:   'Ce lien vous a été partagé pour consulter ce dossier.',
+    copy_link:     'Copier ce lien',
+    link_validity: 'Lien valable 90 jours',
+  },
+  en: {
+    shared_badge:  'Shared dossier',
+    awarded:       'AWARDED',
+    notice:        'NOTICE',
+    amended:       'AMENDED',
+    winners_by_lot:'Winner(s) by lot',
+    lot:           'Lot',
+    winner:        'Winner',
+    amount:        'Amount',
+    ref_boamp:     'BOAMP Reference',
+    pub_date:      'Publication date',
+    deadline:      'Response deadline',
+    expired:       'EXPIRED',
+    descriptors:   'Descriptors',
+    award_date:    'Award date',
+    view_official: 'View official notice on BOAMP',
+    amendments:    'Amendments',
+    amendment:     'Amendment',
+    shared_link:   'Shared link',
+    shared_desc:   'This link was shared with you to view this tender dossier.',
+    copy_link:     'Copy this link',
+    link_validity: 'Link valid for 90 days',
+  }
+};
+
+function setLang(lang) {
+  localStorage.setItem('shared_lang', lang);
+  applyLang(lang);
+}
+
+function applyLang(lang) {
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.fr;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+  document.documentElement.lang = lang === 'en' ? 'en' : 'fr';
+  // Highlight active flag
+  document.getElementById('lang-fr').style.opacity = (lang === 'fr') ? '1' : '0.4';
+  document.getElementById('lang-en').style.opacity = (lang === 'en') ? '1' : '0.4';
+  document.getElementById('lang-fr').style.borderColor = (lang === 'fr') ? 'var(--accent-blue, #2563eb)' : 'transparent';
+  document.getElementById('lang-en').style.borderColor = (lang === 'en') ? 'var(--accent-blue, #2563eb)' : 'transparent';
+}
+
+// Init on load
+(function() {
+  const lang = localStorage.getItem('shared_lang') || 'fr';
+  applyLang(lang);
+})();
 </script>
 </body>
 </html>
