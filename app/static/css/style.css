@@ -781,6 +781,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
 .detail-meta-row { display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; color: var(--text-secondary); margin-bottom: 16px; }
 .detail-meta-row strong { color: var(--text-primary); }
+.detail-winner { color: var(--accent-green); font-weight: 600; }
 
 .detail-score { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .score-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }

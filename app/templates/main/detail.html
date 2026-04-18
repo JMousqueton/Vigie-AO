@@ -69,6 +69,15 @@
       {% if dossier.type_marche %}
         <span><i class="fa-solid fa-tag"></i> {{ dossier.type_marche }}</span>
       {% endif %}
+      {% if lots_titulaires %}
+        {% set winner_names = lots_titulaires | map(attribute='titulaire') | select | unique | list %}
+        {% if winner_names %}
+        <span class="detail-winner"><i class="fa-solid fa-trophy"></i>
+          <strong>{{ _('Attributaire :') }}</strong>
+          {{ winner_names | join(', ') }}
+        </span>
+        {% endif %}
+      {% endif %}
     </div>
 
     <!-- Score -->
