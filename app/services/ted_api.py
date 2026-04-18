@@ -85,9 +85,22 @@ CPV_COHESITY_WEIGHTED: dict[str, tuple[str, str, int]] = {
     '72310000': ('Services de traitement de données',        'contexte', 10),
 }
 
-# Listes dérivées pour compatibilité
+# Liste complète pour le scoring (toutes catégories)
 CPV_COHESITY: list[str] = list(CPV_COHESITY_WEIGHTED.keys())
 CPV_LABELS: dict[str, str] = {k: v[0] for k, v in CPV_COHESITY_WEIGHTED.items()}
+
+# Sous-ensemble utilisé dans la requête TED (max ~8 codes pour rester sous la limite API)
+# On garde les codes haute + les plus discriminants de moyenne uniquement
+CPV_SEARCH: list[str] = [
+    '48710000',  # Logiciels de sauvegarde / récupération
+    '48711000',  # Logiciels de sauvegarde de fichiers
+    '48820000',  # Serveurs
+    '30233000',  # Mémoires et supports de stockage
+    '48800000',  # Systèmes d'information et serveurs
+    '72000000',  # Services informatiques
+    '72300000',  # Services de données
+    '72253200',  # Services de support système
+]
 
 # Préfixes CPV (4 premiers chiffres) → poids pour les codes de famille non listés
 # ex. 4871xxxx = famille sauvegarde logicielle
@@ -235,7 +248,7 @@ def _build_ted_query(country_iso2: str = 'FR') -> str:
 
     kw_parts = [f'TI ~ "{kw}"' for kw in kws if kw.strip()]
     kw_clause = ' OR '.join(kw_parts) if kw_parts else ''
-    cpv_clause = ' OR '.join(f'PC = {cpv}' for cpv in CPV_COHESITY)
+    cpv_clause = ' OR '.join(f'PC = {cpv}' for cpv in CPV_SEARCH)
 
     content = f'({kw_clause} OR {cpv_clause})' if kw_clause else f'({cpv_clause})'
 
