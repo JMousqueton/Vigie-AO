@@ -179,11 +179,22 @@ def refresh_ted_cache(app=None):
             except ValueError:
                 return None
 
-        # Pays des utilisateurs actifs (FR toujours inclus)
+        # Pays des utilisateurs actifs + pays déjà présents dans le cache TED
         active_countries = {
             u.country for u in User.query.filter_by(is_active=True).all()
             if u.country
-        } or {'FR'}
+        }
+        # Inclure tous les pays déjà en base (TED) pour ne pas perdre les données existantes
+        cached_countries = {
+            row[0] for row in
+            db.session.query(DossierCache.country)
+            .filter_by(source='TED')
+            .distinct()
+            .all()
+            if row[0]
+        }
+        active_countries |= cached_countries
+        active_countries.add('FR')  # FR toujours inclus
         # Si PLACE_ES est activé, inclure ES dans les pays TED même sans utilisateur ES
         if ctx_app.config.get('PLACE_ES_ENABLED', False):
             active_countries.add('ES')
