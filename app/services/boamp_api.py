@@ -610,39 +610,9 @@ def extract_contract_period(attribution: dict) -> list[dict]:
     if isinstance(lots, dict):
         lots = [lots]
 
-    # ── Build lot_id → contract IssueDate fallback from SettledContract ──────
-    # When PlannedPeriod has no StartDate we use the contract notification date.
-    lot_issue_date: dict[str, str] = {}
-    try:
-        ext = (notice['ext:UBLExtensions']['ext:UBLExtension']
-               ['ext:ExtensionContent']['efext:EformsExtension'])
-        nr = ext.get('efac:NoticeResult', {})
-
-        # Index: contract-id → IssueDate
-        sc_list = nr.get('efac:SettledContract', [])
-        if isinstance(sc_list, dict):
-            sc_list = [sc_list]
-        contract_issue: dict[str, str] = {}
-        for sc in sc_list:
-            con_id = _eforms_text(sc.get('cbc:ID', ''))
-            raw = sc.get('cbc:IssueDate') or sc.get('cbc:AwardDate') or ''
-            issue = _eforms_text(raw)[:10] if _eforms_text(raw) else ''
-            if con_id and issue:
-                contract_issue[con_id] = issue
-
-        # Map lot_id → contract issue date via LotResult
-        lr_list = nr.get('efac:LotResult', [])
-        if isinstance(lr_list, dict):
-            lr_list = [lr_list]
-        for lr in lr_list:
-            lot_id_raw = lr.get('efac:TenderLot', {}).get('cbc:ID', '')
-            lot_id_val = _eforms_text(lot_id_raw)
-            con_id_raw = lr.get('efac:SettledContract', {}).get('cbc:ID', '')
-            con_id_val = _eforms_text(con_id_raw)
-            if lot_id_val and con_id_val and con_id_val in contract_issue:
-                lot_issue_date[lot_id_val] = contract_issue[con_id_val]
-    except (KeyError, TypeError, AttributeError):
-        pass
+    # Fallback start date: publication date of the attribution notice (dateparution).
+    # Used when PlannedPeriod has no StartDate — this is the date visible to the user.
+    fallback_start = str(attribution.get('dateparution', '') or '')[:10] or None
 
     results = []
     seen_periods: set[tuple] = set()
@@ -673,9 +643,9 @@ def extract_contract_period(attribution: dict) -> list[dict]:
         start_date = start_raw[:10] if start_raw else None
         end_date   = end_raw[:10]   if end_raw   else None
 
-        # Fallback: use SettledContract IssueDate as start_date when absent
-        if not start_date and lot_id and lot_id in lot_issue_date:
-            start_date = lot_issue_date[lot_id]
+        # Fallback: use notice publication date as start_date when absent
+        if not start_date and fallback_start:
+            start_date = fallback_start
 
         # Calculer end_date depuis start_date + duration si end_date absent
         if not end_date and duration_value and duration_unit and start_date:
