@@ -365,7 +365,7 @@
   <div class="card mt-4">
     <div class="card-header">
       <i class="fa-solid fa-tags"></i>
-      <h2>Mots-clés BOAMP</h2>
+      <h2>Mots-clés</h2>
     </div>
     <div class="card-body">
       <form method="post" action="{{ url_for('admin.save_keywords') }}">
@@ -374,8 +374,8 @@
         <p style="color:var(--text-muted); font-size:13px; margin:0 0 20px;">
           Un mot-clé par ligne. Les mots-clés de recherche déclenchent la collecte
           depuis l'API BOAMP (<code>objet like "%mot%"</code>). Les mots-clés de
-          scoring déterminent le score de pertinence affiché sur chaque dossier.
-          <br>Les modifications prennent effet au prochain refresh BOAMP.
+          scoring déterminent le score de pertinence affiché sur chaque dossier (BOAMP, TED, PLACE_ES).
+          <br>Les modifications prennent effet au prochain refresh.
         </p>
 
         <div class="keywords-grid">
@@ -383,7 +383,7 @@
           <div class="keyword-section">
             <label class="keyword-label">
               <i class="fa-solid fa-magnifying-glass"></i>
-              Mots-clés de recherche BOAMP
+              Mots-clés de recherche
               <span class="kw-hint">Cherchés dans le champ <code>objet</code></span>
             </label>
             <textarea name="kw_search" class="form-control mono kw-textarea"
