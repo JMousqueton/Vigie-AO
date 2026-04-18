@@ -144,6 +144,41 @@ def create_app(config_name: str | None = None) -> Flask:
             pass
         return {'reminders_badge': 0}
 
+    # Context processor : pays disponibles dans le cache (pour le picker superviseur)
+    @app.context_processor
+    def inject_available_countries():
+        from flask import has_request_context
+        if not has_request_context():
+            return {'available_countries': []}
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated and (current_user.is_supervisor or current_user.is_admin):
+                from app.models import DossierCache
+                _COUNTRY_NAMES = {
+                    'FR': 'France', 'BE': 'België / Belgique', 'CH': 'Schweiz / Suisse',
+                    'LU': 'Lëtzebuerg', 'DE': 'Deutschland', 'ES': 'España', 'IT': 'Italia',
+                    'NL': 'Nederland', 'PT': 'Portugal', 'AT': 'Österreich', 'PL': 'Polska',
+                    'SE': 'Sverige', 'DK': 'Danmark', 'FI': 'Suomi', 'NO': 'Norge',
+                    'GB': 'United Kingdom', 'IE': 'Éire / Ireland', 'EU': '🇪🇺 Europe (tous)',
+                }
+                codes = {
+                    row[0] for row in
+                    db.session.query(DossierCache.country).distinct().all()
+                    if row[0]
+                }
+                # Always include EU option + current user's own country
+                codes.add('EU')
+                if current_user.country:
+                    codes.add(current_user.country)
+                # Return as sorted list of (code, name) in display order
+                order = ['FR','BE','CH','LU','DE','ES','IT','NL','PT','AT',
+                         'PL','SE','DK','FI','NO','GB','IE','EU']
+                available = [(c, _COUNTRY_NAMES.get(c, c)) for c in order if c in codes]
+                return {'available_countries': available}
+        except Exception:
+            pass
+        return {'available_countries': []}
+
     # Context processor : thème actif
     @app.context_processor
     def inject_theme():

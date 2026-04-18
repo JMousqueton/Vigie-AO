@@ -85,10 +85,11 @@
           <i class="fa-solid fa-chevron-down" style="font-size:10px;opacity:.6;"></i>
         </button>
         <div class="country-picker-dropdown" id="countryPickerDropdown">
-          {% for code, name in [('FR','France'),('BE','België / Belgique'),('CH','Schweiz / Suisse'),('LU','Lëtzebuerg'),('DE','Deutschland'),('ES','España'),('IT','Italia'),('NL','Nederland'),('PT','Portugal'),('AT','Österreich'),('PL','Polska'),('SE','Sverige'),('DK','Danmark'),('FI','Suomi'),('NO','Norge'),('GB','United Kingdom'),('IE','Éire / Ireland'),('EU','🇪🇺 Europe (tous)')] %}
+          {% for code, name in available_countries %}
           <a href="{{ url_for('main.set_supervisor_country', country=code) }}"
              class="country-option {% if sup_country == code %}active{% endif %}">
-            <img src="https://flagcdn.com/w20/{{ code | lower }}.png" alt="{{ code }}" class="country-flag"> {{ name }}
+            {% if code != 'EU' %}<img src="https://flagcdn.com/w20/{{ code | lower }}.png" alt="{{ code }}" class="country-flag">{% endif %}
+            {{ name }}
           </a>
           {% endfor %}
         </div>
