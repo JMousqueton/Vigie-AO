@@ -33,30 +33,30 @@ class LoginForm(FlaskForm):
 
 
 class RegisterForm(FlaskForm):
-    prenom = StringField('Prénom', validators=[DataRequired(), Length(2, 50)])
-    nom = StringField('Nom', validators=[DataRequired(), Length(2, 50)])
-    email = StringField('Email professionnel', validators=[DataRequired(), Email()])
-    country = SelectField('Pays', choices=[], default='FR')  # choices set at runtime
-    password = PasswordField('Mot de passe', validators=[DataRequired(), Length(8, 128)])
+    prenom = StringField('First name', validators=[DataRequired(), Length(2, 50)])
+    nom = StringField('Last name', validators=[DataRequired(), Length(2, 50)])
+    email = StringField('Work email', validators=[DataRequired(), Email()])
+    country = SelectField('Country', choices=[], default='FR')  # choices set at runtime
+    password = PasswordField('Password', validators=[DataRequired(), Length(8, 128)])
     password2 = PasswordField(
-        'Confirmer le mot de passe',
-        validators=[DataRequired(), EqualTo('password', message='Les mots de passe ne correspondent pas.')],
+        'Confirm password',
+        validators=[DataRequired(), EqualTo('password', message='Passwords do not match.')],
     )
-    submit = SubmitField("S'inscrire")
+    submit = SubmitField('Create account')
 
     def validate_email(self, field):
         allowed_domain = current_app.config.get('ALLOWED_EMAIL_DOMAIN', '')
         if allowed_domain and not field.data.lower().endswith(f'@{allowed_domain}'):
-            raise ValidationError(f'Seuls les emails @{allowed_domain} sont autorisés.')
+            raise ValidationError(f'Only @{allowed_domain} emails are allowed.')
         if User.query.filter_by(email=field.data.lower()).first():
-            raise ValidationError('Cet email est déjà enregistré.')
+            raise ValidationError('This email is already registered.')
 
     def validate_password(self, field):
         pwd = field.data
         if not re.search(r'[A-Z]', pwd):
-            raise ValidationError('Le mot de passe doit contenir au moins une majuscule.')
+            raise ValidationError('Password must contain at least one uppercase letter.')
         if not re.search(r'[0-9]', pwd):
-            raise ValidationError('Le mot de passe doit contenir au moins un chiffre.')
+            raise ValidationError('Password must contain at least one digit.')
 
 
 COUNTRY_CHOICES = [

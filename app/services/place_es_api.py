@@ -306,48 +306,63 @@ def _parse_entry(entry) -> dict | None:
     cpv_str = ', '.join(cpv_codes)
 
     # ── Lots / résultats d'attribution ────────────────────────────────────────
+    # PLACE_ES utilise deux structures selon l'entrée :
+    #   1. TenderResult directement sous ContractFolderStatus (cas le plus courant)
+    #   2. TenderResult à l'intérieur de ProcurementProjectLot (entrées multi-lots)
     _UNIT_MAP = {'MON': 'MONTH', 'ANN': 'YEAR', 'DAY': 'DAY'}
     attribution_lots: list[dict] = []
     attribution_periods: list[dict] = []
 
-    for lot_el in cfs.findall(_tag(NS_CAC, 'ProcurementProjectLot')):
-        lot_num = _find_text(lot_el, _tag(NS_CBC, 'ID'))
-
-        # TenderResult → winner + amount + award date
-        tr = lot_el.find(_tag(NS_CAC, 'TenderResult'))
+    def _parse_tender_result(tr, lot_num=None):
+        """Extrait titulaire/montant/date d'un élément TenderResult."""
         titulaire = ''
         montant = None
         award_date = ''
-        if tr is not None:
-            wp = tr.find(_tag(NS_CAC, 'WinningParty'))
-            if wp is not None:
-                titulaire = _find_text(
-                    wp,
-                    f'{_tag(NS_CAC,"PartyName")}/{_tag(NS_CBC,"Name")}',
-                )
-            award_date = _find_text(tr, _tag(NS_CBC, 'AwardDate'))
-            atp = tr.find(_tag(NS_CAC, 'AwardedTenderedProject'))
-            if atp is not None:
-                lmt = atp.find(_tag(NS_CAC, 'LegalMonetaryTotal'))
-                if lmt is not None:
-                    amt_el = lmt.find(_tag(NS_CBC, 'TaxExclusiveAmount'))
-                    if amt_el is None:
-                        amt_el = lmt.find(_tag(NS_CBC, 'PayableAmount'))
-                    if amt_el is not None and (amt_el.text or '').strip():
-                        try:
-                            montant = float(amt_el.text.strip())
-                        except ValueError:
-                            pass
-
+        wp = tr.find(_tag(NS_CAC, 'WinningParty'))
+        if wp is not None:
+            titulaire = _find_text(
+                wp,
+                f'{_tag(NS_CAC,"PartyName")}/{_tag(NS_CBC,"Name")}',
+            )
+        # Award date : AwardDate ou Contract/IssueDate (format PLACE_ES)
+        award_date = _find_text(tr, _tag(NS_CBC, 'AwardDate')) or ''
+        if not award_date:
+            contract_el = tr.find(_tag(NS_CAC, 'Contract'))
+            if contract_el is not None:
+                award_date = _find_text(contract_el, _tag(NS_CBC, 'IssueDate')) or ''
+        atp = tr.find(_tag(NS_CAC, 'AwardedTenderedProject'))
+        if atp is not None:
+            lmt = atp.find(_tag(NS_CAC, 'LegalMonetaryTotal'))
+            if lmt is not None:
+                amt_el = lmt.find(_tag(NS_CBC, 'TaxExclusiveAmount'))
+                if amt_el is None:
+                    amt_el = lmt.find(_tag(NS_CBC, 'PayableAmount'))
+                if amt_el is not None and (amt_el.text or '').strip():
+                    try:
+                        montant = float(amt_el.text.strip())
+                    except ValueError:
+                        pass
         if titulaire or montant is not None:
             attribution_lots.append({
-                'lot_num':   lot_num,
-                'titulaire': titulaire,
-                'montant':   montant,
+                'lot_num':    lot_num,
+                'titulaire':  titulaire,
+                'montant':    montant,
                 'award_date': _fmt_date(award_date),
             })
 
-        # PlannedPeriod → duration / dates
+    # Cas 1 : TenderResult(s) directs sous ContractFolderStatus
+    direct_trs = cfs.findall(_tag(NS_CAC, 'TenderResult'))
+    for tr in direct_trs:
+        _parse_tender_result(tr, lot_num=None)
+
+    # Cas 2 : ProcurementProjectLot contenant TenderResult + PlannedPeriod
+    for lot_el in cfs.findall(_tag(NS_CAC, 'ProcurementProjectLot')):
+        lot_num = _find_text(lot_el, _tag(NS_CBC, 'ID'))
+
+        tr = lot_el.find(_tag(NS_CAC, 'TenderResult'))
+        if tr is not None:
+            _parse_tender_result(tr, lot_num=lot_num)
+
         pp_lot = lot_el.find(_tag(NS_CAC, 'ProcurementProject'))
         if pp_lot is not None:
             period = pp_lot.find(_tag(NS_CAC, 'PlannedPeriod'))

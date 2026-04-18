@@ -404,7 +404,6 @@ def refresh_place_es_cache(app=None):
                     DossierCache.query
                     .filter_by(source='PLACE_ES')
                     .filter(DossierCache.reference_boamp_initial == contract_folder_id)
-                    .filter(DossierCache.has_attribution == False)
                     .first()
                 )
                 if pub_entry:

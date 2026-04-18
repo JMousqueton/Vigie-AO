@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Inscription — Vigie AO{% endblock %}
+{% block title %}Sign up — Vigie AO{% endblock %}
 
 {% block content %}
 <div class="auth-page">
   <div class="auth-card auth-card-wide">
     <div class="auth-logo">
       <i class="fa-solid fa-shield-halved"></i>
-      <h1>Créer un compte</h1>
+      <h1>Create an account</h1>
       <p>Vigie AO</p>
     </div>
 
@@ -16,19 +16,19 @@
       <div class="form-row-2">
         <div class="form-group">
           <label for="prenom">{{ form.prenom.label }}</label>
-          {{ form.prenom(id='prenom', class='form-control' + (' is-invalid' if form.prenom.errors else ''), placeholder='Jean') }}
+          {{ form.prenom(id='prenom', class='form-control' + (' is-invalid' if form.prenom.errors else ''), placeholder='John') }}
           {% for err in form.prenom.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
         </div>
         <div class="form-group">
           <label for="nom">{{ form.nom.label }}</label>
-          {{ form.nom(id='nom', class='form-control' + (' is-invalid' if form.nom.errors else ''), placeholder='DUPONT') }}
+          {{ form.nom(id='nom', class='form-control' + (' is-invalid' if form.nom.errors else ''), placeholder='DOE') }}
           {% for err in form.nom.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
         </div>
       </div>
 
       <div class="form-group">
         <label for="email">{{ form.email.label }}</label>
-        {{ form.email(id='email', class='form-control' + (' is-invalid' if form.email.errors else ''), placeholder='jean.dupont@domain.com', autocomplete='email') }}
+        {{ form.email(id='email', class='form-control' + (' is-invalid' if form.email.errors else ''), placeholder='john.doe@domain.com', autocomplete='email') }}
         {% for err in form.email.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
       </div>
 
@@ -57,7 +57,7 @@
       <div class="form-group">
         <label for="password">{{ form.password.label }}</label>
         <div class="input-eye-wrap">
-          {{ form.password(id='password', class='form-control' + (' is-invalid' if form.password.errors else ''), placeholder='Min. 8 caractères, 1 majuscule, 1 chiffre', autocomplete='new-password') }}
+          {{ form.password(id='password', class='form-control' + (' is-invalid' if form.password.errors else ''), placeholder='Min. 8 characters, 1 uppercase, 1 digit', autocomplete='new-password') }}
           <button type="button" class="eye-toggle" onclick="togglePassword('password', this)">
             <i class="fa-solid fa-eye"></i>
           </button>
@@ -84,8 +84,8 @@
     </form>
 
     <div class="auth-footer">
-      Déjà un compte ?
-      <a href="{{ url_for('auth.login') }}">Se connecter</a>
+      Already have an account?
+      <a href="{{ url_for('auth.login') }}">Sign in</a>
     </div>
   </div>
 </div>
