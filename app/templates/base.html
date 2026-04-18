@@ -75,6 +75,11 @@
       </button>
       {% endif %}
       {% if current_user.is_supervisor or current_user.is_admin %}
+      <a href="{{ url_for('stats.index') }}" class="nav-link {% if request.blueprint == 'stats' %}active{% endif %}">
+        <i class="fa-solid fa-chart-line"></i> {{ _('Stats') }}
+      </a>
+      {% endif %}
+      {% if current_user.is_supervisor or current_user.is_admin %}
       {% set sup_country = session.get('supervisor_country', current_user.country or 'FR') %}
       {% set country_names = {'FR':'France','BE':'België / Belgique','CH':'Schweiz / Suisse','LU':'Lëtzebuerg','DE':'Deutschland','ES':'España','IT':'Italia','NL':'Nederland','PT':'Portugal','AT':'Österreich','PL':'Polska','SE':'Sverige','DK':'Danmark','FI':'Suomi','NO':'Norge','GB':'United Kingdom','IE':'Éire / Ireland','EU':'🇪🇺 Europe (tous)'} %}
       <div class="country-picker" id="countryPicker">

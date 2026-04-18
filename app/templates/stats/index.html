@@ -1,0 +1,882 @@
+{% extends "base.html" %}
+{% block title %}Statistiques — Vigie AO{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+/* ── Stats page layout ──────────────────────────────────── */
+.stats-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.stats-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stats-page-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stats-page-header h1 i { color: var(--accent-blue); }
+.stats-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.stats-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.stats-meta-chip i { font-size: 11px; }
+.stats-meta-chip.fresh  { color: var(--accent-green); border-color: var(--accent-green-dim); background: var(--accent-green-dim); }
+.stats-meta-chip.stale  { color: var(--accent-orange); border-color: var(--accent-orange-dim); background: var(--accent-orange-dim); }
+.stats-meta-chip.old    { color: var(--accent-red); border-color: var(--accent-red-dim); background: var(--accent-red-dim); }
+
+/* Section titles */
+.stats-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stats-section-title i { font-size: 12px; }
+
+/* ── KPI Row ────────────────────────────────────────────── */
+.stats-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.stats-kpi {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: border-color .15s;
+}
+.stats-kpi:hover { border-color: var(--border-hover); }
+.stats-kpi-icon {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.stats-kpi-icon.blue   { background: var(--accent-blue-dim);   color: var(--accent-blue); }
+.stats-kpi-icon.green  { background: var(--accent-green-dim);  color: var(--accent-green); }
+.stats-kpi-icon.orange { background: var(--accent-orange-dim); color: var(--accent-orange); }
+.stats-kpi-icon.red    { background: var(--accent-red-dim);    color: var(--accent-red); }
+.stats-kpi-icon.purple { background: rgba(139,92,246,.12);     color: #8b5cf6; }
+.stats-kpi-icon.muted  { background: rgba(100,116,139,.1);     color: var(--text-muted); }
+
+.stats-kpi-body {}
+.stats-kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  line-height: 1;
+  color: var(--text);
+}
+.stats-kpi-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-top: 4px;
+}
+.stats-kpi-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Chart grid ─────────────────────────────────────────── */
+.stats-charts-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+.stats-charts-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.stats-charts-2-1 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 1100px) {
+  .stats-charts-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 760px) {
+  .stats-charts-3,
+  .stats-charts-2,
+  .stats-charts-2-1 { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+}
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 8px;
+}
+.chart-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chart-card-title i { color: var(--accent-blue); font-size: 12px; }
+.chart-card-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-muted);
+}
+.chart-wrap {
+  position: relative;
+  flex: 1;
+}
+.chart-wrap canvas { max-height: 260px; }
+.chart-wrap-tall canvas { max-height: 340px; }
+
+/* ── User & alert side-by-side cards ────────────────────── */
+.stats-user-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+}
+.user-stat-item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  text-align: center;
+}
+.user-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+.user-stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-top: 4px;
+}
+
+/* ── Alert rate gauge ───────────────────────────────────── */
+.alert-rate-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 16px;
+}
+.alert-rate-ring svg { overflow: visible; }
+
+/* ── Frequency / engagement pills ──────────────────────── */
+.freq-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.freq-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.freq-item-label { flex: 1; color: var(--text-secondary); }
+.freq-item-bar-wrap {
+  flex: 2;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+}
+.freq-item-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .6s ease;
+}
+.freq-item-count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ── Engagement row ─────────────────────────────────────── */
+.engage-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.engage-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.engage-icon {
+  font-size: 26px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.engage-value {
+  font-size: 30px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+.engage-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-top: 3px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stats-page">
+
+  <!-- ─── Header ──────────────────────────────────────────────────────────── -->
+  <div class="stats-page-header">
+    <h1>
+      <i class="fa-solid fa-chart-line"></i>
+      Statistics
+    </h1>
+    <div class="stats-meta">
+      {% if cache_age_h is not none %}
+        {% if cache_age_h < 4 %}
+          <span class="stats-meta-chip fresh"><i class="fa-solid fa-circle-check"></i> Cache : {{ cache_age_label }}</span>
+        {% elif cache_age_h < 24 %}
+          <span class="stats-meta-chip stale"><i class="fa-solid fa-clock"></i> Cache : {{ cache_age_label }}</span>
+        {% else %}
+          <span class="stats-meta-chip old"><i class="fa-solid fa-triangle-exclamation"></i> Cache : {{ cache_age_label }}</span>
+        {% endif %}
+      {% endif %}
+      <span class="stats-meta-chip"><i class="fa-regular fa-calendar"></i>
+        {% if last_fetch %}{{ last_fetch.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- ─── KPI Row ─────────────────────────────────────────────────────────── -->
+  <div class="stats-kpi-row">
+    <div class="stats-kpi">
+      <div class="stats-kpi-icon blue"><i class="fa-solid fa-folder-open"></i></div>
+      <div class="stats-kpi-body">
+        <div class="stats-kpi-value">{{ unique_dossiers | default(0) }}</div>
+        <div class="stats-kpi-label">Dossiers uniques</div>
+        {% if nb_duplicates > 0 %}
+        <div class="stats-kpi-sub">+ {{ nb_duplicates }} doublons filtrés</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-icon green"><i class="fa-solid fa-calendar-plus"></i></div>
+      <div class="stats-kpi-body">
+        <div class="stats-kpi-value">{{ new_this_week }}</div>
+        <div class="stats-kpi-label">Nouveaux (7 jours)</div>
+        {% if new_today > 0 %}
+        <div class="stats-kpi-sub">{{ new_today }} aujourd'hui</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+      <div class="stats-kpi-body">
+        <div class="stats-kpi-value">{{ nb_urgent }}</div>
+        <div class="stats-kpi-label">Urgents (≤ 14 j)</div>
+        <div class="stats-kpi-sub">{{ nb_expired }} expirés</div>
+      </div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-icon purple"><i class="fa-solid fa-trophy"></i></div>
+      <div class="stats-kpi-body">
+        <div class="stats-kpi-value">{{ attrib_pct }}%</div>
+        <div class="stats-kpi-label">Attribués</div>
+        <div class="stats-kpi-sub">{{ nb_attributions }} dossiers</div>
+      </div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-icon orange"><i class="fa-solid fa-file-pen"></i></div>
+      <div class="stats-kpi-body">
+        <div class="stats-kpi-value">{{ rectif_pct }}%</div>
+        <div class="stats-kpi-label">Rectifiés</div>
+        <div class="stats-kpi-sub">{{ nb_rectifs }} dossiers</div>
+      </div>
+    </div>
+    <div class="stats-kpi">
+      <div class="stats-kpi-icon muted"><i class="fa-solid fa-users"></i></div>
+      <div class="stats-kpi-body">
+        <div class="stats-kpi-value">{{ active_users }}</div>
+        <div class="stats-kpi-label">Utilisateurs actifs</div>
+        <div class="stats-kpi-sub">{{ total_users }} au total</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Publications timeline (full width) ──────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <div class="chart-card-title">
+        <i class="fa-solid fa-chart-area"></i>
+        Publications des 30 derniers jours
+      </div>
+      <span class="chart-card-badge">{{ unique_dossiers }} total</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="chartTimeline"></canvas>
+    </div>
+  </div>
+
+  <!-- ─── Sources / Score / Nature ────────────────────────────────────────── -->
+  <div class="stats-charts-3">
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <i class="fa-solid fa-database"></i> Sources
+        </div>
+        <span class="chart-card-badge">{{ total_dossiers }} total</span>
+      </div>
+      <div class="chart-wrap" style="display:flex;align-items:center;justify-content:center;">
+        <canvas id="chartSources" style="max-height:220px;max-width:220px;"></canvas>
+      </div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;" id="sourceLegend"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <i class="fa-solid fa-star-half-stroke"></i> Distribution des scores
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chartScores"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <i class="fa-solid fa-tags"></i> Nature des avis
+        </div>
+      </div>
+      <div class="chart-wrap" style="display:flex;align-items:center;justify-content:center;">
+        <canvas id="chartNatures" style="max-height:220px;max-width:220px;"></canvas>
+      </div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px;" id="natureLegend"></div>
+    </div>
+
+  </div>
+
+  <!-- ─── Countries bar ───────────────────────────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <div class="chart-card-title">
+        <i class="fa-solid fa-earth-europe"></i>
+        Répartition par pays <span style="font-weight:400;opacity:.6;">(top 12)</span>
+      </div>
+    </div>
+    <div class="chart-wrap chart-wrap-tall">
+      <canvas id="chartCountries"></canvas>
+    </div>
+  </div>
+
+  <!-- ─── Users + Alerts ──────────────────────────────────────────────────── -->
+  <div class="stats-charts-2">
+
+    <!-- Users breakdown -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <i class="fa-solid fa-users"></i> Utilisateurs
+        </div>
+        <span class="chart-card-badge">{{ total_users }} au total</span>
+      </div>
+      <div class="stats-user-grid">
+        <div class="user-stat-item">
+          <div class="user-stat-value" style="color:var(--accent-green);">{{ active_users }}</div>
+          <div class="user-stat-label">Actifs</div>
+        </div>
+        <div class="user-stat-item">
+          <div class="user-stat-value" style="color:var(--accent-red);">{{ inactive_users }}</div>
+          <div class="user-stat-label">Inactifs</div>
+        </div>
+        <div class="user-stat-item">
+          <div class="user-stat-value" style="color:var(--accent-blue);">{{ alerts_on }}</div>
+          <div class="user-stat-label">Alertes ON</div>
+        </div>
+        <div class="user-stat-item">
+          <div class="user-stat-value" style="color:var(--accent-orange);">{{ recent_logins }}</div>
+          <div class="user-stat-label">Connexions 7j</div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;">
+        <div class="stats-section-title" style="margin-bottom:10px;">
+          <i class="fa-solid fa-shield-halved"></i> Rôles
+        </div>
+        <div class="freq-row">
+          {% set total_nonzero = total_users if total_users > 0 else 1 %}
+          <div class="freq-item">
+            <span class="freq-item-label"><i class="fa-solid fa-user" style="color:var(--text-muted);margin-right:4px;"></i> User</span>
+            <div class="freq-item-bar-wrap">
+              <div class="freq-item-bar" style="width:{{ (nb_regular / total_nonzero * 100) | int }}%;background:var(--accent-blue);"></div>
+            </div>
+            <span class="freq-item-count">{{ nb_regular }}</span>
+          </div>
+          <div class="freq-item">
+            <span class="freq-item-label"><i class="fa-solid fa-eye" style="color:#a78bfa;margin-right:4px;"></i> Superviseur</span>
+            <div class="freq-item-bar-wrap">
+              <div class="freq-item-bar" style="width:{{ (nb_supervisor / total_nonzero * 100) | int }}%;background:#8b5cf6;"></div>
+            </div>
+            <span class="freq-item-count">{{ nb_supervisor }}</span>
+          </div>
+          <div class="freq-item">
+            <span class="freq-item-label"><i class="fa-solid fa-crown" style="color:var(--accent-orange);margin-right:4px;"></i> Admin</span>
+            <div class="freq-item-bar-wrap">
+              <div class="freq-item-bar" style="width:{{ (nb_admin / total_nonzero * 100) | int }}%;background:var(--accent-orange);"></div>
+            </div>
+            <span class="freq-item-count">{{ nb_admin }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;">
+        <div class="stats-section-title" style="margin-bottom:10px;">
+          <i class="fa-solid fa-bell"></i> Fréquence des alertes
+        </div>
+        {% set _alert_sum = freq_immediate + freq_daily + freq_weekly %}
+        {% set alert_total = _alert_sum if _alert_sum > 0 else 1 %}
+        <div class="freq-row">
+          <div class="freq-item">
+            <span class="freq-item-label">Immédiat</span>
+            <div class="freq-item-bar-wrap">
+              <div class="freq-item-bar" style="width:{{ (freq_immediate / alert_total * 100) | int }}%;background:var(--accent-red);"></div>
+            </div>
+            <span class="freq-item-count">{{ freq_immediate }}</span>
+          </div>
+          <div class="freq-item">
+            <span class="freq-item-label">Quotidien</span>
+            <div class="freq-item-bar-wrap">
+              <div class="freq-item-bar" style="width:{{ (freq_daily / alert_total * 100) | int }}%;background:var(--accent-blue);"></div>
+            </div>
+            <span class="freq-item-count">{{ freq_daily }}</span>
+          </div>
+          <div class="freq-item">
+            <span class="freq-item-label">Hebdo</span>
+            <div class="freq-item-bar-wrap">
+              <div class="freq-item-bar" style="width:{{ (freq_weekly / alert_total * 100) | int }}%;background:var(--accent-green);"></div>
+            </div>
+            <span class="freq-item-count">{{ freq_weekly }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert stats -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <i class="fa-solid fa-bell"></i> Alertes e-mail
+        </div>
+        <span class="chart-card-badge">{{ total_alerts }} envois</span>
+      </div>
+
+      <!-- Success rate ring -->
+      <div class="alert-rate-ring">
+        <svg width="130" height="130" viewBox="0 0 130 130">
+          <circle cx="65" cy="65" r="52" fill="none" stroke="var(--bg-elevated)" stroke-width="12"/>
+          <circle cx="65" cy="65" r="52" fill="none"
+            stroke="{% if alert_rate >= 90 %}var(--accent-green){% elif alert_rate >= 70 %}var(--accent-orange){% else %}var(--accent-red){% endif %}"
+            stroke-width="12"
+            stroke-linecap="round"
+            stroke-dasharray="{{ (alert_rate / 100 * 326.7) | int }} 326.7"
+            transform="rotate(-90 65 65)"
+            style="transition:stroke-dasharray .8s ease;"/>
+          <text x="65" y="60" text-anchor="middle" font-size="26" font-weight="700" fill="var(--text)" font-family="var(--font-mono)">{{ alert_rate }}%</text>
+          <text x="65" y="78" text-anchor="middle" font-size="11" fill="var(--text-muted)">succès</text>
+        </svg>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-top:4px;">
+        <div>
+          <div style="font-size:20px;font-weight:700;font-family:var(--font-mono);color:var(--accent-green);">{{ alerts_ok }}</div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">Réussis</div>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:700;font-family:var(--font-mono);color:var(--accent-red);">{{ alerts_fail }}</div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">Échoués</div>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:700;font-family:var(--font-mono);color:var(--accent-blue);">{{ alerts_month }}</div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">Ce mois</div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div class="stats-section-title" style="margin-bottom:10px;">
+          <i class="fa-solid fa-chart-simple"></i> Activité (30 jours)
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chartAlertTl" style="max-height:100px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── Engagement ──────────────────────────────────────────────────────── -->
+  <div>
+    <div class="stats-section-title">
+      <i class="fa-solid fa-hand-pointer"></i> Engagement utilisateurs
+    </div>
+    <div class="engage-row">
+      <div class="engage-card">
+        <div class="engage-icon" style="background:rgba(249,115,22,.12);color:var(--accent-orange);">
+          <i class="fa-solid fa-star"></i>
+        </div>
+        <div>
+          <div class="engage-value">{{ nb_watchlist }}</div>
+          <div class="engage-label">Watchlist entrées</div>
+        </div>
+      </div>
+      <div class="engage-card">
+        <div class="engage-icon" style="background:rgba(99,102,241,.12);color:#818cf8;">
+          <i class="fa-solid fa-thumbtack"></i>
+        </div>
+        <div>
+          <div class="engage-value">{{ nb_reminders }}</div>
+          <div class="engage-label">Pense-bêtes</div>
+        </div>
+      </div>
+      <div class="engage-card">
+        <div class="engage-icon" style="background:var(--accent-blue-dim);color:var(--accent-blue);">
+          <i class="fa-solid fa-share-nodes"></i>
+        </div>
+        <div>
+          <div class="engage-value">{{ nb_shared }}</div>
+          <div class="engage-label">Liens partagés</div>
+        </div>
+      </div>
+      <div class="engage-card">
+        <div class="engage-icon" style="background:var(--accent-green-dim);color:var(--accent-green);">
+          <i class="fa-solid fa-bell"></i>
+        </div>
+        <div>
+          <div class="engage-value">{{ alerts_on }}</div>
+          <div class="engage-label">Alertes activées</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  // ── Theme detection ─────────────────────────────────────────────────────
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const C = {
+    text:   isDark ? '#94a3b8' : '#64748b',
+    grid:   isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    blue:   '#0ea5e9',
+    green:  '#10b981',
+    orange: '#f59e0b',
+    red:    '#ef4444',
+    purple: '#8b5cf6',
+    teal:   '#06b6d4',
+    pink:   '#ec4899',
+  };
+
+  Chart.defaults.color = C.text;
+  Chart.defaults.font.family = "'Outfit', sans-serif";
+  Chart.defaults.font.size = 12;
+
+  const baseGridOptions = {
+    color: C.grid,
+    borderColor: C.grid,
+  };
+
+  // ── Data from server ─────────────────────────────────────────────────────
+  const bySource    = {{ by_source | tojson }};
+  const byCountry   = {{ by_country | tojson }};
+  const byNature    = {{ by_nature | tojson }};
+  const scoreDist   = {{ score_dist | tojson }};
+  const timeline    = {{ timeline | tojson }};
+  const alertTl     = {{ alert_timeline | tojson }};
+
+  // ── Chart: Timeline ──────────────────────────────────────────────────────
+  {
+    const labels = timeline.map(d => d.date);
+    const data   = timeline.map(d => d.count);
+    const ctx = document.getElementById('chartTimeline').getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 240);
+    grad.addColorStop(0, 'rgba(14,165,233,0.3)');
+    grad.addColorStop(1, 'rgba(14,165,233,0)');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Publications',
+          data,
+          borderColor: C.blue,
+          backgroundColor: grad,
+          borderWidth: 2.5,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: C.blue,
+          fill: true,
+          tension: 0.35,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+          x: { grid: baseGridOptions, ticks: { maxRotation: 0, maxTicksLimit: 10 } },
+          y: { grid: baseGridOptions, beginAtZero: true, ticks: { stepSize: 1, precision: 0 } }
+        }
+      }
+    });
+  }
+
+  // ── Chart: Sources (doughnut) ────────────────────────────────────────────
+  {
+    const labels  = Object.keys(bySource);
+    const data    = Object.values(bySource);
+    const palette = [C.blue, C.green, C.orange, C.purple, C.teal];
+    new Chart(document.getElementById('chartSources'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: palette, borderWidth: 2,
+          borderColor: isDark ? '#0f172a' : '#ffffff', hoverOffset: 6 }]
+      },
+      options: {
+        responsive: true,
+        cutout: '66%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.label}: ${ctx.raw.toLocaleString('fr-FR')} (${Math.round(ctx.raw / data.reduce((a,b)=>a+b,0)*100)}%)`
+            }
+          }
+        }
+      }
+    });
+    // Custom legend
+    const leg = document.getElementById('sourceLegend');
+    const total = data.reduce((a,b)=>a+b,0) || 1;
+    labels.forEach((l, i) => {
+      leg.innerHTML += `
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+          <span style="width:10px;height:10px;border-radius:2px;background:${palette[i]};flex-shrink:0;"></span>
+          <span style="flex:1;color:var(--text-secondary);">${l}</span>
+          <span style="font-family:var(--font-mono);font-size:12px;">${data[i].toLocaleString('fr-FR')}</span>
+          <span style="color:var(--text-muted);font-size:11px;">${Math.round(data[i]/total*100)}%</span>
+        </div>`;
+    });
+  }
+
+  // ── Chart: Score distribution (bar) ─────────────────────────────────────
+  {
+    const labels  = scoreDist.map(d => d.label);
+    const data    = scoreDist.map(d => d.count);
+    const colors  = [C.text, C.orange, C.orange, C.blue, C.blue, C.green].map(c => c + 'cc');
+    new Chart(document.getElementById('chartScores'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Dossiers',
+          data,
+          backgroundColor: colors,
+          borderRadius: 6,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: baseGridOptions, beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+
+  // ── Chart: Natures (doughnut) ────────────────────────────────────────────
+  {
+    const labels  = byNature.map(d => d.name);
+    const data    = byNature.map(d => d.count);
+    const palette = [C.blue, C.purple, C.orange, C.green, C.red, C.teal, C.pink];
+    new Chart(document.getElementById('chartNatures'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data, backgroundColor: palette, borderWidth: 2,
+          borderColor: isDark ? '#0f172a' : '#ffffff', hoverOffset: 6 }]
+      },
+      options: {
+        responsive: true,
+        cutout: '60%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.label}: ${ctx.raw.toLocaleString('fr-FR')}`
+            }
+          }
+        }
+      }
+    });
+    // Custom legend
+    const leg = document.getElementById('natureLegend');
+    labels.forEach((l, i) => {
+      leg.innerHTML += `
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+          <span style="width:9px;height:9px;border-radius:2px;background:${palette[i % palette.length]};flex-shrink:0;"></span>
+          <span style="flex:1;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l}</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">${data[i].toLocaleString('fr-FR')}</span>
+        </div>`;
+    });
+  }
+
+  // ── Chart: Countries (horizontal bar) ────────────────────────────────────
+  {
+    const labels = byCountry.map(d => d.name);
+    const data   = byCountry.map(d => d.count);
+    const maxVal = Math.max(...data, 1);
+    const colors = data.map(v => {
+      const ratio = v / maxVal;
+      if (ratio > 0.7) return C.blue + 'dd';
+      if (ratio > 0.3) return C.blue + '99';
+      return C.blue + '55';
+    });
+    new Chart(document.getElementById('chartCountries'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Dossiers',
+          data,
+          backgroundColor: colors,
+          borderRadius: 5,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: baseGridOptions, beginAtZero: true, ticks: { precision: 0 } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Chart: Alert timeline (mini line) ────────────────────────────────────
+  {
+    const labels = alertTl.map(d => d.date);
+    const data   = alertTl.map(d => d.count);
+    const ctx = document.getElementById('chartAlertTl').getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 100);
+    grad.addColorStop(0, 'rgba(16,185,129,0.3)');
+    grad.addColorStop(1, 'rgba(16,185,129,0)');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          borderColor: C.green,
+          backgroundColor: grad,
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+})();
+</script>
+{% endblock %}
