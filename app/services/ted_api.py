@@ -112,7 +112,8 @@ CPV_PREFIX_WEIGHTS: dict[str, tuple[str, int]] = {
 }
 
 # Champs demandés à l'API TED (validés sur l'API v3)
-TED_FIELDS = ['ND', 'TI', 'BT-21-Procedure', 'PD', 'DT', 'DS', 'AU', 'PC', 'NC', 'TD', 'CY', 'RC', 'PR', 'links']
+TED_FIELDS = ['ND', 'TI', 'BT-21-Procedure', 'PD', 'DT', 'DS', 'AU', 'PC', 'NC', 'TD', 'CY', 'RC', 'PR', 'links',
+              'buyer-email', 'organisation-tel-buyer']
 
 # Types de documents TED → nature
 # TD='2' = contract notice (AO), TD='3' = contract award (attribution)
@@ -523,6 +524,12 @@ def _normalize_ted_record(notice: dict) -> dict:
     # Deadline réponse : uniquement DT (DS = date signature, pas pertinent)
     deadline = _fmt_date(notice.get('DT'))
 
+    # Contact
+    email_raw = notice.get('buyer-email') or []
+    contact_email = email_raw[0] if isinstance(email_raw, list) and email_raw else (email_raw or '')
+    tel_raw = notice.get('organisation-tel-buyer') or []
+    contact_tel = tel_raw[0] if isinstance(tel_raw, list) and tel_raw else (tel_raw or '')
+
     return {
         'idweb':                f'TED-{nd}',
         'country':              country_iso2,
@@ -540,7 +547,8 @@ def _normalize_ted_record(notice: dict) -> dict:
         'dateparution':         _fmt_date(notice.get('PD')),
         'datelimitereponse':    deadline,
         'urlgravure':           _ted_url(notice),
-        'donnees':              None,
+        'contact_email':        contact_email,
+        'donnees':              {'contact_tel': contact_tel} if contact_tel else None,
         'montant':              '',
         '_ted_nd':              nd,
         '_ted_is_attribution':  is_attribution,
