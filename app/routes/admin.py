@@ -475,6 +475,18 @@ def toggle_source(source):
     return redirect(url_for('admin.index', tab='sources'))
 
 
+@admin_bp.route('/logs/clear', methods=['POST'])
+@login_required
+@admin_required
+def clear_alert_logs():
+    count = AlertLog.query.count()
+    AlertLog.query.delete()
+    db.session.commit()
+    flash(f'{count} log(s) d\'alertes supprimés.', 'warning')
+    current_app.logger.warning("Logs alertes purgés (%d entrées) par %s", count, current_user.email)
+    return redirect(url_for('admin.index', tab='logs'))
+
+
 @admin_bp.route('/sources/delete/<source>', methods=['POST'])
 @login_required
 @admin_required

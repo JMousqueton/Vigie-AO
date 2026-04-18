@@ -443,12 +443,20 @@
 
   <!-- ─── TAB : Logs alertes -->
   <div class="tab-panel" id="tab-logs">
-  {% if recent_logs %}
   <div class="card mt-4">
-    <div class="card-header">
-      <i class="fa-solid fa-list-check"></i>
-      <h2>Derniers envois d'alertes</h2>
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span><i class="fa-solid fa-list-check"></i> <h2 style="display:inline;">Derniers envois d'alertes</h2></span>
+      {% if recent_logs %}
+      <form method="post" action="{{ url_for('admin.clear_alert_logs') }}"
+            onsubmit="return confirm('Supprimer tous les logs d\'alertes mail ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+          <i class="fa-solid fa-trash"></i> Purger les logs
+        </button>
+      </form>
+      {% endif %}
     </div>
+    {% if recent_logs %}
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="data-table">
@@ -476,8 +484,10 @@
         </table>
       </div>
     </div>
+    {% else %}
+    <div class="card-body text-muted">Aucun log d'alerte.</div>
+    {% endif %}
   </div>
-  {% endif %}
   </div>{# /tab-panel logs #}
 
   <!-- ─── TAB : Base de données -->

@@ -134,7 +134,8 @@ def _extract_reference(record: dict) -> str:
     Priorités :
       1. gestion.REFERENCE.IDWEB  — présent sur les avis INITIAL
       2. donnees.RECTIF.ANNONCE_ANTERIEUR.REFERENCE.IDWEB  — présent sur les RECTIFICATIF
-      3. Fallback : idweb du record lui-même
+      3. Recherche récursive d'un IDWEB dans donnees — pour les ATTRIBUTION et MODIFICATION
+      4. Fallback : idweb du record lui-même
     """
     own_idweb = record.get('idweb', '')
 
@@ -177,7 +178,49 @@ def _extract_reference(record: dict) -> str:
                 except Exception:
                     pass
 
+    # Pour les ATTRIBUTION / MODIFICATION : recherche récursive d'un IDWEB
+    # dans le JSON donnees qui diffère de l'idweb propre.
+    nature = (record.get('nature') or '').upper()
+    if nature == 'ATTRIBUTION' or etat in (ETAT_MODIFICATION, ETAT_ANNULATION):
+        donnees = record.get('donnees')
+        if donnees:
+            if isinstance(donnees, str):
+                try:
+                    donnees = json.loads(donnees)
+                except Exception:
+                    donnees = {}
+            if isinstance(donnees, dict):
+                found = _find_idweb_in_donnees(donnees, own_idweb)
+                if found:
+                    return found
+
     return own_idweb
+
+
+def _find_idweb_in_donnees(obj, own_idweb: str, _depth: int = 0) -> str:
+    """
+    Parcourt récursivement un dict/liste issu de donnees et retourne le premier
+    IDWEB (clé 'IDWEB' ou 'idweb') dont la valeur diffère de own_idweb.
+    Limité à 10 niveaux de profondeur pour éviter les boucles infinies.
+    """
+    if _depth > 10:
+        return ''
+    if isinstance(obj, dict):
+        for key, val in obj.items():
+            if key.upper() == 'IDWEB' and val and str(val) != own_idweb:
+                return str(val)
+        for val in obj.values():
+            if isinstance(val, (dict, list)):
+                found = _find_idweb_in_donnees(val, own_idweb, _depth + 1)
+                if found:
+                    return found
+    elif isinstance(obj, list):
+        for item in obj:
+            if isinstance(item, (dict, list)):
+                found = _find_idweb_in_donnees(item, own_idweb, _depth + 1)
+                if found:
+                    return found
+    return ''
 
 
 def normalize_record(record: dict) -> dict:

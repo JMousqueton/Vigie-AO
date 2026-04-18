@@ -60,30 +60,45 @@ if not _SSL_VERIFY:
 
 TED_SEARCH_URL = 'https://api.ted.europa.eu/v3/notices/search'
 
-# Codes CPV IT/stockage/cyber pertinents pour Cohesity
-CPV_COHESITY = [
-    '48710000',  # Logiciels de sauvegarde/récupération
-    '48820000',  # Serveurs
-    '72000000',  # Services IT
-    '72300000',  # Services de données
-    '48800000',  # Systèmes d'information
-    '72222300',  # Services TIC
-    '30233000',  # Mémoires et supports
-    '72253200',  # Services de support système
-    '72611000',  # Services de support technique
-]
+# Codes CPV IT/stockage/cyber pertinents pour Cohesity avec poids par niveau
+# Format: code → (label, catégorie, poids)
+# Catégories: 'haute' (+20), 'moyenne' (+15), 'contexte' (+10)
+CPV_COHESITY_WEIGHTED: dict[str, tuple[str, str, int]] = {
+    # ── Haute (cœur de métier Cohesity) ─────────────────────────────────────
+    '48710000': ('Logiciels de sauvegarde / récupération',   'haute',    20),
+    '48711000': ('Logiciels de sauvegarde de fichiers',      'haute',    20),
+    '48732000': ('Logiciels de chiffrement / sécurité data', 'haute',    20),
+    # ── Moyenne (infrastructure proche) ─────────────────────────────────────
+    '48820000': ('Serveurs',                                 'moyenne',  15),
+    '30233000': ('Mémoires et lecteurs de supports',         'moyenne',  15),
+    '30233100': ('Unités de disques durs',                   'moyenne',  15),
+    '30233141': ('Baies de stockage redondantes (RAID)',      'moyenne',  15),
+    '48800000': ("Systèmes d'information et serveurs",       'moyenne',  15),
+    '72212710': ('Services de développement SW sauvegarde',  'moyenne',  15),
+    # ── Contexte (IT général / cyber) ────────────────────────────────────────
+    '72000000': ('Services informatiques',                   'contexte', 10),
+    '72300000': ('Services de données',                      'contexte', 10),
+    '72222300': ("Services de technologies de l'information",'contexte', 10),
+    '72253200': ('Services de support système',              'contexte', 10),
+    '72611000': ('Services de support technique',            'contexte', 10),
+    '48900000': ('Logiciels divers et systèmes informatiques','contexte', 10),
+    '72310000': ('Services de traitement de données',        'contexte', 10),
+}
 
-# Labels lisibles pour les codes CPV Cohesity
-CPV_LABELS: dict[str, str] = {
-    '48710000': 'Logiciels de sauvegarde / récupération',
-    '48820000': 'Serveurs',
-    '72000000': 'Services informatiques',
-    '72300000': 'Services de données',
-    '48800000': "Systèmes d'information et serveurs",
-    '72222300': "Services de technologies de l'information",
-    '30233000': 'Mémoires et lecteurs de supports',
-    '72253200': 'Services de support système',
-    '72611000': 'Services de support technique',
+# Listes dérivées pour compatibilité
+CPV_COHESITY: list[str] = list(CPV_COHESITY_WEIGHTED.keys())
+CPV_LABELS: dict[str, str] = {k: v[0] for k, v in CPV_COHESITY_WEIGHTED.items()}
+
+# Préfixes CPV (4 premiers chiffres) → poids pour les codes de famille non listés
+# ex. 4871xxxx = famille sauvegarde logicielle
+CPV_PREFIX_WEIGHTS: dict[str, tuple[str, int]] = {
+    '4871': ('haute',    20),   # sauvegarde/récupération SW
+    '4872': ('haute',    20),   # sécurité logicielle
+    '3023': ('moyenne',  15),   # supports de stockage
+    '4882': ('moyenne',  15),   # serveurs et matériel proche
+    '7221': ('contexte', 10),   # services SW
+    '7225': ('contexte', 10),   # services support
+    '7226': ('contexte', 10),   # services réseau / infra
 }
 
 # Champs demandés à l'API TED (validés sur l'API v3)
@@ -288,12 +303,26 @@ def compute_ted_score(record: dict) -> tuple[int, list[str]]:
     if len(seen_kws) >= 4:
         score += 10
 
-    # Codes CPV Cohesity présents dans l'avis
+    # Codes CPV Cohesity présents dans l'avis — poids hiérarchisés
+    seen_cpv_prefixes: set[str] = set()
     for cpv in sorted(notice_cpvs):
-        if cpv in CPV_COHESITY:
-            label = CPV_LABELS.get(cpv, cpv)
-            triggers.append(f"CPV {cpv} — {label}")
-            score += 10
+        cpv_pts = 0
+        cpv_label = cpv
+
+        if cpv in CPV_COHESITY_WEIGHTED:
+            label, _cat, pts = CPV_COHESITY_WEIGHTED[cpv]
+            cpv_pts, cpv_label = pts, label
+        else:
+            # Tentative de correspondance par préfixe (4 premiers chiffres)
+            prefix = cpv[:4]
+            if prefix not in seen_cpv_prefixes and prefix in CPV_PREFIX_WEIGHTS:
+                _cat, pts = CPV_PREFIX_WEIGHTS[prefix]
+                cpv_pts = pts
+                seen_cpv_prefixes.add(prefix)
+
+        if cpv_pts:
+            triggers.append(f"CPV {cpv} — {cpv_label}")
+            score += cpv_pts
 
     return min(score, 100), triggers
 
@@ -375,17 +404,31 @@ def explain_ted_score(record: dict) -> list[dict]:
                 'weight'   : 0,
             })
 
-    # Codes CPV Cohesity présents dans l'avis
+    # Codes CPV Cohesity présents dans l'avis — poids hiérarchisés
+    seen_cpv_prefixes_exp: set[str] = set()
     for cpv in notice_cpvs:
-        if cpv in CPV_COHESITY:
-            label = CPV_LABELS.get(cpv, cpv)
+        cpv_pts = 0
+        cpv_label = cpv
+        cpv_cat = 'cpv'
+
+        if cpv in CPV_COHESITY_WEIGHTED:
+            label, cat, pts = CPV_COHESITY_WEIGHTED[cpv]
+            cpv_pts, cpv_label, cpv_cat = pts, label, cat
+        else:
+            prefix = cpv[:4]
+            if prefix not in seen_cpv_prefixes_exp and prefix in CPV_PREFIX_WEIGHTS:
+                cat, pts = CPV_PREFIX_WEIGHTS[prefix]
+                cpv_pts, cpv_cat = pts, cat
+                seen_cpv_prefixes_exp.add(prefix)
+
+        if cpv_pts:
             results.append({
                 'keyword'  : f'CPV {cpv}',
                 'field'    : 'Codes CPV',
                 'field_key': 'cpv',
-                'excerpt'  : label,
-                'category' : 'cpv',
-                'weight'   : 10,
+                'excerpt'  : cpv_label,
+                'category' : cpv_cat,
+                'weight'   : cpv_pts,
             })
 
     return results
