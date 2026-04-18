@@ -26,10 +26,10 @@ auth_bp = Blueprint('auth', __name__)
 # ─── Formulaires ──────────────────────────────────────────────────────────────
 
 class LoginForm(FlaskForm):
-    email = StringField(_l('Email'), validators=[DataRequired(), Email()])
-    password = PasswordField(_l('Mot de passe'), validators=[DataRequired()])
-    remember = BooleanField(_l('Se souvenir de moi'))
-    submit = SubmitField(_l('Connexion'))
+    email = StringField(_l('Email address'), validators=[DataRequired(), Email()])
+    password = PasswordField(_l('Password'), validators=[DataRequired()])
+    remember = BooleanField(_l('Remember me'))
+    submit = SubmitField(_l('Sign in'))
 
 
 class RegisterForm(FlaskForm):
@@ -120,7 +120,7 @@ def login():
         user = User.query.filter_by(email=form.email.data.lower()).first()
         if user and bcrypt.check_password_hash(user.password_hash, form.password.data):
             if not user.is_active:
-                flash('Votre compte est en attente d\'activation. Vérifiez vos emails.', 'warning')
+                flash('Your account is pending activation. Please check your emails.', 'warning')
                 return render_template('auth/login.html', form=form)
 
             login_user(user, remember=form.remember.data)
@@ -136,7 +136,7 @@ def login():
             current_app.logger.info("Connexion : %s", user.email)
             return redirect(next_page or url_for('main.dashboard'))
         else:
-            flash('Email ou mot de passe incorrect.', 'danger')
+            flash('Incorrect email or password.', 'danger')
 
     return render_template('auth/login.html', form=form)
 
@@ -206,7 +206,7 @@ def confirm_email(token):
 def logout():
     current_app.logger.info("Déconnexion : %s", current_user.email)
     logout_user()
-    flash('Vous êtes déconnecté.', 'info')
+    flash('You have been signed out.', 'info')
     return redirect(url_for('auth.login'))
 
 
