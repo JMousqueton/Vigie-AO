@@ -35,7 +35,9 @@ import logging
 import os
 import time
 import warnings
-from datetime import date, timedelta
+from datetime import timedelta
+
+from app.utils import utc_now
 
 import requests
 import urllib3
@@ -206,7 +208,7 @@ def _get_last_fetch_date() -> str:
             return last.strftime('%Y%m%d')
     except Exception:
         pass
-    return (date.today() - timedelta(days=180)).strftime('%Y%m%d')
+    return (utc_now().date() - timedelta(days=180)).strftime('%Y%m%d')
 
 
 def _save_fetch_date() -> None:
@@ -215,7 +217,7 @@ def _save_fetch_date() -> None:
         from app.models import AppConfig
         from app import db
         from datetime import datetime as _dt
-        today_str = date.today().isoformat()
+        today_str = utc_now().date().isoformat()
         row = AppConfig.query.filter_by(key='ted_last_fetch_date').first()
         if row:
             row.value = today_str
@@ -251,7 +253,7 @@ def _build_ted_query(country_iso2: str = 'FR') -> str:
     except Exception:
         kws_raw = ['sauvegarde', 'backup', 'ransomware', 'stockage', 'NAS', 'Cohesity']
 
-    since = (date.today() - timedelta(days=15)).strftime('%Y%m%d')
+    since = (utc_now().date() - timedelta(days=15)).strftime('%Y%m%d')
 
     # Sanitize + déduplique + limite à 10 mots-clés
     seen: set[str] = set()

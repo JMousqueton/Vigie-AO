@@ -158,7 +158,6 @@ def save_keywords(
     """
     from app.models import AppConfig
     from app import db
-    from datetime import datetime
 
     if exclude is None:
         exclude = []
@@ -236,13 +235,13 @@ def delete_country_keywords(country: str) -> int:
 def _persist_keys(mapping: dict[str, list[str]], updated_by: int | None = None) -> None:
     from app.models import AppConfig
     from app import db
-    from datetime import datetime
+    from app.utils import utc_now
 
     for key, value in mapping.items():
         row = AppConfig.query.filter_by(key=key).first()
         if row:
             row.value = json.dumps(value, ensure_ascii=False)
-            row.updated_at = datetime.utcnow()
+            row.updated_at = utc_now()
             row.updated_by = updated_by
         else:
             db.session.add(AppConfig(

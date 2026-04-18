@@ -3,7 +3,7 @@ Panel d'administration : gestion utilisateurs, import emails, stats, refresh.
 """
 import secrets
 import string
-from datetime import datetime
+from app.utils import utc_now
 from functools import wraps
 
 from flask import (
@@ -467,7 +467,7 @@ def toggle_source(source):
     row = AppConfig.query.filter_by(key=key).first()
     if row:
         row.value = str(new_state).lower()
-        row.updated_at = datetime.utcnow()
+        row.updated_at = utc_now()
         row.updated_by = current_user.id
     else:
         db.session.add(AppConfig(

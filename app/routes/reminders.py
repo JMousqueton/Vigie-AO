@@ -2,7 +2,9 @@
 Routes pense-bêtes : ajout, retrait, liste, export ICS.
 """
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from app.utils import utc_now
 
 from urllib.parse import urlencode
 
@@ -25,7 +27,7 @@ def index():
         .order_by(Reminder.end_date.asc().nullslast(), Reminder.created_at.desc())
         .all()
     )
-    return render_template('reminders/index.html', reminders=items, today=datetime.utcnow().date())
+    return render_template('reminders/index.html', reminders=items, today=utc_now().date())
 
 
 @reminders_bp.route('/add/<idweb>', methods=['POST'])
@@ -97,7 +99,7 @@ def download_ics(reminder_id):
         abort(400, 'Ce pense-bête n\'a pas de date de fin de marché.')
 
     alarm_trigger = reminder.end_date - timedelta(days=365)
-    now_utc = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+    now_utc = utc_now().strftime('%Y%m%dT%H%M%SZ')
     dtstart = reminder.end_date.strftime('%Y%m%d')
     dtend   = (reminder.end_date + timedelta(days=1)).strftime('%Y%m%d')
     alarm_dt = alarm_trigger.strftime('%Y%m%d')

@@ -1,7 +1,9 @@
 """
 Routes statistiques — superviseurs et admins uniquement.
 """
-from datetime import date, datetime, timedelta
+from datetime import timedelta
+
+from app.utils import utc_now
 from functools import wraps
 
 from flask import Blueprint, flash, redirect, render_template, url_for
@@ -38,7 +40,7 @@ def supervisor_or_admin_required(f):
 @login_required
 @supervisor_or_admin_required
 def index():
-    today = date.today()
+    today = utc_now().date()
 
     # ── Dossiers ─────────────────────────────────────────────────────────────
     total_dossiers  = DossierCache.query.count()
@@ -69,9 +71,9 @@ def index():
     last_fetch = db.session.query(func.max(DossierCache.fetched_at)).scalar()
     cache_age_h = None
     if last_fetch:
-        cache_age_h = round((datetime.utcnow() - last_fetch).total_seconds() / 3600, 1)
+        cache_age_h = round((utc_now() - last_fetch).total_seconds() / 3600, 1)
     if cache_age_h is not None and cache_age_h < 1:
-        cache_age_label = f"{int((datetime.utcnow() - last_fetch).total_seconds() / 60)} min"
+        cache_age_label = f"{int((utc_now() - last_fetch).total_seconds() / 60)} min"
     elif cache_age_h is not None:
         cache_age_label = f"{cache_age_h} h"
     else:
@@ -150,7 +152,7 @@ def index():
     nb_regular     = User.query.filter_by(role='USER').count()
     alerts_on      = User.query.filter_by(is_active=True, alert_enabled=True).count()
     recent_logins  = User.query.filter(
-        User.last_login >= datetime.utcnow() - timedelta(days=7)
+        User.last_login >= utc_now() - timedelta(days=7)
     ).count()
     freq_immediate = User.query.filter_by(is_active=True, alert_enabled=True, alert_frequency='IMMEDIATE').count()
     freq_daily     = User.query.filter_by(is_active=True, alert_enabled=True, alert_frequency='DAILY').count()
@@ -162,19 +164,19 @@ def index():
     alerts_fail  = AlertLog.query.filter_by(success=False).count()
     alert_rate   = round(alerts_ok / total_alerts * 100) if total_alerts else 0
 
-    month_start  = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start  = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     alerts_month = AlertLog.query.filter(AlertLog.sent_at >= month_start).count()
 
     # Alert activity timeline (30 days)
     alert_tl_raw = db.session.query(
         func.date(AlertLog.sent_at), func.count()
     ).filter(
-        AlertLog.sent_at >= datetime.utcnow() - timedelta(days=29)
+        AlertLog.sent_at >= utc_now() - timedelta(days=29)
     ).group_by(func.date(AlertLog.sent_at)).order_by(func.date(AlertLog.sent_at)).all()
     alert_tl_map = {str(row[0]): row[1] for row in alert_tl_raw}
     alert_timeline = []
     for i in range(30):
-        d = (datetime.utcnow() - timedelta(days=29 - i)).date()
+        d = (utc_now() - timedelta(days=29 - i)).date()
         alert_timeline.append({'date': d.strftime('%d/%m'), 'count': alert_tl_map.get(str(d), 0)})
 
     # ── Engagement ───────────────────────────────────────────────────────────

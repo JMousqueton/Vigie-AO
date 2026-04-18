@@ -2,7 +2,7 @@
 Routes d'authentification : register, login, logout, profil, confirmation email.
 """
 import re
-from datetime import datetime
+from app.utils import utc_now
 
 from urllib.parse import urlparse, urljoin
 
@@ -124,7 +124,7 @@ def login():
                 return render_template('auth/login.html', form=form)
 
             login_user(user, remember=form.remember.data)
-            user.last_login = datetime.utcnow()
+            user.last_login = utc_now()
             db.session.commit()
 
             next_page = request.args.get('next')

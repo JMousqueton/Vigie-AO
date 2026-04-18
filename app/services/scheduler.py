@@ -3,7 +3,7 @@ Jobs APScheduler : refresh BOAMP et envoi d'alertes email.
 """
 import json
 import logging
-from datetime import datetime
+from app.utils import utc_now
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_ERROR
@@ -102,7 +102,7 @@ def refresh_boamp_cache(app=None):
                     existing.has_rectificatif = len(dossier.rectificatifs) > 0
                     existing.has_attribution = dossier.attribution is not None
                     existing.date_derniere_activite = date_activite
-                    existing.fetched_at = datetime.utcnow()
+                    existing.fetched_at = utc_now()
                     existing.is_new = False
                     existing.source = 'BOAMP'
                     updated += 1
@@ -130,7 +130,7 @@ def refresh_boamp_cache(app=None):
                         has_rectificatif=len(dossier.rectificatifs) > 0,
                         has_attribution=dossier.attribution is not None,
                         date_derniere_activite=date_activite,
-                        fetched_at=datetime.utcnow(),
+                        fetched_at=utc_now(),
                         is_new=True,
                         source='BOAMP',
                     )
@@ -253,7 +253,7 @@ def refresh_ted_cache(app=None):
                         if is_attribution:
                             existing.attribution_json     = attribution_json
                         existing.date_derniere_activite   = parse_date(rec.get('dateparution'))
-                        existing.fetched_at               = datetime.utcnow()
+                        existing.fetched_at               = utc_now()
                         existing.source                   = 'TED'
                         existing.country                  = rec_country
                         updated += 1
@@ -279,7 +279,7 @@ def refresh_ted_cache(app=None):
                             has_rectificatif=False,
                             has_attribution=is_attribution,
                             date_derniere_activite=parse_date(rec.get('dateparution')),
-                            fetched_at=datetime.utcnow(),
+                            fetched_at=utc_now(),
                             is_new=True,
                             source='TED',
                             country=rec_country,
@@ -359,7 +359,7 @@ def refresh_place_es_cache(app=None):
                     existing.score_pertinence        = score
                     existing.mots_cles_matches       = json.dumps(mots_cles, ensure_ascii=False)
                     existing.date_derniere_activite  = parse_date(rec.get('dateparution'))
-                    existing.fetched_at              = datetime.utcnow()
+                    existing.fetched_at              = utc_now()
                     existing.source                  = 'PLACE_ES'
                     existing.country                 = 'ES'
                     updated += 1
@@ -384,7 +384,7 @@ def refresh_place_es_cache(app=None):
                         has_rectificatif=False,
                         has_attribution=False,
                         date_derniere_activite=parse_date(rec.get('dateparution')),
-                        fetched_at=datetime.utcnow(),
+                        fetched_at=utc_now(),
                         is_new=True,
                         source='PLACE_ES',
                         country='ES',
@@ -424,7 +424,7 @@ def refresh_place_es_cache(app=None):
                     pub_entry.has_attribution        = True
                     pub_entry.attribution_json       = attribution_json
                     pub_entry.date_derniere_activite = parse_date(rec.get('dateparution'))
-                    pub_entry.fetched_at             = datetime.utcnow()
+                    pub_entry.fetched_at             = utc_now()
                     adj_matched += 1
                     updated += 1
 

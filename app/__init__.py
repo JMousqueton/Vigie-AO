@@ -133,9 +133,10 @@ def create_app(config_name: str | None = None) -> Flask:
         try:
             from flask_login import current_user
             if current_user.is_authenticated:
-                from datetime import date, timedelta
+                from datetime import timedelta
                 from app.models import Reminder
-                cutoff = date.today() + timedelta(days=365)
+                from app.utils import utc_now
+                cutoff = utc_now().date() + timedelta(days=365)
                 count = Reminder.query.filter(
                     Reminder.user_id == current_user.id,
                     Reminder.end_date.isnot(None),

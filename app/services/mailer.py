@@ -2,7 +2,9 @@
 Service d'envoi d'emails : alertes BOAMP, confirmation, invitation.
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from app.utils import utc_now
 
 from flask import current_app, render_template, url_for
 from flask_mail import Message
@@ -128,7 +130,7 @@ def _get_new_dossiers_for_user(user: User) -> list[DossierCache]:
     """
     from app import db
     from datetime import date
-    cutoff_dt = user.alert_last_sent or (datetime.utcnow() - timedelta(days=7))
+    cutoff_dt = user.alert_last_sent or (utc_now() - timedelta(days=7))
     cutoff_date = cutoff_dt.date() if hasattr(cutoff_dt, 'date') else cutoff_dt
     user_country = getattr(user, 'country', 'FR') or 'FR'
 
@@ -209,7 +211,7 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False
         )
         mail.send(msg)
 
-        user.alert_last_sent = datetime.utcnow()
+        user.alert_last_sent = utc_now()
         log.success = True
         db.session.add(log)
         db.session.commit()

@@ -3,7 +3,9 @@ Routes principales : dashboard, détail dossier, refresh manuel, partage.
 """
 import json
 import secrets
-from datetime import datetime, date, timedelta
+from datetime import timedelta
+
+from app.utils import utc_now
 
 from flask import (
     Blueprint, render_template, redirect, url_for,
@@ -153,7 +155,7 @@ def dashboard():
 
     # Filtre expirés
     if expire == 'sans':
-        today = date.today()
+        today = utc_now().date()
         query = query.filter(
             or_(
                 DossierCache.datelimitereponse.is_(None),
@@ -167,7 +169,7 @@ def dashboard():
 
     # Filtre période (actifs = parus dans les 90 derniers jours)
     if periode == 'actifs':
-        cutoff = date.today() - timedelta(days=90)
+        cutoff = utc_now().date() - timedelta(days=90)
         query = query.filter(DossierCache.dateparution >= cutoff)
 
     # Filtre source
@@ -214,6 +216,13 @@ def dashboard():
 
     dossiers = pagination.items
 
+    # Pre-compute today once and inject it into every dossier so that the
+    # jours_restants / is_urgent / is_expired properties don't each call
+    # utc_now() independently when the template iterates the list.
+    today = utc_now().date()
+    for d in dossiers:
+        d._today = today
+
     # Watchlist IDs pour afficher les étoiles
     watchlist_ids = _get_watchlist_ids(current_user.id)
 
@@ -229,7 +238,6 @@ def dashboard():
         seen_ids = set()
 
     # Stats filtrées par pays (même logique que le filtre principal)
-    today = date.today()
     deadline_cutoff = today + timedelta(days=14)
 
     stats_base = DossierCache.query.filter(
@@ -263,7 +271,7 @@ def dashboard():
     # Dernière mise à jour cache + indicateur de fraîcheur
     last_fetched = db.session.query(db.func.max(DossierCache.fetched_at)).scalar()
     if last_fetched:
-        age_hours = (datetime.utcnow() - last_fetched).total_seconds() / 3600
+        age_hours = (utc_now() - last_fetched).total_seconds() / 3600
         if age_hours < 4:
             freshness = 'fresh'    # vert
         elif age_hours < 24:
@@ -337,7 +345,7 @@ def mark_seen():
         return jsonify({'ok': False}), 400
 
     idwebs = idwebs[:50]  # sécurité : max 50 par appel
-    now = datetime.utcnow()
+    now = utc_now()
 
     # Récupérer en une seule requête ceux déjà vus
     already_seen = {
@@ -450,7 +458,7 @@ def detail(idweb):
         contract_periods=contract_periods,
         reminder_item=reminder_item,
         trigger_details=trigger_details,
-        today=date.today(),
+        today=utc_now().date(),
     )
 
 
@@ -534,7 +542,7 @@ def share_dossier(idweb):
     existing = SharedLink.query.filter_by(
         idweb=idweb, created_by=current_user.id
     ).filter(
-        (SharedLink.expires_at == None) | (SharedLink.expires_at > datetime.utcnow())
+        (SharedLink.expires_at == None) | (SharedLink.expires_at > utc_now())
     ).first()
 
     if existing:
@@ -545,7 +553,7 @@ def share_dossier(idweb):
             token=token,
             idweb=idweb,
             created_by=current_user.id,
-            expires_at=datetime.utcnow() + timedelta(days=90),
+            expires_at=utc_now() + timedelta(days=90),
         )
         db.session.add(link)
         db.session.commit()
@@ -559,7 +567,7 @@ def view_shared(token):
     """Vue publique d'un dossier partagé — aucune authentification requise."""
     link = SharedLink.query.filter_by(token=token).first_or_404()
 
-    if link.expires_at and link.expires_at < datetime.utcnow():
+    if link.expires_at and link.expires_at < utc_now():
         return render_template('main/shared_expired.html'), 410
 
     dossier = DossierCache.query.filter_by(idweb=link.idweb).first_or_404()

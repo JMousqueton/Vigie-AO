@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import WatchlistItem, DossierCache
+from app.utils import utc_now
 
 watchlist_bp = Blueprint('watchlist', __name__)
 
@@ -27,9 +28,12 @@ def index():
             for d in DossierCache.query.filter(DossierCache.idweb.in_(idwebs)).all()
         }
 
+    today = utc_now().date()
     enriched = []
     for item in items:
         dossier = dossiers_map.get(item.idweb)
+        if dossier:
+            dossier._today = today
         new_rectifs = max(0, dossier.nb_rectificatifs - item.nb_rectifs_at_add) if dossier else 0
         enriched.append({
             'item': item,

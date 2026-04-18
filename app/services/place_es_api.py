@@ -42,7 +42,9 @@ import time
 import warnings
 import zipfile
 import xml.etree.ElementTree as ET
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
+
+from app.utils import utc_now
 from urllib.parse import urlparse
 
 import requests
@@ -187,18 +189,18 @@ def _get_last_fetch_date() -> date:
             return datetime.strptime(row.value, '%Y-%m-%d').date() - timedelta(days=1)
     except Exception:
         pass
-    return date.today() - timedelta(days=365)
+    return utc_now().date() - timedelta(days=365)
 
 
 def _save_fetch_date() -> None:
     try:
         from app.models import AppConfig
         from app import db
-        today_str = date.today().isoformat()
+        today_str = utc_now().date().isoformat()
         row = AppConfig.query.filter_by(key='place_es_last_fetch_date').first()
         if row:
             row.value = today_str
-            row.updated_at = datetime.utcnow()
+            row.updated_at = utc_now()
         else:
             db.session.add(AppConfig(key='place_es_last_fetch_date', value=today_str))
         db.session.commit()
@@ -297,7 +299,7 @@ def _parse_entry(entry) -> dict | None:
                 dateparution = _find_text(apdr, _tag(NS_CBC, 'IssueDate'))
 
     if not dateparution:
-        dateparution = updated_date or date.today().isoformat()
+        dateparution = updated_date or utc_now().date().isoformat()
 
     if not objet:
         objet = title
@@ -441,7 +443,7 @@ def _record_from_summary(
         'objet_marche':         title,
         'code_departement':     '',
         'lieu_execution':       '',
-        'dateparution':         updated_date or date.today().isoformat(),
+        'dateparution':         updated_date or utc_now().date().isoformat(),
         'datelimitereponse':    '',
         'urlgravure':           link_href,
         'donnees':              None,
@@ -662,7 +664,7 @@ def fetch_place_es_records() -> list[dict]:
         return []
 
     since = _get_last_fetch_date()
-    days_since = (date.today() - since).days
+    days_since = (utc_now().date() - since).days
     logger.info("PLACE_ES : fetch depuis %s (%d jours)", since.isoformat(), days_since)
 
     all_records: list[dict] = []
@@ -671,7 +673,7 @@ def fetch_place_es_records() -> list[dict]:
         # ── Backfill via archives ZIP ─────────────────────────────────────────
         logger.info("PLACE_ES : mode backfill — téléchargement des archives ZIP")
         months_needed = min((days_since // 28) + 1, 13)  # max 13 mois
-        today = date.today()
+        today = utc_now().date()
         for delta in range(months_needed):
             year = today.year
             month = today.month - delta

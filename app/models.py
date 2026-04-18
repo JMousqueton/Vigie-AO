@@ -3,6 +3,8 @@ from flask_login import UserMixin
 from datetime import datetime
 import json
 
+from app.utils import utc_now
+
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
@@ -104,8 +106,10 @@ class DossierCache(db.Model):
     @property
     def jours_restants(self):
         if self.datelimitereponse:
-            delta = self.datelimitereponse - datetime.utcnow().date()
-            return delta.days
+            # Use _today if pre-set by the route (avoids one datetime call per
+            # dossier when iterating a large list); fall back to utc_now().date().
+            today = getattr(self, '_today', None) or utc_now().date()
+            return (self.datelimitereponse - today).days
         return None
 
     @property
