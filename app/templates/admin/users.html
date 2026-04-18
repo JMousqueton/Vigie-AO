@@ -368,78 +368,165 @@
       <h2>Mots-clés</h2>
     </div>
     <div class="card-body">
-      <form method="post" action="{{ url_for('admin.save_keywords') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-        <p style="color:var(--text-muted); font-size:13px; margin:0 0 20px;">
-          Un mot-clé par ligne. Les mots-clés de recherche déclenchent la collecte
-          depuis l'API BOAMP (<code>objet like "%mot%"</code>). Les mots-clés de
-          scoring déterminent le score de pertinence affiché sur chaque dossier (BOAMP, TED, PLACE_ES).
-          <br>Les modifications prennent effet au prochain refresh.
-        </p>
+      <p style="color:var(--text-muted); font-size:13px; margin:0 0 16px;">
+        Un mot-clé par ligne. Les mots-clés <strong>globaux</strong> s'appliquent à toutes les sources et tous les pays.
+        Les mots-clés <strong>par pays</strong> s'ajoutent aux globaux pour les dossiers de ce pays (BOAMP, TED, PLACE_ES).
+        <br>Les modifications prennent effet au prochain refresh.
+      </p>
 
-        <div class="keywords-grid">
-
-          <div class="keyword-section">
-            <label class="keyword-label">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              Mots-clés de recherche
-              <span class="kw-hint">Cherchés dans le champ <code>objet</code></span>
-            </label>
-            <textarea name="kw_search" class="form-control mono kw-textarea"
-                      rows="14" spellcheck="false">{{ kw_search }}</textarea>
-          </div>
-
-          <div class="keyword-section">
-            <label class="keyword-label">
-              <i class="fa-solid fa-star" style="color:var(--accent-orange)"></i>
-              Score HAUTE pertinence
-              <span class="kw-hint">+20 pts par mot trouvé</span>
-            </label>
-            <textarea name="kw_haute" class="form-control mono kw-textarea"
-                      rows="6" spellcheck="false">{{ kw_haute }}</textarea>
-
-            <label class="keyword-label" style="margin-top:16px;">
-              <i class="fa-solid fa-star-half-stroke" style="color:var(--accent-blue)"></i>
-              Score MOYENNE pertinence
-              <span class="kw-hint">+10 pts par mot trouvé</span>
-            </label>
-            <textarea name="kw_moyenne" class="form-control mono kw-textarea"
-                      rows="6" spellcheck="false">{{ kw_moyenne }}</textarea>
-
-            <label class="keyword-label" style="margin-top:16px;">
-              <i class="fa-regular fa-star" style="color:var(--text-muted)"></i>
-              Score CONTEXTE
-              <span class="kw-hint">+5 pts par mot trouvé</span>
-            </label>
-            <textarea name="kw_contexte" class="form-control mono kw-textarea"
-                      rows="8" spellcheck="false">{{ kw_contexte }}</textarea>
-          </div>
-
-        </div>
-
-        <div class="keyword-section" style="margin-top:24px; border-top:1px solid var(--border); padding-top:20px;">
-          <label class="keyword-label">
-            <i class="fa-solid fa-ban" style="color:var(--accent-red, #ef4444)"></i>
-            Mots-clés d'exclusion
-            <span class="kw-hint">Un dossier dont l'objet contient l'un de ces mots est masqué du dashboard</span>
-          </label>
-          <textarea name="kw_exclude" class="form-control mono kw-textarea"
-                    rows="5" spellcheck="false">{{ kw_exclude }}</textarea>
-        </div>
-
-        <div style="margin-top:20px; display:flex; gap:12px; align-items:center;">
-          <button type="submit" class="btn btn-primary">
-            <i class="fa-solid fa-floppy-disk"></i> Enregistrer les mots-clés
+      <!-- Sous-onglets : Global + par pays -->
+      <div class="kw-country-tabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; border-bottom:2px solid var(--border); padding-bottom:8px;">
+        <button type="button" class="kw-country-tab active" data-kw-panel="kw-panel-global"
+                style="padding:5px 14px; border-radius:6px 6px 0 0; border:1px solid var(--border); background:var(--bg-card); cursor:pointer; font-size:13px;">
+          <i class="fa-solid fa-globe"></i> Global
+        </button>
+        {% for c in kw_countries %}
+        <button type="button" class="kw-country-tab" data-kw-panel="kw-panel-{{ c }}"
+                style="padding:5px 14px; border-radius:6px 6px 0 0; border:1px solid var(--border); background:var(--bg-card); cursor:pointer; font-size:13px;">
+          <img src="https://flagcdn.com/w20/{{ c | lower }}.png" style="height:12px; vertical-align:middle; margin-right:4px;">{{ c }}
+        </button>
+        {% endfor %}
+        <!-- Ajouter un pays -->
+        <div style="position:relative; display:inline-block;">
+          <button type="button" id="kw-add-country-btn"
+                  style="padding:5px 14px; border-radius:6px 6px 0 0; border:1px dashed var(--border); background:transparent; cursor:pointer; font-size:13px; color:var(--text-muted);">
+            <i class="fa-solid fa-plus"></i> Pays
           </button>
-          <span style="color:var(--text-muted); font-size:12px;">
-            Dernier refresh : {% if last_fetched %}{{ last_fetched.strftime('%d/%m/%Y à %H:%M') }}{% else %}jamais{% endif %}
-          </span>
+          <div id="kw-add-country-dropdown" style="display:none; position:absolute; top:100%; left:0; z-index:200; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.15); min-width:160px; padding:6px 0;">
+            {% set all_countries = [('FR','France'),('BE','Belgique'),('CH','Suisse'),('LU','Luxembourg'),
+                                    ('DE','Allemagne'),('ES','Espagne'),('IT','Italie'),('NL','Pays-Bas'),
+                                    ('PT','Portugal'),('AT','Autriche'),('PL','Pologne'),('SE','Suède'),
+                                    ('DK','Danemark'),('FI','Finlande'),('NO','Norvège'),('GB','Royaume-Uni'),('IE','Irlande')] %}
+            {% for code, name in all_countries %}
+              {% if code not in kw_countries %}
+              <a href="#" class="kw-add-country-item" data-country="{{ code }}"
+                 style="display:block; padding:6px 14px; font-size:13px; text-decoration:none; color:var(--text);">
+                <img src="https://flagcdn.com/w20/{{ code | lower }}.png" style="height:12px; vertical-align:middle; margin-right:6px;">{{ name }}
+              </a>
+              {% endif %}
+            {% endfor %}
+          </div>
         </div>
-      </form>
+      </div>
+
+      <!-- Panel Global -->
+      <div class="kw-country-panel" id="kw-panel-global">
+        <form method="post" action="{{ url_for('admin.save_keywords') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          {% include 'admin/_kw_form_fields.html' with context %}
+          <div style="margin-top:20px; display:flex; gap:12px; align-items:center;">
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-floppy-disk"></i> Enregistrer les mots-clés globaux
+            </button>
+            <span style="color:var(--text-muted); font-size:12px;">
+              Dernier refresh : {% if last_fetched %}{{ last_fetched.strftime('%d/%m/%Y à %H:%M') }}{% else %}jamais{% endif %}
+            </span>
+          </div>
+        </form>
+      </div>
+
+      <!-- Panels par pays -->
+      {% for c in kw_countries %}
+      {% set cd = kw_country_data[c] %}
+      <div class="kw-country-panel" id="kw-panel-{{ c }}" style="display:none;">
+        <div style="margin-bottom:14px; padding:10px 14px; background:var(--bg-alt, var(--bg)); border-radius:6px; border:1px solid var(--border); font-size:13px; color:var(--text-muted);">
+          <img src="https://flagcdn.com/w20/{{ c | lower }}.png" style="height:14px; vertical-align:middle; margin-right:6px;">
+          <strong>Mots-clés additionnels — {{ c }}</strong> · Ces mots-clés s'ajoutent aux globaux pour tous les dossiers de ce pays.
+        </div>
+        <form method="post" action="{{ url_for('admin.save_country_keywords', country=c) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          {% set kw_search   = cd.search   | join('\n') %}
+          {% set kw_haute    = cd.haute    | join('\n') %}
+          {% set kw_moyenne  = cd.moyenne  | join('\n') %}
+          {% set kw_contexte = cd.contexte | join('\n') %}
+          {% set kw_exclude  = cd.exclude  | join('\n') %}
+          {% include 'admin/_kw_form_fields.html' with context %}
+          <div style="margin-top:20px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-floppy-disk"></i> Enregistrer les mots-clés {{ c }}
+            </button>
+          </div>
+        </form>
+        <form method="post" action="{{ url_for('admin.delete_country_keywords', country=c) }}"
+              onsubmit="return confirm('Supprimer tous les mots-clés spécifiques à {{ c }} ?');"
+              style="margin-top:8px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="btn btn-sm btn-danger">
+            <i class="fa-solid fa-trash"></i> Supprimer les mots-clés spécifiques {{ c }}
+          </button>
+        </form>
+      </div>
+      {% endfor %}
+
+      <!-- Panel nouveau pays (caché, affiché dynamiquement) -->
+      <div class="kw-country-panel" id="kw-panel-new" style="display:none;">
+        <div style="margin-bottom:14px; padding:10px 14px; background:var(--bg-alt, var(--bg)); border-radius:6px; border:1px solid var(--border); font-size:13px; color:var(--text-muted);">
+          <img id="kw-new-flag" src="" style="height:14px; vertical-align:middle; margin-right:6px; display:none;">
+          <strong>Mots-clés additionnels — <span id="kw-new-country-label">…</span></strong> · Ces mots-clés s'ajoutent aux globaux pour tous les dossiers de ce pays.
+        </div>
+        <form method="post" id="kw-new-form" action="">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          {% set kw_search = '' %}{% set kw_haute = '' %}{% set kw_moyenne = '' %}{% set kw_contexte = '' %}{% set kw_exclude = '' %}
+          {% include 'admin/_kw_form_fields.html' with context %}
+          <div style="margin-top:20px;">
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-floppy-disk"></i> Enregistrer les mots-clés <span id="kw-new-country-btn-label">…</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
     </div>
   </div>
   </div>{# /tab-panel keywords #}
+
+  <script>
+  (function(){
+    // Sous-onglets mots-clés pays
+    document.querySelectorAll('.kw-country-tab').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        document.querySelectorAll('.kw-country-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.kw-country-panel').forEach(p => p.style.display = 'none');
+        btn.classList.add('active');
+        var panel = document.getElementById(btn.dataset.kwPanel);
+        if(panel) panel.style.display = '';
+      });
+    });
+
+    // Dropdown ajouter un pays
+    var addBtn = document.getElementById('kw-add-country-btn');
+    var addDd  = document.getElementById('kw-add-country-dropdown');
+    if(addBtn) addBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      addDd.style.display = addDd.style.display === 'none' ? 'block' : 'none';
+    });
+    document.addEventListener('click', function(){ if(addDd) addDd.style.display='none'; });
+
+    document.querySelectorAll('.kw-add-country-item').forEach(function(a){
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        var code = a.dataset.country;
+        // Show new-country panel
+        document.querySelectorAll('.kw-country-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.kw-country-panel').forEach(p => p.style.display = 'none');
+        document.getElementById('kw-panel-new').style.display = '';
+        document.getElementById('kw-new-country-label').textContent = code;
+        document.getElementById('kw-new-country-btn-label').textContent = code;
+        document.getElementById('kw-new-form').action = '/admin/keywords/country/' + code;
+        var flag = document.getElementById('kw-new-flag');
+        flag.src = 'https://flagcdn.com/w20/' + code.toLowerCase() + '.png';
+        flag.style.display = '';
+        addDd.style.display = 'none';
+      });
+    });
+
+    // Style onglet actif
+    var style = document.createElement('style');
+    style.textContent = '.kw-country-tab.active { background: var(--accent-blue, #2563eb) !important; color: #fff !important; border-color: var(--accent-blue, #2563eb) !important; }';
+    document.head.appendChild(style);
+  })();
+  </script>
 
   <!-- ─── TAB : Logs alertes -->
   <div class="tab-panel" id="tab-logs">

@@ -10,13 +10,15 @@ def calculate_score(
     objet_marche: str = '',
     descripteur_libelle: str = '',
     famille_denomination: str = '',
+    country: str | None = None,
 ) -> tuple[int, list[str]]:
     """
     Calcule le score de pertinence (0-100) et retourne les mots-clés matchés.
+    Si country est fourni, les mots-clés spécifiques au pays sont ajoutés aux globaux.
     """
     try:
         from app.services.keywords import get_scoring_keywords
-        kws = get_scoring_keywords()
+        kws = get_scoring_keywords(country=country)
     except Exception:
         # Fallback inline si le service n'est pas disponible (hors contexte app)
         kws = {
@@ -46,6 +48,7 @@ def explain_score(
     objet_marche: str = '',
     descripteur_libelle: str = '',
     famille_denomination: str = '',
+    country: str | None = None,
 ) -> list[dict]:
     """
     Retourne la liste détaillée des déclencheurs avec leur champ source et
@@ -63,7 +66,7 @@ def explain_score(
     """
     try:
         from app.services.keywords import get_scoring_keywords
-        kws = get_scoring_keywords()
+        kws = get_scoring_keywords(country=country)
     except Exception:
         kws = {
             'haute':    ['sauvegarde', 'backup', 'ransomware', 'PRA', 'PCA'],
@@ -131,6 +134,7 @@ def rescore_all_dossiers() -> tuple[int, int]:
             objet_marche=dossier.objet_marche or '',
             descripteur_libelle=dossier.descripteur_libelle or '',
             famille_denomination=dossier.famille_denomination or '',
+            country=dossier.country or None,
         )
         new_mots_json = json.dumps(new_mots, ensure_ascii=False)
 

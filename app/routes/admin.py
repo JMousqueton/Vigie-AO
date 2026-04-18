@@ -90,7 +90,10 @@ def _db_appconfig_count() -> int:
 
 def _admin_context(**extra):
     """Données communes à toutes les vues admin."""
-    from app.services.keywords import get_search_keywords, get_scoring_keywords, get_exclude_keywords
+    from app.services.keywords import (
+        get_search_keywords, get_scoring_keywords, get_exclude_keywords,
+        list_keyword_countries, get_country_keywords,
+    )
     kws = get_scoring_keywords()
 
     # Stats par source pour le tab Sources
@@ -121,12 +124,17 @@ def _admin_context(**extra):
         recent_logs=AlertLog.query.order_by(AlertLog.sent_at.desc()).limit(20).all(),
         users=User.query.order_by(User.created_at.desc()).all(),
         sources_info=sources_info,
-        # Mots-clés (pour le tab Keywords)
+        # Mots-clés globaux (pour le tab Keywords)
         kw_search='\n'.join(get_search_keywords()),
         kw_haute='\n'.join(kws.get('haute', [])),
         kw_moyenne='\n'.join(kws.get('moyenne', [])),
         kw_contexte='\n'.join(kws.get('contexte', [])),
         kw_exclude='\n'.join(get_exclude_keywords()),
+        # Mots-clés par pays
+        kw_countries=list_keyword_countries(),
+        kw_country_data={
+            c: get_country_keywords(c) for c in list_keyword_countries()
+        },
         # Base de données
         db_boamp=DossierCache.query.filter_by(source='BOAMP').count(),
         db_ted=DossierCache.query.filter_by(source='TED').count(),
@@ -510,3 +518,62 @@ def delete_source(source):
     current_app.logger.warning("Suppression cache %s (%d entrées) par %s",
                                source, count, current_user.email)
     return redirect(url_for('admin.index', tab='sources'))
+
+
+# ─── Mots-clés par pays ───────────────────────────────────────────────────────
+
+_VALID_COUNTRIES = {
+    'FR', 'BE', 'CH', 'LU', 'DE', 'ES', 'IT', 'NL', 'PT',
+    'AT', 'PL', 'SE', 'DK', 'FI', 'NO', 'GB', 'IE',
+}
+
+
+@admin_bp.route('/keywords/country/<country>', methods=['POST'])
+@login_required
+@admin_required
+def save_country_keywords(country):
+    country = country.upper()
+    if country not in _VALID_COUNTRIES:
+        flash(f'Pays inconnu : {country}', 'danger')
+        return redirect(url_for('admin.index', tab='keywords'))
+
+    from app.services.keywords import save_country_keywords as _save
+
+    def parse(field):
+        return [l.strip() for l in request.form.get(field, '').splitlines() if l.strip()]
+
+    _save(
+        country=country,
+        search=parse('kw_search'),
+        haute=parse('kw_haute'),
+        moyenne=parse('kw_moyenne'),
+        contexte=parse('kw_contexte'),
+        exclude=parse('kw_exclude'),
+        updated_by=current_user.id,
+    )
+
+    try:
+        from app.services.scoring import rescore_all_dossiers
+        nb_updated, nb_total = rescore_all_dossiers()
+        flash(f'Mots-clés {country} enregistrés — {nb_updated}/{nb_total} dossiers rescorés.', 'success')
+    except Exception as exc:
+        current_app.logger.error("Erreur rescore après save pays : %s", exc)
+        flash(f'Mots-clés {country} enregistrés.', 'success')
+
+    return redirect(url_for('admin.index', tab='keywords'))
+
+
+@admin_bp.route('/keywords/country/<country>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_country_keywords(country):
+    country = country.upper()
+    if country not in _VALID_COUNTRIES:
+        flash(f'Pays inconnu : {country}', 'danger')
+        return redirect(url_for('admin.index', tab='keywords'))
+
+    from app.services.keywords import delete_country_keywords as _delete
+    count = _delete(country)
+    flash(f'Mots-clés spécifiques {country} supprimés ({count} clés).', 'warning')
+    current_app.logger.info("Mots-clés pays %s supprimés par %s", country, current_user.email)
+    return redirect(url_for('admin.index', tab='keywords'))

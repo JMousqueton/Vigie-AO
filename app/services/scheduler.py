@@ -61,6 +61,7 @@ def refresh_boamp_cache(app=None):
                     objet_marche=ref_data.get('objet_marche', ''),
                     descripteur_libelle=ref_data.get('descripteur_libelle', ''),
                     famille_denomination=ref_data.get('famille_denomination', ''),
+                    country=ref_data.get('country') or None,
                 )
 
                 # Parsing de la date de dernière activité

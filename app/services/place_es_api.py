@@ -543,10 +543,11 @@ def compute_place_es_score(record: dict) -> tuple[int, list[str]]:
     Calcule le score de pertinence Cohesity pour un avis PLACE_ES.
     Même logique que compute_ted_score() dans ted_api.py.
     """
+    country = (record.get('country') or '').upper() or None
     try:
         from app.services.keywords import get_scoring_keywords, get_search_keywords
-        kws = get_scoring_keywords()
-        search_kws = get_search_keywords()
+        kws = get_scoring_keywords(country=country)
+        search_kws = get_search_keywords(country=country)
     except Exception:
         kws = {
             'haute':    ['sauvegarde', 'backup', 'ransomware'],
@@ -594,10 +595,11 @@ def explain_place_es_score(record: dict) -> list[dict]:
     """
     Retourne le détail des déclencheurs (même format que explain_ted_score).
     """
+    country = (record.get('country') or '').upper() or None
     try:
         from app.services.keywords import get_scoring_keywords, get_search_keywords
-        kws = get_scoring_keywords()
-        search_kws = get_search_keywords()
+        kws = get_scoring_keywords(country=country)
+        search_kws = get_search_keywords(country=country)
     except Exception:
         kws = {'haute': [], 'moyenne': [], 'contexte': []}
         search_kws = []

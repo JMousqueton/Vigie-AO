@@ -256,16 +256,19 @@ def compute_ted_score(record: dict) -> tuple[int, list[str]]:
     Déclencheurs possibles :
       - Mot-clé de scoring trouvé dans le titre   → poids identique à BOAMP
       - Mot-clé de recherche (non scoring) dans le titre → ajout sans points sup.
-      - Code CPV Cohesity présent dans l'avis     → +10 pts chacun, préfixé "CPV"
+      - Code CPV Cohesity présent dans l'avis     → pondération hiérarchisée
 
     Le résultat est stocké dans mots_cles_matches exactement comme pour BOAMP,
     avec les entrées CPV préfixées "CPV XXXXXXXX — label" pour que le template
     puisse les distinguer.
+
+    Les mots-clés globaux + spécifiques au pays du dossier sont combinés.
     """
+    country = (record.get('country') or '').upper() or None
     try:
         from app.services.keywords import get_scoring_keywords, get_search_keywords
-        kws = get_scoring_keywords()
-        search_kws = get_search_keywords()
+        kws = get_scoring_keywords(country=country)
+        search_kws = get_search_keywords(country=country)
     except Exception:
         kws = {
             'haute':    ['sauvegarde', 'backup', 'ransomware', 'PRA', 'PCA'],
@@ -341,10 +344,11 @@ def explain_ted_score(record: dict) -> list[dict]:
         'weight'   : int,
       }
     """
+    country = (record.get('country') or '').upper() or None
     try:
         from app.services.keywords import get_scoring_keywords, get_search_keywords
-        kws = get_scoring_keywords()
-        search_kws = get_search_keywords()
+        kws = get_scoring_keywords(country=country)
+        search_kws = get_search_keywords(country=country)
     except Exception:
         kws = {'haute': [], 'moyenne': [], 'contexte': []}
         search_kws = []

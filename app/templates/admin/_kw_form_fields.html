@@ -1,0 +1,49 @@
+<div class="keywords-grid">
+
+  <div class="keyword-section">
+    <label class="keyword-label">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      Mots-clés de recherche
+      <span class="kw-hint">Un par ligne — déclenchent la collecte BOAMP</span>
+    </label>
+    <textarea name="kw_search" class="form-control mono kw-textarea"
+              rows="14" spellcheck="false">{{ kw_search }}</textarea>
+  </div>
+
+  <div class="keyword-section">
+    <label class="keyword-label">
+      <i class="fa-solid fa-star" style="color:var(--accent-orange)"></i>
+      Score HAUTE pertinence
+      <span class="kw-hint">+20 pts par mot trouvé</span>
+    </label>
+    <textarea name="kw_haute" class="form-control mono kw-textarea"
+              rows="6" spellcheck="false">{{ kw_haute }}</textarea>
+
+    <label class="keyword-label" style="margin-top:16px;">
+      <i class="fa-solid fa-star-half-stroke" style="color:var(--accent-blue)"></i>
+      Score MOYENNE pertinence
+      <span class="kw-hint">+10 pts par mot trouvé</span>
+    </label>
+    <textarea name="kw_moyenne" class="form-control mono kw-textarea"
+              rows="6" spellcheck="false">{{ kw_moyenne }}</textarea>
+
+    <label class="keyword-label" style="margin-top:16px;">
+      <i class="fa-regular fa-star" style="color:var(--text-muted)"></i>
+      Score CONTEXTE
+      <span class="kw-hint">+5 pts par mot trouvé</span>
+    </label>
+    <textarea name="kw_contexte" class="form-control mono kw-textarea"
+              rows="8" spellcheck="false">{{ kw_contexte }}</textarea>
+  </div>
+
+</div>
+
+<div class="keyword-section" style="margin-top:24px; border-top:1px solid var(--border); padding-top:20px;">
+  <label class="keyword-label">
+    <i class="fa-solid fa-ban" style="color:var(--accent-red, #ef4444)"></i>
+    Mots-clés d'exclusion
+    <span class="kw-hint">Un dossier dont l'objet contient l'un de ces mots est masqué du dashboard</span>
+  </label>
+  <textarea name="kw_exclude" class="form-control mono kw-textarea"
+            rows="5" spellcheck="false">{{ kw_exclude }}</textarea>
+</div>
