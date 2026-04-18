@@ -177,17 +177,19 @@ function togglePanel(panelId) {
 }
 window.togglePanel = togglePanel;
 
-// Ouvrir le premier panel par défaut
+// Ouvrir le premier panel par défaut + le panel attribution s'il existe
 document.addEventListener('DOMContentLoaded', () => {
-  const firstPanel = document.getElementById('panel-initial');
-  if (firstPanel) {
-    firstPanel.classList.add('open');
-    const header = firstPanel.previousElementSibling;
-    if (header) {
-      const toggle = header.querySelector('.tl-v-toggle');
-      if (toggle) toggle.classList.add('open');
+  ['panel-initial', 'panel-attribution'].forEach(id => {
+    const panel = document.getElementById(id);
+    if (panel) {
+      panel.classList.add('open');
+      const header = panel.previousElementSibling;
+      if (header) {
+        const toggle = header.querySelector('.tl-v-toggle');
+        if (toggle) toggle.classList.add('open');
+      }
     }
-  }
+  });
 });
 
 
