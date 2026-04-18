@@ -39,7 +39,7 @@
       {% if dossier.is_urgent %}
         <span class="badge-urgent blink"><i class="fa-solid fa-clock"></i> {{ _('URGENT') }}</span>
       {% endif %}
-      {% if dossier.is_expired %}
+      {% if dossier.is_expired and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
         <span class="badge-expired-tag"><i class="fa-solid fa-ban"></i> {{ _('EXPIRÉ') }}</span>
       {% endif %}
     </div>
@@ -143,7 +143,7 @@
                   <span class="field-label">{{ _('Date parution') }}</span>
                   <span class="field-value">{{ dossier.dateparution | format_date }}</span>
                 </div>
-                {% if dossier.datelimitereponse %}
+                {% if dossier.datelimitereponse and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
                 <div class="field-item">
                   <span class="field-label">{{ _('Limite réponse') }}</span>
                   <span class="field-value {{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
@@ -495,7 +495,7 @@
             <dt>{{ _('Publication') }}</dt>
             <dd>{{ dossier.dateparution | format_date }}</dd>
 
-            {% if dossier.datelimitereponse %}
+            {% if dossier.datelimitereponse and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
             <dt>{{ _('Limite réponse') }}</dt>
             <dd class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
               {{ dossier.datelimitereponse | format_date }}

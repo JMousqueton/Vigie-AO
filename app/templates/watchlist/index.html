@@ -47,7 +47,7 @@
           <p class="wl-acheteur"><i class="fa-solid fa-building-columns"></i> {{ dossier.acheteur_nom or '—' }}</p>
           <p class="wl-objet">{{ dossier.objet_marche | truncate(140) if dossier.objet_marche else '—' }}</p>
 
-          {% if dossier.datelimitereponse %}
+          {% if dossier.datelimitereponse and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
           <p class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else 'text-muted') }}">
             <i class="fa-solid fa-calendar-xmark"></i>
             Limite : {{ dossier.datelimitereponse | format_date }}

@@ -216,7 +216,7 @@
     <article class="dossier-card
       {% if dossier.has_attribution %}card-attrib{% elif dossier.has_rectificatif %}card-rectif{% else %}card-initial{% endif %}
       {% if dossier.is_urgent %}card-urgent{% endif %}
-      {% if dossier.is_expired %}card-expired{% endif %}
+      {% if dossier.is_expired and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}card-expired{% endif %}
       fade-up" data-idweb="{{ dossier.idweb }}">
 
       {% if dossier.idweb not in seen_ids %}
@@ -355,7 +355,7 @@
       <div class="card-footer">
         <div class="card-dates">
           <span><i class="fa-solid fa-calendar-plus"></i> {{ _('Paru :') }} {{ dossier.dateparution | format_date }}</span>
-          {% if dossier.datelimitereponse %}
+          {% if dossier.datelimitereponse and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
           <span class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
             <i class="fa-solid fa-calendar-xmark"></i>
             {{ _('Limite :') }} {{ dossier.datelimitereponse | format_date }}

@@ -115,7 +115,7 @@
           <span class="field-label">Date de parution</span>
           <span class="field-value">{{ dossier.dateparution | format_date }}</span>
         </div>
-        {% if dossier.datelimitereponse %}
+        {% if dossier.datelimitereponse and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
         <div class="field-item">
           <span class="field-label">Date limite de réponse</span>
           <span class="field-value {{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
