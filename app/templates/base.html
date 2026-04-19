@@ -50,38 +50,67 @@
 
     <!-- Nav principale -->
     {% if current_user.is_authenticated %}
-    <nav class="main-nav">
+    <nav class="main-nav" id="mainNav">
+      <!-- Always visible -->
       <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
         <i class="fa-solid fa-gauge-high"></i> {{ _('Dashboard') }}
       </a>
-      <button class="nav-link" onclick="openKeywordsModal()" type="button">
-        <i class="fa-solid fa-tags"></i>
-        {% if current_user.country == 'FR' or not current_user.country %}{{ _('Mots-clés') }}{% else %}{{ _('Keywords') }}{% endif %}
+
+      <!-- Burger toggle (small screens only) -->
+      <button class="nav-burger" id="navBurgerBtn" type="button" onclick="toggleBurgerMenu()" aria-label="Menu">
+        <i class="fa-solid fa-bars" id="navBurgerIcon"></i>
       </button>
-      <a href="{{ url_for('watchlist.index') }}" class="nav-link {% if request.blueprint == 'watchlist' %}active{% endif %}">
-        <i class="fa-solid fa-star"></i> {{ _('Watchlist') }}
-      </a>
-      {% if current_user.country == 'FR' or not current_user.country %}
-      <a href="{{ url_for('reminders.index') }}" class="nav-link nav-link-badge {% if request.blueprint == 'reminders' %}active{% endif %}">
-        <i class="fa-solid fa-thumbtack"></i> {{ _('Pense-bêtes') }}
-        {% if reminders_badge > 0 %}
-        <span class="nav-badge">{{ reminders_badge }}</span>
+
+      <!-- Collapsible items -->
+      <div class="nav-collapsible" id="navCollapsible">
+        <button class="nav-link" onclick="openKeywordsModal();closeBurgerMenu()" type="button">
+          <i class="fa-solid fa-tags"></i>
+          {% if current_user.country == 'FR' or not current_user.country %}{{ _('Mots-clés') }}{% else %}{{ _('Keywords') }}{% endif %}
+        </button>
+        <a href="{{ url_for('watchlist.index') }}" class="nav-link {% if request.blueprint == 'watchlist' %}active{% endif %}">
+          <i class="fa-solid fa-star"></i> {{ _('Watchlist') }}
+        </a>
+        {% if current_user.country == 'FR' or not current_user.country %}
+        <a href="{{ url_for('reminders.index') }}" class="nav-link nav-link-badge {% if request.blueprint == 'reminders' %}active{% endif %}">
+          <i class="fa-solid fa-thumbtack"></i> {{ _('Pense-bêtes') }}
+          {% if reminders_badge > 0 %}
+          <span class="nav-badge">{{ reminders_badge }}</span>
+          {% endif %}
+        </a>
         {% endif %}
-      </a>
-      {% endif %}
-      {% if current_user.is_admin %}
-      <a href="{{ url_for('admin.index') }}" class="nav-link {% if request.blueprint == 'admin' %}active{% endif %}">
-        <i class="fa-solid fa-gear"></i> {{ _('Admin') }}
-      </a>
-      {% endif %}
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('admin.index') }}" class="nav-link {% if request.blueprint == 'admin' %}active{% endif %}">
+          <i class="fa-solid fa-gear"></i> {{ _('Admin') }}
+        </a>
+        {% endif %}
+        {% if current_user.is_supervisor or current_user.is_admin %}
+        <a href="{{ url_for('stats.index') }}" class="nav-link {% if request.blueprint == 'stats' %}active{% endif %}">
+          <i class="fa-solid fa-chart-line"></i> {{ _('Stats') }}
+        </a>
+        {% endif %}
+
+        {% if current_user.is_supervisor or current_user.is_admin %}
+        {% set sup_country = session.get('supervisor_country', current_user.country or 'FR') %}
+        {% set country_names = {'FR':'France','BE':'België / Belgique','CH':'Schweiz / Suisse','LU':'Lëtzebuerg','DE':'Deutschland','ES':'España','IT':'Italia','NL':'Nederland','PT':'Portugal','AT':'Österreich','PL':'Polska','SE':'Sverige','DK':'Danmark','FI':'Suomi','NO':'Norge','GB':'United Kingdom','IE':'Éire / Ireland','EU':'🇪🇺 Europe (tous)'} %}
+        <!-- Country picker — inline in burger on small screens -->
+        <div class="nav-burger-country">
+          <span class="nav-burger-country-label">
+            <i class="fa-solid fa-earth-europe"></i> {{ _('Pays') }}
+          </span>
+          <div class="nav-burger-country-list">
+            {% for code, name in available_countries %}
+            <a href="{{ url_for('main.set_supervisor_country', country=code) }}"
+               class="nav-burger-country-option {% if sup_country == code %}active{% endif %}">
+              {% if code != 'EU' %}<img src="https://flagcdn.com/w20/{{ code | lower }}.png" alt="{{ code }}" class="country-flag">{% endif %}
+              {{ name }}
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
       {% if current_user.is_supervisor or current_user.is_admin %}
-      <a href="{{ url_for('stats.index') }}" class="nav-link {% if request.blueprint == 'stats' %}active{% endif %}">
-        <i class="fa-solid fa-chart-line"></i> {{ _('Stats') }}
-      </a>
-      {% endif %}
-      {% if current_user.is_supervisor or current_user.is_admin %}
-      {% set sup_country = session.get('supervisor_country', current_user.country or 'FR') %}
-      {% set country_names = {'FR':'France','BE':'België / Belgique','CH':'Schweiz / Suisse','LU':'Lëtzebuerg','DE':'Deutschland','ES':'España','IT':'Italia','NL':'Nederland','PT':'Portugal','AT':'Österreich','PL':'Polska','SE':'Sverige','DK':'Danmark','FI':'Suomi','NO':'Norge','GB':'United Kingdom','IE':'Éire / Ireland','EU':'🇪🇺 Europe (tous)'} %}
       <div class="country-picker" id="countryPicker">
         <button class="nav-link country-picker-btn" id="countryPickerBtn" type="button"
                 onclick="toggleCountryPicker()" aria-haspopup="true">
@@ -422,7 +451,23 @@ document.addEventListener('click', function(e) {
   if (picker && !picker.contains(e.target)) {
     document.getElementById('countryPickerDropdown').classList.remove('open');
   }
+  // Close burger menu when clicking outside
+  const nav = document.getElementById('mainNav');
+  if (nav && !nav.contains(e.target)) closeBurgerMenu();
 });
+
+function toggleBurgerMenu() {
+  const col = document.getElementById('navCollapsible');
+  const icon = document.getElementById('navBurgerIcon');
+  const open = col.classList.toggle('open');
+  icon.className = open ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+}
+function closeBurgerMenu() {
+  const col = document.getElementById('navCollapsible');
+  const icon = document.getElementById('navBurgerIcon');
+  col.classList.remove('open');
+  icon.className = 'fa-solid fa-bars';
+}
 </script>
 {% block scripts %}{% endblock %}
 
