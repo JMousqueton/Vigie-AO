@@ -115,7 +115,7 @@ CPV_PREFIX_WEIGHTS: dict[str, tuple[str, int]] = {
 
 # Champs demandés à l'API TED (validés sur l'API v3)
 TED_FIELDS = ['ND', 'TI', 'BT-21-Procedure', 'PD', 'DT', 'DS', 'AU', 'PC', 'NC', 'TD', 'CY', 'RC', 'PR', 'links',
-              'buyer-email', 'organisation-tel-buyer']
+              'buyer-email', 'organisation-tel-buyer', 'DD']
 
 # Types de documents TED → nature
 # TD='2' = contract notice (AO), TD='3' = contract award (attribution)
@@ -550,6 +550,11 @@ def _normalize_ted_record(notice: dict) -> dict:
     tel_raw = notice.get('organisation-tel-buyer') or []
     contact_tel = tel_raw[0] if isinstance(tel_raw, list) and tel_raw else (tel_raw or '')
 
+    # Durée du marché : champ DD = nombre de mois (entier)
+    dd = notice.get('DD')
+    duration_value = str(int(dd)) if dd is not None else None
+    duration_unit  = 'MONTH' if duration_value else None
+
     return {
         'idweb':                f'TED-{nd}',
         'country':              country_iso2,
@@ -572,6 +577,8 @@ def _normalize_ted_record(notice: dict) -> dict:
         'montant':              '',
         '_ted_nd':              nd,
         '_ted_is_attribution':  is_attribution,
+        'duration_value':       duration_value,
+        'duration_unit':        duration_unit,
     }
 
 
@@ -656,3 +663,35 @@ def fetch_ted_records(country_iso2: str = 'FR') -> list[dict]:
     logger.info("TED [%s] : %d avis uniques récupérés (%d requête(s))",
                 country_iso2, len(unique), len(queries))
     return unique
+
+
+def fetch_ted_duration(idweb: str) -> tuple:
+    """
+    Récupère la durée du marché depuis l'API TED pour un idweb donné (ex. 'TED-2025/S 024-069846').
+    Utilisé comme fallback quand duree_marche_valeur n'est pas encore en base.
+    Retourne (duration_value, duration_unit) ou (None, None).
+    """
+    if not idweb.startswith('TED-'):
+        return None, None
+    nd = idweb[4:]
+    try:
+        api_key = _get_api_key()
+        headers = {'Content-Type': 'application/json'}
+        if api_key:
+            headers['TED-API-Key'] = api_key
+        resp = requests.post(
+            TED_SEARCH_URL,
+            json={'query': f'ND = {nd}', 'fields': ['ND', 'DD'], 'page': 1, 'limit': 1},
+            headers=headers,
+            timeout=10,
+            verify=_SSL_VERIFY,
+        )
+        resp.raise_for_status()
+        notices = resp.json().get('notices', [])
+        if notices:
+            dd = notices[0].get('DD')
+            if dd is not None:
+                return str(int(dd)), 'MONTH'
+    except Exception:
+        pass
+    return None, None

@@ -265,6 +265,8 @@ def refresh_ted_cache(app=None):
                         existing.fetched_at               = utc_now()
                         existing.source                   = 'TED'
                         existing.country                  = rec_country
+                        existing.duree_marche_valeur      = rec.get('duration_value')
+                        existing.duree_marche_unite       = rec.get('duration_unit')
                         updated += 1
                     else:
                         db.session.add(DossierCache(
@@ -292,6 +294,8 @@ def refresh_ted_cache(app=None):
                             is_new=True,
                             source='TED',
                             country=rec_country,
+                            duree_marche_valeur=rec.get('duration_value'),
+                            duree_marche_unite=rec.get('duration_unit'),
                         ))
                         created += 1
 
@@ -477,73 +481,88 @@ def link_boamp_attributions(app=None):
         from app import db
         import json
 
-        # ── 1. Toutes les attributions autonomes (liées ou non)
-        attributions = DossierCache.query.filter(
-            DossierCache.source == 'BOAMP',
-            DossierCache.nature == 'ATTRIBUTION',
-            DossierCache.reference_boamp_initial == DossierCache.idweb,
-        ).all()
-
-        if not attributions:
-            return
-
-        # ── 2. Index des appels d'offres BOAMP par acheteur_norm
-        appels = DossierCache.query.filter(
-            DossierCache.source == 'BOAMP',
-            DossierCache.nature == 'APPEL_OFFRE',
-            DossierCache.is_duplicate == False,
-        ).all()
-
-        appel_index: dict[str, list[tuple[str, DossierCache]]] = {}
-        for a in appels:
-            acheteur_norm = _normalize(a.acheteur_nom)
-            objet_norm = _normalize(a.objet_marche)
-            if acheteur_norm and objet_norm:
-                appel_index.setdefault(acheteur_norm, []).append((objet_norm, a))
-
         linked = relinked = 0
-        for attr in attributions:
-            attr_acheteur = _normalize(attr.acheteur_nom)
-            attr_objet = _normalize(attr.objet_marche)
-            if not attr_acheteur or not attr_objet:
-                continue
 
-            candidates = appel_index.get(attr_acheteur, [])
-            appel = None
-            for appel_objet, a in candidates:
-                if (appel_objet == attr_objet
-                        or appel_objet in attr_objet
-                        or attr_objet in appel_objet):
-                    appel = a
-                    break
-
-            if not appel:
-                continue
-
-            # Sauter si déjà correctement lié (attribution_json présent)
+        def _apply_link(attr, appel):
+            nonlocal linked, relinked
             if attr.is_duplicate and appel.attribution_json:
-                continue
-
-            # Construire le raw record à stocker sur l'APPEL_OFFRE
+                return  # déjà lié
             raw_record = json.loads(attr.attribution_json) if attr.attribution_json else {}
             raw_record['dateparution'] = attr.dateparution.isoformat() if attr.dateparution else raw_record.get('dateparution', '')
-            raw_record['urlgravure'] = attr.urlgravure or raw_record.get('urlgravure', '')
+            raw_record['urlgravure']   = attr.urlgravure or raw_record.get('urlgravure', '')
             raw_record['reference_boamp'] = attr.idweb
-            attribution_json = json.dumps(raw_record, ensure_ascii=False)
-
-            appel.has_attribution = True
-            appel.attribution_json = attribution_json
+            appel.has_attribution      = True
+            appel.attribution_json     = json.dumps(raw_record, ensure_ascii=False)
             if attr.dateparution and (
                 appel.date_derniere_activite is None
                 or attr.dateparution > appel.date_derniere_activite
             ):
                 appel.date_derniere_activite = attr.dateparution
-
             if attr.is_duplicate:
-                relinked += 1  # re-lien d'un orphelin
+                relinked += 1
             else:
                 attr.is_duplicate = True
                 linked += 1
+
+        # ── Chemin A : référence directe ─────────────────────────────────────
+        # L'ATTRIBUTION porte déjà reference_boamp_initial = idweb de l'APPEL_OFFRE.
+        # _extract_reference a su retrouver le parent → lien direct sans heuristique.
+        direct_attrs = DossierCache.query.filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.nature == 'ATTRIBUTION',
+            DossierCache.reference_boamp_initial != DossierCache.idweb,
+        ).all()
+
+        appel_by_idweb: dict[str, DossierCache] = {}
+        for attr in direct_attrs:
+            parent_id = attr.reference_boamp_initial
+            if not parent_id:
+                continue
+            if parent_id not in appel_by_idweb:
+                appel = DossierCache.query.filter_by(
+                    idweb=parent_id, source='BOAMP', nature='APPEL_OFFRE',
+                ).first()
+                appel_by_idweb[parent_id] = appel  # None si introuvable
+            appel = appel_by_idweb.get(parent_id)
+            if appel:
+                _apply_link(attr, appel)
+
+        # ── Chemin B : heuristique acheteur + objet ───────────────────────────
+        # Pour les attributions auto-référencées (reference_boamp_initial == idweb),
+        # le parent n'est pas connu → correspondance floue.
+        fuzzy_attrs = DossierCache.query.filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.nature == 'ATTRIBUTION',
+            DossierCache.reference_boamp_initial == DossierCache.idweb,
+        ).all()
+
+        if fuzzy_attrs:
+            appels = DossierCache.query.filter(
+                DossierCache.source == 'BOAMP',
+                DossierCache.nature == 'APPEL_OFFRE',
+                DossierCache.is_duplicate == False,
+            ).all()
+            appel_index: dict[str, list[tuple[str, DossierCache]]] = {}
+            for a in appels:
+                key = _normalize(a.acheteur_nom)
+                obj = _normalize(a.objet_marche)
+                if key and obj:
+                    appel_index.setdefault(key, []).append((obj, a))
+
+            for attr in fuzzy_attrs:
+                attr_acheteur = _normalize(attr.acheteur_nom)
+                attr_objet    = _normalize(attr.objet_marche)
+                if not attr_acheteur or not attr_objet:
+                    continue
+                appel = None
+                for appel_objet, a in appel_index.get(attr_acheteur, []):
+                    if (appel_objet == attr_objet
+                            or appel_objet in attr_objet
+                            or attr_objet in appel_objet):
+                        appel = a
+                        break
+                if appel:
+                    _apply_link(attr, appel)
 
         if linked or relinked:
             db.session.commit()

@@ -317,6 +317,8 @@ def refresh_ted_cmd(countries, dry_run):
                     existing.fetched_at              = _dt.utcnow()
                     existing.source                  = 'TED'
                     existing.country                 = rec_country
+                    existing.duree_marche_valeur     = rec.get('duration_value')
+                    existing.duree_marche_unite      = rec.get('duration_unit')
                     updated += 1
                 else:
                     import json
@@ -345,6 +347,8 @@ def refresh_ted_cmd(countries, dry_run):
                         is_new=True,
                         source='TED',
                         country=rec_country,
+                        duree_marche_valeur=rec.get('duration_value'),
+                        duree_marche_unite=rec.get('duration_unit'),
                     ))
                     created += 1
 

@@ -456,21 +456,25 @@ def detail(idweb):
 
     # Date de fin de marché suggérée = datelimitereponse + durée (pour les APPEL_OFFRE)
     suggested_reminder_date = None
-    if dossier.datelimitereponse and dossier.source == 'BOAMP' and dossier.nature != 'ATTRIBUTION':
+    if dossier.datelimitereponse and dossier.nature != 'ATTRIBUTION':
         duration_value = dossier.duree_marche_valeur
         duration_unit  = dossier.duree_marche_unite
 
         # Colonnes ajoutées récemment : essayer de résoudre à la volée
         if not duration_value:
-            from app.services.boamp_api import fetch_dossier_duration, extract_initial_duration
-            # 1. Chercher dans les donnees des rectificatifs (déjà en base)
-            for rectif in dossier.rectificatifs:
-                duration_value, duration_unit = extract_initial_duration(rectif.get('donnees'))
-                if duration_value:
-                    break
-            # 2. Appel API ciblé en dernier recours
-            if not duration_value:
-                duration_value, duration_unit = fetch_dossier_duration(dossier.idweb)
+            if dossier.source == 'BOAMP':
+                from app.services.boamp_api import fetch_dossier_duration, extract_initial_duration
+                # 1. Chercher dans les donnees des rectificatifs (déjà en base)
+                for rectif in dossier.rectificatifs:
+                    duration_value, duration_unit = extract_initial_duration(rectif.get('donnees'))
+                    if duration_value:
+                        break
+                # 2. Appel API ciblé en dernier recours
+                if not duration_value:
+                    duration_value, duration_unit = fetch_dossier_duration(dossier.idweb)
+            elif dossier.source == 'TED':
+                from app.services.ted_api import fetch_ted_duration
+                duration_value, duration_unit = fetch_ted_duration(dossier.idweb)
             # 3. Mettre en cache pour éviter ce lookup au prochain affichage
             if duration_value:
                 dossier.duree_marche_valeur = duration_value
