@@ -178,12 +178,19 @@ def _get_new_dossiers_for_user(user: User) -> list[DossierCache]:
 
 def _get_watchlist_updates(user: User) -> list[dict]:
     """Retourne les dossiers watchlistés avec de nouveaux rectificatifs."""
-    updates = []
-    for item in user.watchlist_items:
-        dossier = DossierCache.query.filter_by(idweb=item.idweb).first()
-        if dossier and dossier.nb_rectificatifs > item.nb_rectifs_at_add:
-            updates.append({'dossier': dossier, 'item': item})
-    return updates
+    items = list(user.watchlist_items)
+    if not items:
+        return []
+    idwebs = [item.idweb for item in items]
+    dossiers_map = {
+        d.idweb: d
+        for d in DossierCache.query.filter(DossierCache.idweb.in_(idwebs)).all()
+    }
+    return [
+        {'dossier': d, 'item': item}
+        for item in items
+        if (d := dossiers_map.get(item.idweb)) and d.nb_rectificatifs > item.nb_rectifs_at_add
+    ]
 
 
 def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False) -> bool:

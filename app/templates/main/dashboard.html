@@ -522,8 +522,6 @@ function _updateHiddenCounter(delta) {
 })();
 </script>
 {% if active_country == 'FR' %}
-<link rel="stylesheet" href="{{ url_for('static', filename='js/leaflet/leaflet.css') }}" />
-<script src="{{ url_for('static', filename='js/leaflet/leaflet.min.js') }}"></script>
 <script>
 (function() {
   let mapInitialized = false;
@@ -539,8 +537,21 @@ function _updateHiddenCounter(delta) {
     if (!open && !mapInitialized) initMap();
   };
 
+  function loadLeaflet(cb) {
+    if (window.L) { cb(); return; }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '{{ url_for("static", filename="js/leaflet/leaflet.css") }}';
+    document.head.appendChild(link);
+    const script = document.createElement('script');
+    script.src = '{{ url_for("static", filename="js/leaflet/leaflet.min.js") }}';
+    script.onload = cb;
+    document.head.appendChild(script);
+  }
+
   function initMap() {
     mapInitialized = true;
+    loadLeaflet(function() {
     const map = L.map('france-map', {
       zoomControl: true, attributionControl: false,
       scrollWheelZoom: false,
@@ -593,6 +604,7 @@ function _updateHiddenCounter(delta) {
             }).join('');
           });
       });
+    }); // loadLeaflet
   }
 })();
 </script>

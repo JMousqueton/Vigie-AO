@@ -41,6 +41,7 @@ def _migrate_db():
         "CREATE INDEX IF NOT EXISTS ix_dossier_cache_datelimitereponse ON dossier_cache (datelimitereponse)",
         "CREATE INDEX IF NOT EXISTS ix_dossier_cache_dateparution ON dossier_cache (dateparution)",
         "CREATE INDEX IF NOT EXISTS ix_dossier_cache_source ON dossier_cache (source)",
+        "CREATE INDEX IF NOT EXISTS ix_dossier_cache_is_dup_score ON dossier_cache (is_duplicate, score_pertinence)",
     ]
     with app.app_context():
         with db.engine.connect() as conn:
