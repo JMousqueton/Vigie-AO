@@ -364,6 +364,41 @@ def dedup_cmd():
     click.echo('Done.')
 
 
+@app.cli.command('fix-attributions')
+def fix_attributions_cmd():
+    """Re-link all orphaned APPEL_OFFRE that lost their attribution_json after a refresh.
+
+    Scans all ATTRIBUTION notices (including already-duplicate ones) and re-links
+    any APPEL_OFFRE whose attribution_json was erased by a subsequent refresh cycle.
+    Safe to run multiple times (idempotent).
+    """
+    with app.app_context():
+        from app.models import DossierCache
+        from app import db
+
+        # Snapshot before
+        orphans_before = DossierCache.query.filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.nature == 'APPEL_OFFRE',
+            DossierCache.is_duplicate == False,
+            DossierCache.has_attribution == False,
+        ).count()
+        click.echo(f"APPEL_OFFRE sans attribution avant : {orphans_before}")
+
+        from app.services.scheduler import link_boamp_attributions
+        link_boamp_attributions()
+
+        orphans_after = DossierCache.query.filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.nature == 'APPEL_OFFRE',
+            DossierCache.is_duplicate == False,
+            DossierCache.has_attribution == False,
+        ).count()
+        fixed = orphans_before - orphans_after
+        click.echo(f"APPEL_OFFRE sans attribution après  : {orphans_after}")
+        click.echo(f"✓ {fixed} dossier(s) re-liés." if fixed else "Aucun orphelin trouvé.")
+
+
 @app.cli.command('refresh-boamp')
 def refresh_boamp_cmd():
     """Refresh the BOAMP cache (fetch new notices, link attributions, dedup)."""

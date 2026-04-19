@@ -6,7 +6,7 @@ from datetime import timedelta
 from app.utils import utc_now
 from functools import wraps
 
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
@@ -230,3 +230,27 @@ def index():
         nb_reminders=nb_reminders,
         nb_shared=nb_shared,
     )
+
+
+@stats_bp.route('/api/map/departements')
+@login_required
+def api_map_departements():
+    """Retourne le nombre d'avis actifs par département (France, BOAMP uniquement)."""
+    rows = (
+        db.session.query(DossierCache.code_departement, func.count().label('n'))
+        .filter(
+            DossierCache.source == 'BOAMP',
+            DossierCache.country == 'FR',
+            DossierCache.is_duplicate == False,
+            DossierCache.code_departement.isnot(None),
+            DossierCache.code_departement != '',
+        )
+        .group_by(DossierCache.code_departement)
+        .all()
+    )
+    # Normaliser les codes : "6" → "06", "75" → "75", "974" → "974"
+    data = {}
+    for code, n in rows:
+        normalized = code.zfill(2) if len(code) < 3 else code
+        data[normalized] = data.get(normalized, 0) + n
+    return jsonify(data)

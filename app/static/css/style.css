@@ -1283,3 +1283,65 @@ strong { color: var(--text-primary); }
   text-align: center;
   max-width: 260px;
 }
+
+/* ─── Carte départements ────────────────────────────────────────────────── */
+.map-section {
+  margin: 0 0 1rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.map-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .6rem 1rem;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+}
+.map-header:hover { background: var(--surface-hover, #f5f5f5); }
+.map-chevron { margin-left: auto; transition: transform .25s; }
+.map-body { padding: .5rem 1rem 1rem; }
+#france-map {
+  height: 420px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.map-legend {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: .5rem;
+  font-size: .78rem;
+  color: var(--text-secondary);
+}
+.legend-item { display: flex; align-items: center; gap: .3rem; }
+.legend-swatch {
+  width: 14px; height: 14px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  display: inline-block;
+}
+.map-tooltip {
+  font-size: .82rem;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .3rem .5rem;
+}
+
+.filter-tab-map {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--accent-blue, #2563eb);
+}
+.filter-tab-map:hover, .filter-tab-map.active {
+  background: var(--accent-blue, #2563eb);
+  color: #fff;
+}

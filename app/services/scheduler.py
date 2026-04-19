@@ -455,6 +455,11 @@ def link_boamp_attributions(app=None):
     pointe sur lui-même) est recherché parmi les avis APPEL_OFFRE en base via
     acheteur_nom + objet_marche (exact ou inclusion).
 
+    Traite deux cas :
+      1. Attributions non encore marquées is_duplicate (nouveau lien).
+      2. Attributions déjà is_duplicate=True dont la cible APPEL_OFFRE a perdu
+         son attribution_json (ex. écrasé par un refresh) → re-lien.
+
     Action :
       - L'avis APPEL_OFFRE reçoit has_attribution=True et attribution_json
       - L'avis ATTRIBUTION autonome est marqué is_duplicate=True (masqué)
@@ -468,18 +473,17 @@ def link_boamp_attributions(app=None):
         from app import db
         import json
 
-        # Avis d'attribution autonomes (reference pointe sur eux-mêmes)
+        # ── 1. Toutes les attributions autonomes (liées ou non)
         attributions = DossierCache.query.filter(
             DossierCache.source == 'BOAMP',
             DossierCache.nature == 'ATTRIBUTION',
-            DossierCache.is_duplicate == False,
             DossierCache.reference_boamp_initial == DossierCache.idweb,
         ).all()
 
         if not attributions:
             return
 
-        # Index des appels d'offres BOAMP par (acheteur_norm, objet_norm)
+        # ── 2. Index des appels d'offres BOAMP par acheteur_norm
         appels = DossierCache.query.filter(
             DossierCache.source == 'BOAMP',
             DossierCache.nature == 'APPEL_OFFRE',
@@ -493,7 +497,7 @@ def link_boamp_attributions(app=None):
             if acheteur_norm and objet_norm:
                 appel_index.setdefault(acheteur_norm, []).append((objet_norm, a))
 
-        linked = 0
+        linked = relinked = 0
         for attr in attributions:
             attr_acheteur = _normalize(attr.acheteur_nom)
             attr_objet = _normalize(attr.objet_marche)
@@ -512,10 +516,11 @@ def link_boamp_attributions(app=None):
             if not appel:
                 continue
 
-            # Réutiliser directement le raw record du DossierCache ATTRIBUTION,
-            # en mettant à jour les quelques champs qui peuvent différer.
-            # Cela préserve la structure attendue par extract_lots_titulaires
-            # (attribution['donnees'] = chaîne JSON EForms, pas un dict imbriqué).
+            # Sauter si déjà correctement lié (attribution_json présent)
+            if attr.is_duplicate and appel.attribution_json:
+                continue
+
+            # Construire le raw record à stocker sur l'APPEL_OFFRE
             raw_record = json.loads(attr.attribution_json) if attr.attribution_json else {}
             raw_record['dateparution'] = attr.dateparution.isoformat() if attr.dateparution else raw_record.get('dateparution', '')
             raw_record['urlgravure'] = attr.urlgravure or raw_record.get('urlgravure', '')
@@ -530,12 +535,18 @@ def link_boamp_attributions(app=None):
             ):
                 appel.date_derniere_activite = attr.dateparution
 
-            attr.is_duplicate = True
-            linked += 1
+            if attr.is_duplicate:
+                relinked += 1  # re-lien d'un orphelin
+            else:
+                attr.is_duplicate = True
+                linked += 1
 
-        if linked:
+        if linked or relinked:
             db.session.commit()
-            logger.info("Liaison BOAMP attributions : %d avis reliés à leur appel d'offres.", linked)
+            logger.info(
+                "Liaison BOAMP attributions : %d nouveaux liens, %d orphelins re-liés.",
+                linked, relinked,
+            )
 
 
 # ─── Déduplication BOAMP ↔ TED ───────────────────────────────────────────────

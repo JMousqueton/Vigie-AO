@@ -58,6 +58,21 @@
   </form>
   {% endif %}
 
+  <!-- ─── CARTE DÉPARTEMENTS (France uniquement) ─────────────────────── -->
+  {% if active_country == 'FR' %}
+  <section class="map-section">
+    <div class="map-header" id="mapToggleBtn" onclick="toggleMap()" title="{{ _('Afficher / masquer la carte') }}">
+      <i class="fa-solid fa-map-location-dot"></i>
+      <span>{{ _('Carte des marchés par département') }}</span>
+      <i class="fa-solid fa-chevron-down map-chevron" id="mapChevron"></i>
+    </div>
+    <div class="map-body" id="mapBody" style="display:none;">
+      <div id="france-map"></div>
+      <div class="map-legend" id="mapLegend"></div>
+    </div>
+  </section>
+  {% endif %}
+
   <!-- ─── FILTRES STICKY ───────────────────────────────────────────────── -->
   <section class="filters-bar sticky-filters" id="filtersBar">
     <form id="filterForm" method="get" action="{{ url_for('main.dashboard') }}">
@@ -506,5 +521,81 @@ function _updateHiddenCounter(delta) {
   }, 10000);
 })();
 </script>
+{% if active_country == 'FR' %}
+<link rel="stylesheet" href="{{ url_for('static', filename='js/leaflet/leaflet.css') }}" />
+<script src="{{ url_for('static', filename='js/leaflet/leaflet.min.js') }}"></script>
+<script>
+(function() {
+  let mapInitialized = false;
+  const mapTabBtn = document.getElementById('mapTabBtn');
+
+  window.toggleMap = function() {
+    const body    = document.getElementById('mapBody');
+    const chevron = document.getElementById('mapChevron');
+    const open    = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    if (chevron) chevron.style.transform = open ? '' : 'rotate(180deg)';
+    if (mapTabBtn) mapTabBtn.classList.toggle('active', !open);
+    if (!open && !mapInitialized) initMap();
+  };
+
+  function initMap() {
+    mapInitialized = true;
+    const map = L.map('france-map', {
+      zoomControl: true, attributionControl: false,
+      scrollWheelZoom: false,
+    });
+
+    fetch('{{ url_for("stats.api_map_departements") }}')
+      .then(r => r.json())
+      .then(counts => {
+        const values = Object.values(counts).filter(v => v > 0);
+        const max    = values.length ? Math.max(...values) : 1;
+
+        function getColor(n) {
+          if (!n) return '#f0f0f0';
+          const t = n / max;
+          const r = Math.round(220 - t * 160);
+          const g = Math.round(235 - t * 160);
+          const b = Math.round(255 - t * 50);
+          return `rgb(${r},${g},${b})`;
+        }
+
+        fetch('{{ url_for("static", filename="geo/departements-fr.geojson") }}')
+          .then(r => r.json())
+          .then(geojson => {
+            const geoLayer = L.geoJSON(geojson, {
+              style(feature) {
+                const n = counts[feature.properties.code] || 0;
+                return { fillColor: getColor(n), fillOpacity: 0.85, color: '#888', weight: 0.8 };
+              },
+              onEachFeature(feature, lyr) {
+                const code = feature.properties.code;
+                const nom  = feature.properties.nom;
+                const n    = counts[code] || 0;
+                lyr.bindTooltip(`<strong>${code} — ${nom}</strong><br>${n} avis`,
+                  { sticky: true, className: 'map-tooltip' });
+                lyr.on('click', () => {
+                  window.location.href = '{{ url_for("main.dashboard") }}?dept=' + code;
+                });
+                lyr.on('mouseover', function() { this.setStyle({ weight: 2, color: '#333' }); });
+                lyr.on('mouseout',  function() { geoLayer.resetStyle(this); });
+              },
+            }).addTo(map);
+
+            map.fitBounds(geoLayer.getBounds());
+
+            const legend = document.getElementById('mapLegend');
+            legend.innerHTML = [0, 0.25, 0.5, 0.75, 1.0].map(t => {
+              const n = Math.round(t * max);
+              const c = getColor(n || (t === 0 ? 0 : 1));
+              return `<span class="legend-item"><span class="legend-swatch" style="background:${c}"></span>${n}</span>`;
+            }).join('');
+          });
+      });
+  }
+})();
+</script>
+{% endif %}
 {% endblock %}
 {% endblock %}
