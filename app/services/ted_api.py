@@ -234,49 +234,67 @@ def _sanitize_kw(kw: str) -> str:
     return kw.replace('"', '').replace("'", '').strip()[:40]
 
 
-def _build_ted_query(country_iso2: str = 'FR') -> str:
+def _build_ted_queries(country_iso2: str = 'FR') -> list[str]:
     """
-    Construit la requête TED combinant :
-    - mots-clés de SCORING dans le titre (haute + moyenne uniquement, max 10)
-    - OU codes CPV pertinents (CPV_SEARCH, max 8)
-    - filtrée sur le pays demandé et les XX derniers jours
+    Construit une ou deux requêtes TED :
+      - requête 1 : mots-clés globaux (haute + moyenne) + CPV
+      - requête 2 : mots-clés spécifiques au pays (haute + moyenne), si différents
 
-    On utilise les scoring keywords (pas tous les search keywords) car la liste
-    de recherche peut être très longue et dépasser les limites de l'API TED.
+    Séparer les deux permet d'utiliser pleinement la limite de 20 mots-clés par
+    requête sans mélanger global et pays dans un seul appel.
+
     country_iso2 : code ISO2 ('FR', 'ES', 'DE'…) ou 'EU' pour tous les pays UE.
+    Retourne une liste de 1 ou 2 chaînes de requête.
     """
-    try:
-        from app.services.keywords import get_scoring_keywords
-        scoring = get_scoring_keywords()
-        # Haute + moyenne uniquement (termes les plus discriminants), max 10 au total
-        kws_raw = scoring.get('haute', []) + scoring.get('moyenne', [])
-    except Exception:
-        kws_raw = ['sauvegarde', 'backup', 'ransomware', 'stockage', 'NAS', 'Cohesity']
-
     since = (utc_now().date() - timedelta(days=15)).strftime('%Y%m%d')
-
-    # Sanitize + déduplique + limite à 10 mots-clés
-    seen: set[str] = set()
-    kws_clean: list[str] = []
-    for kw in kws_raw:
-        s = _sanitize_kw(kw)
-        if s and s.lower() not in seen:
-            seen.add(s.lower())
-            kws_clean.append(s)
-        if len(kws_clean) >= 10:
-            break
-
-    kw_parts = [f'TI ~ "{kw}"' for kw in kws_clean]
-    kw_clause = ' OR '.join(kw_parts) if kw_parts else ''
     cpv_clause = ' OR '.join(f'PC = {cpv}' for cpv in CPV_SEARCH)
+    iso3 = ISO2_TO_ISO3.get(country_iso2.upper(), 'FRA') if country_iso2 != 'EU' else None
 
-    content = f'({kw_clause} OR {cpv_clause})' if kw_clause else f'({cpv_clause})'
+    def _suffix() -> str:
+        if iso3:
+            return f'AND CY = {iso3} AND PD >= {since}'
+        return f'AND PD >= {since}'
 
-    if country_iso2 == 'EU':
-        return f'{content} AND PD >= {since}'
+    def _kws_to_clause(kws_raw: list[str], limit: int = 20) -> str:
+        seen: set[str] = set()
+        kws_clean: list[str] = []
+        for kw in kws_raw:
+            s = _sanitize_kw(kw)
+            if s and s.lower() not in seen:
+                seen.add(s.lower())
+                kws_clean.append(s)
+            if len(kws_clean) >= limit:
+                break
+        return ' OR '.join(f'TI ~ "{kw}"' for kw in kws_clean)
 
-    iso3 = ISO2_TO_ISO3.get(country_iso2.upper(), 'FRA')
-    return f'{content} AND CY = {iso3} AND PD >= {since}'
+    try:
+        from app.services.keywords import get_scoring_keywords, get_search_keywords
+        global_scoring = get_scoring_keywords(country=None)
+        global_search  = get_search_keywords(country=None)
+        country_search = get_search_keywords(country=country_iso2 if country_iso2 != 'EU' else None)
+    except Exception:
+        global_scoring = {'haute': ['Cohesity'], 'moyenne': ['Veeam', 'Commvault', 'Rubrik']}
+        global_search  = ['backup', 'ransomware']
+        country_search = global_search
+
+    # Requête 1 : scoring globaux (haute+moyenne) + search globaux + CPV
+    global_kws = (global_scoring.get('haute', [])
+                  + global_scoring.get('moyenne', [])
+                  + global_search)
+    kw_clause1 = _kws_to_clause(global_kws)
+    content1   = f'({kw_clause1} OR {cpv_clause})' if kw_clause1 else f'({cpv_clause})'
+    queries = [f'{content1} {_suffix()}']
+
+    # Requête 2 : mots-clés pays uniquement (absents des globaux)
+    if country_iso2 != 'EU':
+        global_set       = {kw.lower() for kw in global_kws}
+        country_only_kws = [kw for kw in country_search if kw.lower() not in global_set]
+        if country_only_kws:
+            kw_clause2 = _kws_to_clause(country_only_kws)
+            if kw_clause2:
+                queries.append(f'({kw_clause2}) {_suffix()}')
+
+    return queries
 
 
 # ─── Scoring TED ─────────────────────────────────────────────────────────────
@@ -598,6 +616,8 @@ def _search_ted(query: str, page: int = 1, limit: int = 100) -> list[dict]:
 def fetch_ted_records(country_iso2: str = 'FR') -> list[dict]:
     """
     Récupère tous les avis TED pertinents pour un pays (avec pagination).
+    Lance deux requêtes : une avec les mots-clés globaux + CPV, une avec les
+    mots-clés spécifiques au pays. Les résultats sont dédupliqués par idweb.
     country_iso2 : 'FR', 'ES', 'DE'… ou 'EU' pour tous les pays.
     Retourne une liste de records normalisés prêts pour le scheduler.
     """
@@ -605,27 +625,34 @@ def fetch_ted_records(country_iso2: str = 'FR') -> list[dict]:
         logger.info("TED désactivé (TED_ENABLED=False)")
         return []
 
-    query = _build_ted_query(country_iso2)
-    logger.info("TED [%s] query (%d chars) : %s", country_iso2, len(query), query)
-
+    queries = _build_ted_queries(country_iso2)
     all_records: list[dict] = []
-    page = 1
 
-    while True:
-        records = _search_ted(query, page=page, limit=100)
-        if not records:
-            break
-        all_records.extend(records)
-        logger.info("TED page %d : +%d avis (total %d)", page, len(records), len(all_records))
+    for q_idx, query in enumerate(queries, 1):
+        label = 'globale' if q_idx == 1 else 'pays'
+        logger.info("TED [%s] requête %d/%d (%s, %d chars) : %s",
+                    country_iso2, q_idx, len(queries), label, len(query), query)
 
-        if len(records) < 100 or len(all_records) >= 2000:
-            break
-        page += 1
-        time.sleep(0.3)
+        page = 1
+        while True:
+            records = _search_ted(query, page=page, limit=100)
+            if not records:
+                break
+            all_records.extend(records)
+            logger.info("TED [%s] req.%d page %d : +%d avis (total cumulé %d)",
+                        country_iso2, q_idx, page, len(records), len(all_records))
 
-    # Dédupliquer par idweb
+            if len(records) < 100 or len(all_records) >= 2000:
+                break
+            page += 1
+            time.sleep(0.3)
+
+        time.sleep(0.3)  # pause entre les deux requêtes
+
+    # Dédupliquer par idweb (conserve la première occurrence)
     seen: set[str] = set()
     unique = [r for r in all_records if r['idweb'] not in seen and not seen.add(r['idweb'])]  # type: ignore[func-returns-value]
 
-    logger.info("TED : %d avis uniques récupérés", len(unique))
+    logger.info("TED [%s] : %d avis uniques récupérés (%d requête(s))",
+                country_iso2, len(unique), len(queries))
     return unique
