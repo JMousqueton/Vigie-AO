@@ -364,6 +364,24 @@ def dedup_cmd():
     click.echo('Done.')
 
 
+@app.cli.command('refresh-boamp')
+def refresh_boamp_cmd():
+    """Refresh the BOAMP cache (fetch new notices, link attributions, dedup)."""
+    with app.app_context():
+        from app.services.scheduler import refresh_boamp_cache
+        refresh_boamp_cache()
+    click.echo('BOAMP refresh done.')
+
+
+@app.cli.command('refresh-place-es')
+def refresh_place_es_cmd():
+    """Refresh the PLACE_ES (Spain) cache."""
+    with app.app_context():
+        from app.services.scheduler import refresh_place_es_cache
+        refresh_place_es_cache()
+    click.echo('PLACE_ES refresh done.')
+
+
 @app.cli.command('set-country')
 @click.argument('country')
 @click.option('--users', 'user_emails', default=None,
