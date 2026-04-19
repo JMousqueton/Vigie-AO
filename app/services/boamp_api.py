@@ -643,9 +643,13 @@ def extract_contract_period(attribution: dict) -> list[dict]:
         start_date = start_raw[:10] if start_raw else None
         end_date   = end_raw[:10]   if end_raw   else None
 
-        # Fallback: use notice publication date as start_date when absent
-        if not start_date and fallback_start:
+        # Fallback: use notice publication date as start_date when absent.
+        # Also replace start_date with dateparution when the EForms start date
+        # pre-dates the attribution notice itself (contract started before the
+        # award was published — use publication date as the realistic reference).
+        if fallback_start and (not start_date or start_date < fallback_start):
             start_date = fallback_start
+            end_date   = None  # force recalcul depuis le nouveau start_date
 
         # Calculer end_date depuis start_date + duration si end_date absent
         if not end_date and duration_value and duration_unit and start_date:

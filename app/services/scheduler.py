@@ -97,11 +97,15 @@ def refresh_boamp_cache(app=None):
                     existing.reference_boamp_initial = ref_data.get('reference_boamp')
                     existing.contact_email = ref_data.get('contact_email') or ''
                     existing.rectificatifs_json = json.dumps(dossier.rectificatifs, ensure_ascii=False)
-                    existing.attribution_json = json.dumps(dossier.attribution, ensure_ascii=False) if dossier.attribution else None
+                    # Ne pas écraser un attribution_json posé par link_boamp_attributions
+                    # (l'API BOAMP ne renvoie jamais d'attribution pour un APPEL_OFFRE).
+                    if dossier.attribution is not None:
+                        existing.attribution_json = json.dumps(dossier.attribution, ensure_ascii=False)
+                        existing.has_attribution = True
+                    # else: conserver has_attribution/attribution_json existants
                     existing.score_pertinence = score
                     existing.mots_cles_matches = json.dumps(mots_cles, ensure_ascii=False)
                     existing.has_rectificatif = len(dossier.rectificatifs) > 0
-                    existing.has_attribution = dossier.attribution is not None
                     existing.date_derniere_activite = date_activite
                     existing.fetched_at = utc_now()
                     existing.is_new = False
