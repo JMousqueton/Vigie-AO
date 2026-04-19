@@ -185,6 +185,9 @@ body {
   border-radius: 999px;
   margin-left: 2px;
 }
+.nav-badge-yellow {
+  background: #f59e0b; color: #1a1a1a;
+}
 
 .header-actions { margin-left: 16px; }
 .user-btn {

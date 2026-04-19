@@ -67,8 +67,11 @@
           <i class="fa-solid fa-tags"></i>
           {% if current_user.country == 'FR' or not current_user.country %}{{ _('Mots-clés') }}{% else %}{{ _('Keywords') }}{% endif %}
         </button>
-        <a href="{{ url_for('watchlist.index') }}" class="nav-link {% if request.blueprint == 'watchlist' %}active{% endif %}">
+        <a href="{{ url_for('watchlist.index') }}" class="nav-link nav-link-badge {% if request.blueprint == 'watchlist' %}active{% endif %}">
           <i class="fa-solid fa-star"></i> {{ _('Watchlist') }}
+          {% if watchlist_badge > 0 %}
+          <span class="nav-badge nav-badge-yellow">{{ watchlist_badge }}</span>
+          {% endif %}
         </a>
         {% if current_user.country == 'FR' or not current_user.country %}
         <a href="{{ url_for('reminders.index') }}" class="nav-link nav-link-badge {% if request.blueprint == 'reminders' %}active{% endif %}">

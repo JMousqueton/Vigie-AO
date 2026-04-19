@@ -147,6 +147,22 @@ def create_app(config_name: str | None = None) -> Flask:
             pass
         return {'reminders_badge': 0}
 
+    # Context processor : watchlist count
+    @app.context_processor
+    def inject_watchlist_badge():
+        from flask import has_request_context
+        if not has_request_context():
+            return {'watchlist_badge': 0}
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                from app.models import WatchlistItem
+                count = WatchlistItem.query.filter_by(user_id=current_user.id).count()
+                return {'watchlist_badge': count}
+        except Exception:
+            pass
+        return {'watchlist_badge': 0}
+
     # Context processor : pays disponibles dans le cache (pour le picker superviseur)
     @app.context_processor
     def inject_available_countries():
