@@ -826,6 +826,27 @@ def extract_contact_email(donnees) -> str:
         return ''
 
 
+def fetch_dossier_duration(idweb: str) -> tuple:
+    """
+    Récupère la durée du marché directement depuis l'API BOAMP pour un idweb donné.
+    Utilisé comme fallback quand duree_marche_valeur n'est pas encore en base.
+    Retourne (duration_value, duration_unit) ou (None, None).
+    """
+    try:
+        resp = requests.get(
+            BASE_URL,
+            params={'where': f'idweb="{idweb}" AND etat="INITIAL"', 'select': 'donnees', 'limit': 1},
+            timeout=10, verify=_SSL_VERIFY,
+        )
+        resp.raise_for_status()
+        results = resp.json().get('results', [])
+        if results:
+            return extract_initial_duration(results[0].get('donnees'))
+    except Exception:
+        pass
+    return None, None
+
+
 def diff_rectificatif(avis_precedent: dict, rectificatif: dict) -> dict:
     """Retourne les champs modifiés entre deux avis (clés normalisées)."""
     champs = ['objet_marche', 'datelimitereponse', 'lieu_execution', 'acheteur_nom']

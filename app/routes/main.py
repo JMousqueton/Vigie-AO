@@ -456,25 +456,46 @@ def detail(idweb):
 
     # Date de fin de marché suggérée = datelimitereponse + durée (pour les APPEL_OFFRE)
     suggested_reminder_date = None
-    if (dossier.datelimitereponse and dossier.duree_marche_valeur and dossier.duree_marche_unite):
-        try:
-            import calendar
-            from datetime import date as _date, timedelta as _td
-            n    = int(dossier.duree_marche_valeur)
-            base = dossier.datelimitereponse
-            unit = dossier.duree_marche_unite
-            if unit == 'DAY':
-                suggested_reminder_date = base + _td(days=n)
-            elif unit == 'MONTH':
-                m = base.month - 1 + n
-                y = base.year + m // 12
-                m = m % 12 + 1
-                d = min(base.day, calendar.monthrange(y, m)[1])
-                suggested_reminder_date = _date(y, m, d)
-            elif unit == 'YEAR':
-                suggested_reminder_date = base.replace(year=base.year + n)
-        except Exception:
-            pass
+    if dossier.datelimitereponse and dossier.source == 'BOAMP' and dossier.nature != 'ATTRIBUTION':
+        duration_value = dossier.duree_marche_valeur
+        duration_unit  = dossier.duree_marche_unite
+
+        # Colonnes ajoutées récemment : essayer de résoudre à la volée
+        if not duration_value:
+            from app.services.boamp_api import fetch_dossier_duration, extract_initial_duration
+            # 1. Chercher dans les donnees des rectificatifs (déjà en base)
+            for rectif in dossier.rectificatifs:
+                duration_value, duration_unit = extract_initial_duration(rectif.get('donnees'))
+                if duration_value:
+                    break
+            # 2. Appel API ciblé en dernier recours
+            if not duration_value:
+                duration_value, duration_unit = fetch_dossier_duration(dossier.idweb)
+            # 3. Mettre en cache pour éviter ce lookup au prochain affichage
+            if duration_value:
+                dossier.duree_marche_valeur = duration_value
+                dossier.duree_marche_unite  = duration_unit
+                from app import db as _db
+                _db.session.commit()
+
+        if duration_value and duration_unit:
+            try:
+                import calendar
+                from datetime import date as _date, timedelta as _td
+                n    = int(duration_value)
+                base = dossier.datelimitereponse
+                if duration_unit == 'DAY':
+                    suggested_reminder_date = base + _td(days=n)
+                elif duration_unit == 'MONTH':
+                    m = base.month - 1 + n
+                    y = base.year + m // 12
+                    m = m % 12 + 1
+                    d = min(base.day, calendar.monthrange(y, m)[1])
+                    suggested_reminder_date = _date(y, m, d)
+                elif duration_unit == 'YEAR':
+                    suggested_reminder_date = base.replace(year=base.year + n)
+            except Exception:
+                pass
 
     return render_template(
         'main/detail.html',
