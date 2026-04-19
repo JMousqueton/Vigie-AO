@@ -74,6 +74,8 @@ class DossierCache(db.Model):
     urlgravure = db.Column(db.String(500))
     reference_boamp_initial = db.Column(db.String(30))
     contact_email = db.Column(db.String(255))
+    duree_marche_valeur = db.Column(db.String(10))   # ex: '48'
+    duree_marche_unite  = db.Column(db.String(10))   # ex: 'MONTH', 'YEAR', 'DAY'
 
     # Données JSON
     rectificatifs_json = db.Column(db.Text, default='[]')

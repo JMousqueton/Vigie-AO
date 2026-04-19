@@ -261,6 +261,11 @@ def normalize_record(record: dict) -> dict:
         'donnees':              record.get('donnees'),
         # Contact email (extrait du JSON EForms)
         'contact_email':        extract_contact_email(record.get('donnees')),
+        # Durée du marché (extrait du JSON EForms)
+        **dict(zip(
+            ('duration_value', 'duration_unit'),
+            extract_initial_duration(record.get('donnees')),
+        )),
     }
 
 
@@ -697,6 +702,63 @@ def extract_contract_period(attribution: dict) -> list[dict]:
         })
 
     return results
+
+
+def _parse_duration_measure(dm) -> tuple:
+    if isinstance(dm, dict):
+        value = dm.get('#text')
+        unit  = dm.get('@unitCode')
+        return (str(value) if value else None), unit
+    elif dm:
+        return str(dm), None
+    return None, None
+
+
+def extract_initial_duration(donnees) -> tuple:
+    """
+    Extrait la durée du marché depuis le JSON EForms d'un avis initial (APPEL_OFFRE).
+    Retourne (duration_value, duration_unit) ou (None, None).
+    Essaie le ProcurementProject racine, puis par lot.
+    """
+    if not donnees:
+        return None, None
+    if isinstance(donnees, str):
+        try:
+            donnees = json.loads(donnees)
+        except Exception:
+            return None, None
+    if not isinstance(donnees, dict):
+        return None, None
+
+    eforms = donnees.get('EFORMS', {})
+    if not isinstance(eforms, dict):
+        return None, None
+
+    for notice_type in ('ContractNotice', 'PriorInformationNotice', 'Modification', 'ContractAwardNotice'):
+        notice = eforms.get(notice_type)
+        if not isinstance(notice, dict):
+            continue
+        # Top-level ProcurementProject
+        pp = notice.get('cac:ProcurementProject', {}).get('cac:PlannedPeriod', {})
+        if pp:
+            val, unit = _parse_duration_measure(pp.get('cbc:DurationMeasure', {}))
+            if val:
+                return val, unit
+        # Per-lot
+        lots = notice.get('cac:ProcurementProjectLot', [])
+        if isinstance(lots, dict):
+            lots = [lots]
+        for lot in lots:
+            if not isinstance(lot, dict):
+                continue
+            pp = lot.get('cac:ProcurementProject', {}).get('cac:PlannedPeriod', {})
+            if not pp:
+                continue
+            val, unit = _parse_duration_measure(pp.get('cbc:DurationMeasure', {}))
+            if val:
+                return val, unit
+
+    return None, None
 
 
 def extract_contact_email(donnees) -> str:

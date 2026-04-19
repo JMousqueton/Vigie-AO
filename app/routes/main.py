@@ -454,6 +454,28 @@ def detail(idweb):
             famille_denomination=dossier.famille_denomination or '',
         )
 
+    # Date de fin de marché suggérée = datelimitereponse + durée (pour les APPEL_OFFRE)
+    suggested_reminder_date = None
+    if (dossier.datelimitereponse and dossier.duree_marche_valeur and dossier.duree_marche_unite):
+        try:
+            import calendar
+            from datetime import date as _date, timedelta as _td
+            n    = int(dossier.duree_marche_valeur)
+            base = dossier.datelimitereponse
+            unit = dossier.duree_marche_unite
+            if unit == 'DAY':
+                suggested_reminder_date = base + _td(days=n)
+            elif unit == 'MONTH':
+                m = base.month - 1 + n
+                y = base.year + m // 12
+                m = m % 12 + 1
+                d = min(base.day, calendar.monthrange(y, m)[1])
+                suggested_reminder_date = _date(y, m, d)
+            elif unit == 'YEAR':
+                suggested_reminder_date = base.replace(year=base.year + n)
+        except Exception:
+            pass
+
     return render_template(
         'main/detail.html',
         dossier=dossier,
@@ -464,6 +486,7 @@ def detail(idweb):
         contract_periods=contract_periods,
         reminder_item=reminder_item,
         trigger_details=trigger_details,
+        suggested_reminder_date=suggested_reminder_date,
         today=utc_now().date(),
     )
 

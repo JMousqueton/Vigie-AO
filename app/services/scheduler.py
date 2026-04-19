@@ -96,6 +96,8 @@ def refresh_boamp_cache(app=None):
                     existing.urlgravure = ref_data.get('urlgravure')
                     existing.reference_boamp_initial = ref_data.get('reference_boamp')
                     existing.contact_email = ref_data.get('contact_email') or ''
+                    existing.duree_marche_valeur = ref_data.get('duration_value')
+                    existing.duree_marche_unite  = ref_data.get('duration_unit')
                     existing.rectificatifs_json = json.dumps(dossier.rectificatifs, ensure_ascii=False)
                     # Ne pas écraser un attribution_json posé par link_boamp_attributions
                     # (l'API BOAMP ne renvoie jamais d'attribution pour un APPEL_OFFRE).
@@ -128,6 +130,8 @@ def refresh_boamp_cache(app=None):
                         urlgravure=ref_data.get('urlgravure'),
                         reference_boamp_initial=ref_data.get('reference_boamp'),
                         contact_email=ref_data.get('contact_email') or '',
+                        duree_marche_valeur=ref_data.get('duration_value'),
+                        duree_marche_unite=ref_data.get('duration_unit'),
                         rectificatifs_json=json.dumps(dossier.rectificatifs, ensure_ascii=False),
                         attribution_json=json.dumps(dossier.attribution, ensure_ascii=False) if dossier.attribution else None,
                         score_pertinence=score,

@@ -152,6 +152,19 @@
                   <span class="field-label">{{ _('Date parution') }}</span>
                   <span class="field-value">{{ dossier.dateparution | format_date }}</span>
                 </div>
+                {% if dossier.duree_marche_valeur and dossier.source == 'BOAMP' and dossier.nature != 'ATTRIBUTION' %}
+                <div class="field-item">
+                  <span class="field-label">{{ _('Durée') }}</span>
+                  <span class="field-value">
+                    {{ dossier.duree_marche_valeur }}
+                    {% if dossier.duree_marche_unite == 'MONTH' %}{{ _('mois') }}
+                    {% elif dossier.duree_marche_unite == 'YEAR' %}{{ _('an') }}{{ 's' if dossier.duree_marche_valeur | int > 1 }}
+                    {% elif dossier.duree_marche_unite == 'DAY' %}{{ _('jour') }}{{ 's' if dossier.duree_marche_valeur | int > 1 }}
+                    {% elif dossier.duree_marche_unite %}{{ dossier.duree_marche_unite | lower }}
+                    {% endif %}
+                  </span>
+                </div>
+                {% endif %}
                 {% if dossier.datelimitereponse and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
                 <div class="field-item">
                   <span class="field-label">{{ _('Limite réponse') }}</span>
@@ -433,8 +446,8 @@
         </div>
       </div>
 
-      <!-- Pense-bêtes (uniquement sur les attributions) -->
-      {% if dossier.has_attribution %}
+      <!-- Pense-bêtes -->
+      {% if dossier.has_attribution or suggested_reminder_date %}
       <div class="card sidebar-card">
         <div class="card-header">
           <i class="fa-solid fa-thumbtack"></i>
@@ -447,7 +460,13 @@
               <label>{{ _('Fin de marché') }}</label>
               <input type="date" name="end_date" class="form-control"
                      value="{{ reminder_item.end_date.isoformat() if reminder_item and reminder_item.end_date
-                              else (contract_periods[0].end_date if contract_periods and contract_periods[0].end_date else '') }}" />
+                              else (contract_periods[0].end_date if contract_periods and contract_periods[0].end_date
+                              else (suggested_reminder_date.isoformat() if suggested_reminder_date else '')) }}" />
+              {% if suggested_reminder_date and not (reminder_item and reminder_item.end_date) and not (contract_periods and contract_periods[0].end_date) %}
+              <small class="text-muted" style="font-size:11px;display:block;margin-top:4px;">
+                <i class="fa-solid fa-calculator"></i> {{ _('Calculée : limite de réception + durée du marché') }}
+              </small>
+              {% endif %}
             </div>
             <div class="form-group">
               <label>{{ _('Note (facultatif)') }}</label>
