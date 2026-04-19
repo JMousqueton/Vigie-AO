@@ -508,15 +508,46 @@ def set_theme():
 @main_bp.route('/api/keywords')
 @login_required
 def api_keywords():
-    """Retourne les mots-clés de détection en lecture seule (tous utilisateurs)."""
+    """Retourne les mots-clés globaux et pays en lecture seule."""
     from app.services.keywords import get_search_keywords, get_scoring_keywords
-    kws = get_scoring_keywords()
-    return jsonify({
-        'search':  get_search_keywords(),
-        'haute':   kws.get('haute', []),
-        'moyenne': kws.get('moyenne', []),
-        'contexte': kws.get('contexte', []),
-    })
+    country = request.args.get('country') or None
+
+    def _build(c):
+        scoring = get_scoring_keywords(country=c)
+        search  = get_search_keywords(country=c)
+        # Mots-clés présents dans scoring (toutes catégories)
+        scored_set = set(
+            kw.lower()
+            for cat in ('haute', 'moyenne', 'contexte')
+            for kw in scoring.get(cat, [])
+        )
+        # search-only = dans search mais absent du scoring
+        search_only = [kw for kw in search if kw.lower() not in scored_set]
+        return {
+            'haute':       scoring.get('haute', []),
+            'moyenne':     scoring.get('moyenne', []),
+            'contexte':    scoring.get('contexte', []),
+            'search_only': search_only,
+        }
+
+    global_data  = _build(None)
+    country_data = _build(country) if country else None
+
+    # Mots-clés locaux = ceux qui n'existent pas dans global
+    if country_data:
+        global_all = set(
+            kw.lower()
+            for cat in ('haute', 'moyenne', 'contexte', 'search_only')
+            for kw in global_data.get(cat, [])
+        )
+        local_data = {
+            cat: [kw for kw in kws if kw.lower() not in global_all]
+            for cat, kws in country_data.items()
+        }
+    else:
+        local_data = None
+
+    return jsonify({'global': global_data, 'local': local_data, 'country': country})
 
 
 @main_bp.route('/api/stats')

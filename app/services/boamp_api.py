@@ -65,10 +65,13 @@ _KEYWORDS_ODSQL_FALLBACK = (
 
 
 def _build_keywords_odsql() -> str:
-    """Construit la clause ODSQL depuis les mots-clés en base."""
+    """Construit la clause ODSQL depuis les mots-clés en base.
+    BOAMP est une source exclusivement française : on utilise les mots-clés
+    globaux + spécifiques FR (country='FR').
+    """
     try:
         from app.services.keywords import get_search_keywords
-        kws = get_search_keywords()
+        kws = get_search_keywords(country='FR')
         if kws:
             return ' OR '.join(f'objet like "%{kw}%"' for kw in kws)
     except Exception as exc:

@@ -157,6 +157,7 @@ body {
   color: var(--text-secondary); text-decoration: none;
   font-size: 14px; font-weight: 500;
   transition: all 0.2s;
+  background: none; border: none; cursor: pointer; font-family: inherit;
 }
 .nav-link:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
 .nav-link.active { color: var(--accent-blue); background: var(--accent-blue-dim); }
