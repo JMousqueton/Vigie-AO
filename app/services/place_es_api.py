@@ -413,6 +413,7 @@ def _parse_entry(entry) -> dict | None:
         '_attribution_lots':     attribution_lots,
         '_attribution_periods':  attribution_periods,
         '_raw_id':               raw_id,
+        '_updated_date':         updated_date,  # ATOM <updated> — used for incremental stop condition
     }
 
 
@@ -701,15 +702,19 @@ def fetch_place_es_records() -> list[dict]:
                 logger.info("PLACE_ES ATOM page %d : aucune entrée", page)
                 break
 
-            # Arrêter si on atteint des entrées antérieures à since
+            # Arrêter quand toutes les entrées restantes sont antérieures à since.
+            # On utilise _updated_date (ATOM <updated>) plutôt que dateparution :
+            # un vieux marché peut recevoir un lauréat longtemps après sa publication,
+            # son dateparution resterait ancien alors que son updated_date est récent.
             stop = False
             new_this_page: list[dict] = []
             for rec in page_records:
-                rec_date_str = rec.get('dateparution', '')
-                if rec_date_str:
+                # Priorité : _updated_date (date de mise à jour ATOM) > dateparution
+                cutoff_str = rec.get('_updated_date') or rec.get('dateparution', '')
+                if cutoff_str:
                     try:
-                        rec_date = datetime.strptime(rec_date_str[:10], '%Y-%m-%d').date()
-                        if rec_date < since:
+                        cutoff_date = datetime.strptime(cutoff_str[:10], '%Y-%m-%d').date()
+                        if cutoff_date < since:
                             stop = True
                             break
                     except ValueError:

@@ -356,13 +356,16 @@
         <div class="card-dates">
           <span><i class="fa-solid fa-calendar-plus"></i> {{ _('Paru :') }} {{ dossier.dateparution | format_date }}</span>
           {% if dossier.datelimitereponse and not (dossier.source == 'BOAMP' and dossier.nature == 'ATTRIBUTION') %}
-          <span class="{{ 'text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '') }}">
+          {% set _attrib = dossier.has_attribution %}
+          <span class="{{ '' if _attrib else ('text-danger' if dossier.is_expired else ('text-warning' if dossier.is_urgent else '')) }}">
             <i class="fa-solid fa-calendar-xmark"></i>
             {{ _('Limite :') }} {{ dossier.datelimitereponse | format_date }}
-            {% if dossier.is_expired %}
-              <span class="badge-expired">{{ _('EXPIRÉ') }}</span>
-            {% elif dossier.jours_restants is not none %}
-              <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">{{ _('J-') }}{{ dossier.jours_restants }}</span>
+            {% if not _attrib %}
+              {% if dossier.is_expired %}
+                <span class="badge-expired">{{ _('EXPIRÉ') }}</span>
+              {% elif dossier.jours_restants is not none %}
+                <span class="badge-days {{ 'urgent' if dossier.is_urgent }}">{{ _('J-') }}{{ dossier.jours_restants }}</span>
+              {% endif %}
             {% endif %}
           </span>
           {% endif %}
