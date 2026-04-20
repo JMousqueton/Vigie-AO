@@ -450,6 +450,7 @@ def detail(idweb):
         trigger_details = explain_ted_score({
             'objet_marche':        dossier.objet_marche or '',
             'descripteur_libelle': dossier.descripteur_libelle or '',
+            'country':             dossier.country or '',
         })
     elif dossier.source == 'PLACE_ES':
         from app.services.place_es_api import explain_place_es_score
