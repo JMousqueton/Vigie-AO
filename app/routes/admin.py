@@ -123,7 +123,7 @@ def _admin_context(**extra):
         nb_alerts_ok=AlertLog.query.filter_by(success=True).count(),
         last_fetched=db.session.query(db.func.max(DossierCache.fetched_at)).scalar(),
         recent_logs=db.session.query(
-            db.func.date(AlertLog.sent_at).label('date'),
+            db.func.strftime('%d/%m/%Y %H:%M', AlertLog.sent_at).label('date'),
             AlertLog.type_alerte,
             db.func.count(AlertLog.id).label('nb_scanned'),
             db.func.sum(db.cast(AlertLog.was_sent, db.Integer)).label('nb_emails'),
@@ -135,8 +135,8 @@ def _admin_context(**extra):
             db.func.sum(db.cast(
                 db.and_(AlertLog.was_sent == True, AlertLog.success == False), db.Integer
             )).label('nb_errors'),
-        ).group_by(db.func.date(AlertLog.sent_at), AlertLog.type_alerte)
-         .order_by(db.func.date(AlertLog.sent_at).desc())
+        ).group_by(db.func.strftime('%Y-%m-%d %H:%M', AlertLog.sent_at), AlertLog.type_alerte)
+         .order_by(db.func.strftime('%Y-%m-%d %H:%M', AlertLog.sent_at).desc())
          .limit(30).all(),
         users=User.query.order_by(User.created_at.desc()).all(),
         sources_info=sources_info,
