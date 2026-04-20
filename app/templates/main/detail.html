@@ -29,7 +29,11 @@
   <header class="detail-header">
     <div class="detail-badges">
       {% if dossier.has_attribution %}
+        {% if is_sans_suite %}
+        <span class="badge-nature badge-sans-suite"><i class="fa-solid fa-xmark"></i> {{ _('SANS SUITE') }}</span>
+        {% else %}
         <span class="badge-nature badge-attrib"><i class="fa-solid fa-trophy"></i> {{ _('ATTRIBUÉ') }}</span>
+        {% endif %}
       {% elif dossier.nature %}
         <span class="badge-nature"><i class="fa-solid fa-file-contract"></i> {{ dossier.nature | replace('_', ' ') }}</span>
       {% endif %}
@@ -72,9 +76,15 @@
       {% if lots_titulaires %}
         {% set winner_names = lots_titulaires | map(attribute='titulaire') | select | unique | list %}
         {% if winner_names %}
-        <span class="detail-winner"><i class="fa-solid fa-trophy"></i>
+        <span class="detail-winner {{ 'detail-winner-sans-suite' if is_sans_suite }}">
+          {% if is_sans_suite %}
+          <i class="fa-solid fa-xmark" style="color:var(--color-danger,#e53e3e)"></i>
+          <strong>{{ _('Classé sans suite') }}</strong>
+          {% else %}
+          <i class="fa-solid fa-trophy"></i>
           <strong>{{ _('Attributaire :') }}</strong>
           {{ winner_names | join(', ') }}
+          {% endif %}
         </span>
         {% endif %}
       {% endif %}
@@ -287,7 +297,12 @@
           <div class="tl-v-content">
             <div class="tl-v-header" onclick="togglePanel('panel-attribution')">
               <span class="tl-v-title">
-                <i class="fa-solid fa-trophy"></i> {{ _('Résultat de marché') }}
+                {% if is_sans_suite %}
+                <i class="fa-solid fa-xmark" style="color:var(--color-danger,#e53e3e)"></i>
+                {% else %}
+                <i class="fa-solid fa-trophy"></i>
+                {% endif %}
+                {{ _('Résultat de marché') }}
               </span>
               <span class="tl-v-date">{{ attribution.get('dateparution', '') | format_date }}</span>
               <span class="tl-v-ref mono">{{ attribution.get('reference_boamp', '') }}</span>
@@ -330,8 +345,13 @@
               </div>
               {% elif attribution.get('acheteur_nom') %}
               <div class="attribution-winner">
+                {% if is_sans_suite %}
+                <i class="fa-solid fa-xmark" style="color:var(--color-danger,#e53e3e)"></i>
+                <strong>{{ _('Classé sans suite') }}</strong>
+                {% else %}
                 <i class="fa-solid fa-trophy"></i>
                 <strong>{{ _('Attribué à :') }}</strong> {{ attribution.get('acheteur_nom') }}
+                {% endif %}
               </div>
               {% endif %}
 

@@ -433,6 +433,17 @@ def detail(idweb):
     lots_titulaires = extract_lots_titulaires(attribution) if attribution else []
     contract_periods = extract_contract_period(attribution) if attribution else []
 
+    # Marché classé sans suite : titulaire == acheteur émetteur
+    acheteur_norm = (dossier.acheteur_nom or '').lower().strip()
+    winner_names = [lt['titulaire'] for lt in lots_titulaires if lt.get('titulaire')]
+    if not winner_names and attribution:
+        w = attribution.get('acheteur_nom', '')
+        if w:
+            winner_names = [w]
+    is_sans_suite = bool(winner_names) and all(
+        w.lower().strip() == acheteur_norm for w in winner_names
+    )
+
     # Explication détaillée des déclencheurs (calculée à l'affichage, pas stockée)
     if dossier.source == 'TED':
         from app.services.ted_api import explain_ted_score
@@ -509,6 +520,7 @@ def detail(idweb):
         attribution=attribution,
         lots_titulaires=lots_titulaires,
         contract_periods=contract_periods,
+        is_sans_suite=is_sans_suite,
         reminder_item=reminder_item,
         trigger_details=trigger_details,
         suggested_reminder_date=suggested_reminder_date,

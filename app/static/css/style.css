@@ -610,7 +610,8 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .badge-nature  { background: var(--accent-blue-dim);   color: #7dd3fc;  border: 1px solid rgba(14,165,233,0.3);  }
 .badge-rectif  { background: var(--accent-orange-dim); color: #fcd34d;  border: 1px solid rgba(245,158,11,0.3);  }
-.badge-attrib  { background: var(--accent-green-dim);  color: #6ee7b7;  border: 1px solid rgba(16,185,129,0.3);  }
+.badge-attrib      { background: var(--accent-green-dim);  color: #6ee7b7;  border: 1px solid rgba(16,185,129,0.3);  }
+.badge-sans-suite  { background: rgba(229,62,62,0.15);    color: #fc8181;  border: 1px solid rgba(229,62,62,0.3);   }
 .badge-urgent  { background: var(--accent-red-dim);    color: #fca5a5;  border: 1px solid rgba(239,68,68,0.4);   }
 .badge-warning { background: var(--accent-orange-dim); color: #fcd34d;  border: 1px solid rgba(245,158,11,0.3);  font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 600; }
 /* Badge source */
