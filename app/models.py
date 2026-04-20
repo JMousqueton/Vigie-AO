@@ -230,6 +230,8 @@ class AlertLog(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
     nb_dossiers = db.Column(db.Integer, default=0)
+    nb_watchlist = db.Column(db.Integer, default=0)
+    was_sent = db.Column(db.Boolean, default=False)  # False = scanné mais rien à envoyer
     type_alerte = db.Column(db.String(20))  # IMMEDIATE, DAILY, WEEKLY
     success = db.Column(db.Boolean, default=True)
     error_msg = db.Column(db.Text)

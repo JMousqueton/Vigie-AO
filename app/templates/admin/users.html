@@ -548,21 +548,24 @@
       <div class="table-responsive">
         <table class="data-table">
           <thead>
-            <tr><th>Date</th><th>Utilisateur</th><th>Type</th><th>Dossiers</th><th>Statut</th></tr>
+            <tr><th>Date</th><th>Type</th><th>Utilisateurs scannés</th><th>Emails envoyés</th><th>Dossiers</th><th>Watchlist</th><th>Statut</th></tr>
           </thead>
           <tbody>
             {% for log in recent_logs %}
             <tr>
-              <td class="text-small mono">{{ log.sent_at.strftime('%d/%m/%Y %H:%M') }}</td>
-              <td class="text-small">{{ log.user_id }}</td>
+              <td class="text-small mono">{{ log.date }}</td>
               <td><span class="badge badge-user">{{ log.type_alerte }}</span></td>
-              <td>{{ log.nb_dossiers }}</td>
+              <td>{{ log.nb_scanned }}</td>
+              <td><strong>{{ log.nb_emails or 0 }}</strong></td>
+              <td>{{ log.total_dossiers or 0 }}</td>
+              <td>{{ log.total_watchlist or 0 }}</td>
               <td>
-                {% if log.success %}
+                {% if log.nb_ok == log.nb_emails %}
                   <span class="status-dot status-active"></span> OK
+                {% elif log.nb_ok == 0 %}
+                  <span class="status-dot status-inactive"></span> <span class="text-danger">Erreur</span>
                 {% else %}
-                  <span class="status-dot status-inactive"></span>
-                  <span class="text-danger" title="{{ log.error_msg }}">Erreur</span>
+                  <span class="status-dot status-warning"></span> {{ log.nb_ok }}/{{ log.nb_emails }}
                 {% endif %}
               </td>
             </tr>

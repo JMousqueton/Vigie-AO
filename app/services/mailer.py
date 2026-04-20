@@ -203,10 +203,14 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False
     new_dossiers = _get_new_dossiers_for_user(user)
     watchlist_updates = _get_watchlist_updates(user)
 
-    if not new_dossiers and not watchlist_updates:
-        return 'empty'  # Rien à envoyer
+    log = AlertLog(user_id=user.id, type_alerte=alert_type, nb_dossiers=len(new_dossiers), nb_watchlist=len(watchlist_updates))
 
-    log = AlertLog(user_id=user.id, type_alerte=alert_type, nb_dossiers=len(new_dossiers))
+    if not new_dossiers and not watchlist_updates:
+        log.was_sent = False
+        log.success = True
+        db.session.add(log)
+        db.session.commit()
+        return 'empty'
 
     lang = 'fr' if (getattr(user, 'country', 'FR') or 'FR') == 'FR' else 'en'
     if lang == 'en':
@@ -232,6 +236,7 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False
         mail.send(msg)
 
         user.alert_last_sent = utc_now()
+        log.was_sent = True
         log.success = True
         db.session.add(log)
         db.session.commit()

@@ -44,6 +44,8 @@ def _migrate_db():
         "CREATE INDEX IF NOT EXISTS ix_dossier_cache_is_dup_score ON dossier_cache (is_duplicate, score_pertinence)",
         "ALTER TABLE dossier_cache ADD COLUMN duree_marche_valeur VARCHAR(10)",
         "ALTER TABLE dossier_cache ADD COLUMN duree_marche_unite VARCHAR(10)",
+        "ALTER TABLE alert_logs ADD COLUMN nb_watchlist INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE alert_logs ADD COLUMN was_sent BOOLEAN NOT NULL DEFAULT 0",
     ]
     with app.app_context():
         with db.engine.connect() as conn:
