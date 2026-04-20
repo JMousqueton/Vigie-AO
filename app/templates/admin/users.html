@@ -560,12 +560,12 @@
               <td>{{ log.total_dossiers or 0 }}</td>
               <td>{{ log.total_watchlist or 0 }}</td>
               <td>
-                {% if log.nb_ok == log.nb_emails %}
+                {% set errors = log.nb_errors or 0 %}
+                {% if errors == 0 %}
                   <span class="status-dot status-active"></span> OK
-                {% elif log.nb_ok == 0 %}
-                  <span class="status-dot status-inactive"></span> <span class="text-danger">Erreur</span>
                 {% else %}
-                  <span class="status-dot status-warning"></span> {{ log.nb_ok }}/{{ log.nb_emails }}
+                  <span class="status-dot status-inactive"></span>
+                  <span class="text-danger">{{ errors }} erreur(s)</span>
                 {% endif %}
               </td>
             </tr>

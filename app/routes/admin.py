@@ -129,7 +129,12 @@ def _admin_context(**extra):
             db.func.sum(db.cast(AlertLog.was_sent, db.Integer)).label('nb_emails'),
             db.func.sum(AlertLog.nb_dossiers).label('total_dossiers'),
             db.func.sum(AlertLog.nb_watchlist).label('total_watchlist'),
-            db.func.sum(db.cast(AlertLog.success, db.Integer)).label('nb_ok'),
+            db.func.sum(db.cast(
+                db.and_(AlertLog.was_sent == True, AlertLog.success == True), db.Integer
+            )).label('nb_ok'),
+            db.func.sum(db.cast(
+                db.and_(AlertLog.was_sent == True, AlertLog.success == False), db.Integer
+            )).label('nb_errors'),
         ).group_by(db.func.date(AlertLog.sent_at), AlertLog.type_alerte)
          .order_by(db.func.date(AlertLog.sent_at).desc())
          .limit(30).all(),
