@@ -196,19 +196,35 @@ def send_digest_cmd(alert_type, user_email, dry_run):
             return
 
         click.echo(f"Envoi digest {alert_type} à {len(users)} utilisateur(s)…")
-        ok = ko = 0
+        ok = ko = skipped = 0
         for user in users:
-            # --user bypasse alert_enabled pour les tests
             force = user_email is not None
-            success = send_alert_digest(user, alert_type, force=force)
-            if success:
+            result = send_alert_digest(user, alert_type, force=force)
+            if result == 'empty':
+                skipped += 1
+                click.echo(f"  [SKIP] {user.email} — aucun contenu à envoyer")
+            elif isinstance(result, dict) and result.get('sent'):
                 ok += 1
-                click.echo(f"  [OK] {user.email}")
+                nd = result.get('new_dossiers', 0)
+                wl = result.get('watchlist', 0)
+                parts = []
+                if nd:
+                    parts.append(f"{nd} nouveau(x) dossier(s)")
+                if wl:
+                    parts.append(f"{wl} màj watchlist")
+                detail = ', '.join(parts) if parts else 'aucun contenu'
+                click.echo(f"  [ENVOYÉ] {user.email} — {detail}")
             else:
                 ko += 1
-                click.echo(f"  [KO] {user.email}", err=True)
+                err = result.get('error', '?') if isinstance(result, dict) else '?'
+                click.echo(f"  [ERREUR] {user.email} — {err}", err=True)
 
-        click.echo(f"Terminé — {ok} OK, {ko} erreur(s).")
+        summary = f"Terminé — {ok} envoyé(s)"
+        if skipped:
+            summary += f", {skipped} ignoré(s) (rien à envoyer)"
+        if ko:
+            summary += f", {ko} erreur(s)"
+        click.echo(summary)
 
 
 @app.cli.command('refresh-ted')

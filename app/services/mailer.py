@@ -204,7 +204,7 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False
     watchlist_updates = _get_watchlist_updates(user)
 
     if not new_dossiers and not watchlist_updates:
-        return True  # Rien à envoyer
+        return 'empty'  # Rien à envoyer
 
     log = AlertLog(user_id=user.id, type_alerte=alert_type, nb_dossiers=len(new_dossiers))
 
@@ -237,7 +237,7 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False
         db.session.commit()
 
         logger.info("Digest %s envoyé à %s (%d dossiers)", alert_type, user.email, len(new_dossiers))
-        return True
+        return {'sent': True, 'new_dossiers': len(new_dossiers), 'watchlist': len(watchlist_updates)}
 
     except Exception as exc:
         logger.error("Erreur digest %s à %s : %s", alert_type, user.email, exc)
@@ -245,4 +245,4 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False
         log.error_msg = str(exc)
         db.session.add(log)
         db.session.commit()
-        return False
+        return {'sent': False, 'error': str(exc)}
