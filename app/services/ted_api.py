@@ -550,9 +550,14 @@ def _normalize_ted_record(notice: dict) -> dict:
     tel_raw = notice.get('organisation-tel-buyer') or []
     contact_tel = tel_raw[0] if isinstance(tel_raw, list) and tel_raw else (tel_raw or '')
 
-    # Durée du marché : champ DD = nombre de mois (entier)
+    # Durée du marché : champ DD = nombre de mois (entier) — peut être une date ou liste
     dd = notice.get('DD')
-    duration_value = str(int(dd)) if dd is not None else None
+    if isinstance(dd, list):
+        dd = dd[0] if dd else None
+    try:
+        duration_value = str(int(dd)) if dd is not None else None
+    except (ValueError, TypeError):
+        duration_value = None
     duration_unit  = 'MONTH' if duration_value else None
 
     return {
@@ -690,8 +695,13 @@ def fetch_ted_duration(idweb: str) -> tuple:
         notices = resp.json().get('notices', [])
         if notices:
             dd = notices[0].get('DD')
-            if dd is not None:
-                return str(int(dd)), 'MONTH'
+            if isinstance(dd, list):
+                dd = dd[0] if dd else None
+            try:
+                if dd is not None:
+                    return str(int(dd)), 'MONTH'
+            except (ValueError, TypeError):
+                pass
     except Exception:
         pass
     return None, None
