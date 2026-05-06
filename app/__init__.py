@@ -6,6 +6,7 @@ import os
 from logging.handlers import RotatingFileHandler
 
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_babel import Babel
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
@@ -13,7 +14,7 @@ from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from flask_limiter.util import get_ipaddr
 from flask_talisman import Talisman
 
 db = SQLAlchemy()
@@ -22,7 +23,7 @@ bcrypt = Bcrypt()
 login_manager = LoginManager()
 mail = Mail()
 csrf = CSRFProtect()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_ipaddr)
 talisman = Talisman()
 
 
@@ -44,6 +45,7 @@ def _get_locale():
 
 def create_app(config_name: str | None = None) -> Flask:
     app = Flask(__name__, instance_relative_config=True)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Config
     from config import config
