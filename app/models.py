@@ -192,6 +192,18 @@ class UserSeenDossier(db.Model):
         return f'<UserSeenDossier user={self.user_id} idweb={self.idweb}>'
 
 
+class UserNotifiedDossier(db.Model):
+    """Dossiers déjà notifiés par email pour chaque utilisateur (évite les doublons d'alertes)."""
+    __tablename__ = 'user_notified_dossiers'
+
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    idweb       = db.Column(db.String(20), primary_key=True)
+    notified_at = db.Column(db.DateTime, default=utc_now)
+
+    def __repr__(self):
+        return f'<UserNotifiedDossier user={self.user_id} idweb={self.idweb}>'
+
+
 class UserHiddenDossier(db.Model):
     """Dossiers masqués par un utilisateur (bouton œil barré sur les cards)."""
     __tablename__ = 'user_hidden_dossiers'

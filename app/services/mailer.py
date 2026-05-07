@@ -2,7 +2,6 @@
 Service d'envoi d'emails : alertes BOAMP, confirmation, invitation.
 """
 import logging
-from datetime import timedelta
 
 from app.utils import utc_now
 
@@ -11,7 +10,7 @@ from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 
 from app import mail, db
-from app.models import User, DossierCache, WatchlistItem, AlertLog
+from app.models import User, DossierCache, WatchlistItem, AlertLog, UserNotifiedDossier
 
 logger = logging.getLogger(__name__)
 
@@ -122,22 +121,21 @@ def send_temp_password_email(user: User, temp_password: str) -> bool:
 # ─── Alertes digest ──────────────────────────────────────────────────────────
 
 def _get_new_dossiers_for_user(user: User) -> list[DossierCache]:
-    """Retourne les dossiers pertinents depuis la dernière alerte, filtrés par pays.
+    """Retourne les dossiers pertinents non encore notifiés à cet utilisateur.
 
     - FR  → BOAMP (toujours FR) + TED France
     - EU  → tous les dossiers TED toutes sources
     - Autre → TED uniquement pour ce pays
     """
     from app import db
-    from datetime import date
-    cutoff_dt = user.alert_last_sent or (utc_now() - timedelta(days=7))
-    cutoff_date = cutoff_dt.date() if hasattr(cutoff_dt, 'date') else cutoff_dt
     user_country = getattr(user, 'country', 'FR') or 'FR'
 
+    already_notified = db.session.query(UserNotifiedDossier.idweb).filter_by(user_id=user.id).subquery()
+
     base = DossierCache.query.filter(
-        DossierCache.date_derniere_activite >= cutoff_date,
         DossierCache.score_pertinence > 0,
         DossierCache.is_duplicate == False,  # noqa: E712
+        ~DossierCache.idweb.in_(already_notified),
     )
 
     if user_country == 'FR':
@@ -239,6 +237,8 @@ def send_alert_digest(user: User, alert_type: str = 'DAILY', force: bool = False
         log.was_sent = True
         log.success = True
         db.session.add(log)
+        for d in new_dossiers:
+            db.session.merge(UserNotifiedDossier(user_id=user.id, idweb=d.idweb, notified_at=utc_now()))
         db.session.commit()
 
         logger.info("Digest %s envoyé à %s (%d dossiers)", alert_type, user.email, len(new_dossiers))

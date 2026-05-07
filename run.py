@@ -46,6 +46,12 @@ def _migrate_db():
         "ALTER TABLE dossier_cache ADD COLUMN duree_marche_unite VARCHAR(10)",
         "ALTER TABLE alert_logs ADD COLUMN nb_watchlist INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE alert_logs ADD COLUMN was_sent BOOLEAN NOT NULL DEFAULT 0",
+        """CREATE TABLE IF NOT EXISTS user_notified_dossiers (
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            idweb VARCHAR(20) NOT NULL,
+            notified_at DATETIME,
+            PRIMARY KEY (user_id, idweb)
+        )""",
     ]
     with app.app_context():
         with db.engine.connect() as conn:
