@@ -114,13 +114,24 @@ CPV_PREFIX_WEIGHTS: dict[str, tuple[str, int]] = {
 }
 
 # Champs demandés à l'API TED (validés sur l'API v3)
-TED_FIELDS = ['ND', 'TI', 'BT-21-Procedure', 'PD', 'DT', 'DS', 'AU', 'PC', 'NC', 'TD', 'CY', 'RC', 'PR', 'links',
+TED_FIELDS = ['ND', 'TI', 'BT-21-Procedure', 'PD', 'DT', 'DS', 'AU', 'PC', 'NC', 'TD', 'notice-type', 'CY', 'RC', 'PR', 'links',
               'buyer-email', 'organisation-tel-buyer', 'DD']
 
 # Types de documents TED → nature
 # TD='2' = contract notice (AO), TD='3' = contract award (attribution)
 # TD='7' = simplified contract notice, etc.
 TD_ATTRIBUTION = {'3', '6', '13', '22', '29', '32'}
+# eForms : champ 'notice-type' (can-standard, can-social, can-desg, can-tran…).
+# can-modif = modification de contrat, pas une attribution.
+NOTICE_TYPE_NOT_ATTRIBUTION = {'can-modif'}
+
+
+def _is_attribution_notice(notice: dict) -> bool:
+    """Avis d'attribution : TD legacy (3, 6…) ou notice-type eForms 'can-*'."""
+    if str(notice.get('TD') or '') in TD_ATTRIBUTION:
+        return True
+    nt = str(notice.get('notice-type') or '').lower()
+    return nt.startswith('can-') and nt not in NOTICE_TYPE_NOT_ATTRIBUTION
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -523,8 +534,7 @@ def _normalize_ted_record(notice: dict) -> dict:
     acheteur = _multilang(notice.get('AU'), 'fra', 'eng')
 
     # Type de document → nature
-    td = str(notice.get('TD') or '')
-    is_attribution = td in TD_ATTRIBUTION
+    is_attribution = _is_attribution_notice(notice)
     nature = 'ATTRIBUTION' if is_attribution else 'APPEL_OFFRE'
 
     # CPV
