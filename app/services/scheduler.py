@@ -571,6 +571,43 @@ def link_boamp_attributions(app=None):
                 linked, relinked,
             )
 
+        if linked or relinked:
+            db.session.flush()
+        propagate_attribution_to_rectificatifs(ctx_app)
+
+
+def propagate_attribution_to_rectificatifs(app=None):
+    """
+    Les rectificatifs BOAMP héritent du statut d'attribution de leur avis parent
+    (reference_boamp_initial) : has_attribution=True + copie de attribution_json.
+    """
+    ctx_app = app or _get_app()
+    if not ctx_app:
+        return
+
+    with ctx_app.app_context():
+        from app.models import DossierCache
+        from app import db
+
+        parent = db.aliased(DossierCache)
+        rows = (
+            db.session.query(DossierCache, parent)
+            .join(parent, parent.idweb == DossierCache.reference_boamp_initial)
+            .filter(
+                DossierCache.source == 'BOAMP',
+                DossierCache.nature == 'RECTIFICATIF',
+                DossierCache.has_attribution == False,
+                parent.has_attribution == True,
+            )
+            .all()
+        )
+        for rect, par in rows:
+            rect.has_attribution = True
+            rect.attribution_json = par.attribution_json
+        if rows:
+            db.session.commit()
+            logger.info("Rectificatifs BOAMP : %d ont hérité de l'attribution du parent.", len(rows))
+
 
 # ─── Déduplication BOAMP ↔ TED ───────────────────────────────────────────────
 
